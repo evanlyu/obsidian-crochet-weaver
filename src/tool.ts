@@ -1,5 +1,5 @@
 import type { AstNode, ChartHighlight, CrochetAst } from './types';
-import { parse } from './parser';
+import { parseChart } from './parse-chart';
 import { validateChartBudget } from './budget';
 import { roundStitchCount, unitStitchCounts } from './layout';
 import { renderCrochetError } from './errors';
@@ -16,7 +16,7 @@ export interface ProgressStore {
 export function renderCrochetPatternText(source: string, el: HTMLElement, locale: Locale = 'en') {
 	let ast: CrochetAst;
 	try {
-		ast = parse(source) as CrochetAst;
+		ast = parseChart(source);
 		validateChartBudget(ast);
 	} catch (error) {
 		renderCrochetError(error, el, locale);
@@ -52,7 +52,7 @@ export function renderCrochetTool(
 ) {
 	let ast: CrochetAst;
 	try {
-		ast = parse(source) as CrochetAst;
+		ast = parseChart(source);
 		validateChartBudget(ast);
 	} catch (error) {
 		renderCrochetError(error, el, locale);

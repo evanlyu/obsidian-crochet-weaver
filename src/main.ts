@@ -1,6 +1,5 @@
 import { getLanguage, Plugin } from 'obsidian';
-// parser.ts is generated from grammar.peggy by `npm run generate-parser`.
-import { parse } from './parser';
+import { parseChart } from './parse-chart';
 import { validateChartBudget } from './budget';
 import { calculateLayout } from './layout';
 import { renderCrochetTool } from './tool';
@@ -9,7 +8,6 @@ import { resolveLocale, type Locale } from './i18n';
 import { resolveOptions, resolvePanelOptions } from './options';
 import { isSafeProgressId } from './progress-id';
 import { renderEmbeddedChart } from './embed';
-import type { CrochetAst } from './types';
 import {
 	CrochetWeaverSettingTab,
 	normalizeSettings,
@@ -25,7 +23,7 @@ export default class CrochetWeaverPlugin extends Plugin {
 
 		this.registerMarkdownCodeBlockProcessor('crochet', (source, el) => {
 			try {
-				const ast = parse(source) as CrochetAst;
+				const ast = parseChart(source);
 				validateChartBudget(ast);
 				const opts = resolveOptions(ast, this.settings);
 				const layout = calculateLayout(ast, opts);
