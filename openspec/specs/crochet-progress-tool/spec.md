@@ -91,7 +91,7 @@ The system SHALL visually distinguish completed rows, the current row, and remai
 - **THEN** the progress summary SHALL use the unit word for rounds
 
 ### Requirement: Track stitch progress within the current row
-The system SHALL display a stitch counter for the current (in-progress) row, letting the user increment or decrement it one stitch at a time, so they can track their position within a row and not just which rows are complete.
+The system SHALL display a stitch counter for the current (in-progress) row, letting the user increment or decrement it one pattern unit at a time (e.g., +2 for an inc), so they can track their position within a row and not just which rows are complete.
 
 #### Scenario: Counter shown for the current row
 - **WHEN** the progress tool has a current row (completed row count is less than the total row count)
@@ -101,13 +101,13 @@ The system SHALL display a stitch counter for the current (in-progress) row, let
 - **WHEN** the completed row count equals the total row count
 - **THEN** the tool SHALL NOT display a stitch counter
 
-#### Scenario: Increment one stitch
+#### Scenario: Increment one unit
 - **WHEN** the user selects the increment control and the current stitch count is below the current row's total
-- **THEN** the stored stitch count for that row SHALL increase by one
+- **THEN** the stored stitch count for that row SHALL increase by the unit's weight
 
-#### Scenario: Decrement one stitch
+#### Scenario: Decrement one unit
 - **WHEN** the user selects the decrement control and the current stitch count is above zero
-- **THEN** the stored stitch count for that row SHALL decrease by one
+- **THEN** the stored stitch count for that row SHALL decrease by the previous unit's weight
 
 #### Scenario: Reset current row's stitch count
 - **WHEN** the user selects the stitch-counter reset control

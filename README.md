@@ -209,7 +209,7 @@ A `crochet` block's `tool` and `text` frontmatter keys (or their matching global
 Whether embedded (`tool: on`) or standalone (`crochet-tool` block), the progress tool tracks two levels of detail:
 
 - **Row/round progress** — click a row to jump to it, or use Previous / Complete round / Reset. A segmented bar shows how many rows are done.
-- **Stitch counter** — for the current row, tap `+1` once per physical stitch made. Reaching the row's full stitch count automatically completes that row and resets the counter to zero, so you can keep tapping `+1` straight through row boundaries. `−1` corrects an overcount, and a reset button clears the current row's count without touching row progress. Going back a round, completing a round, resetting, or clicking a row all reset the stitch counter for the new current row.
+- **Stitch counter** — for the current row, tap the `+` button once per pattern unit (e.g., `+2` for an `inc`). Reaching the row's full stitch count automatically completes that row and resets the counter to zero, so you can keep tapping straight through row boundaries. The `−` button corrects an overcount, and a reset button clears the current row's count without touching row progress. Going back a round, completing a round, resetting, or clicking a row all reset the stitch counter for the new current row.
 
 When the tool is embedded next to its chart (`tool: on`), the chart highlights your current position live: the current row gets a subtle wash, and the exact next stitch gets a stronger highlight, both in the color set by **Chart tool current-position color**. Standalone `crochet-tool` blocks and `text: on` panels have no chart to highlight, so they don't show this.
 
