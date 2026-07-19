@@ -1,0 +1,34 @@
+{
+	"name": "obsidian-crochet-weaver",
+	"version": "1.0.0",
+	"description": "Render crochet stitch charts from text patterns in Obsidian code blocks.",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"generate-parser": "peggy --plugin ts-pegjs -o src/parser.ts src/grammar.peggy",
+		"test": "npm run generate-parser && vitest run",
+		"test:watch": "npm run generate-parser && vitest",
+		"dev": "npm run generate-parser && node esbuild.config.mjs",
+		"build": "npm run generate-parser && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"lint": "eslint ."
+	},
+	"keywords": [],
+	"license": "0-BSD",
+	"devDependencies": {
+		"@eslint/js": "^9.39.4",
+		"@types/node": "^22.15.17",
+		"esbuild": "0.25.5",
+		"eslint": "^9.39.4",
+		"eslint-plugin-obsidianmd": "^0.4.0",
+		"globals": "^17.6.0",
+		"happy-dom": "^20.10.6",
+		"jiti": "^2.6.1",
+		"obsidian": "latest",
+		"peggy": "^3.0.2",
+		"ts-pegjs": "^4.2.1",
+		"typescript": "^5.8.3",
+		"typescript-eslint": "^8.59.1",
+		"vitest": "^4.1.10"
+	}
+}

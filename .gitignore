@@ -1,0 +1,39 @@
+# Editors and IDEs
+.vscode/
+.idea/
+*.iml
+
+# Dependencies
+node_modules/
+
+# Generated parser (npm run generate-parser reads src/grammar.peggy)
+src/parser.ts
+
+# Build and release artifacts
+main.js
+*.map
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Obsidian local plugin state
+data.json
+
+# Local AI/agent workspaces and caches
+.claude/
+.codegraph
+.codex/
+.cursor/
+.continue/
+.opencode/
+.omo/
+.aider*
+.cline/
+.kilo/
+.roo/
+.windsurf/
+
+# OS files
+.DS_Store
+Thumbs.db
