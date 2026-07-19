@@ -3,13 +3,13 @@ import { getLanguage, Plugin } from 'obsidian';
 import { parse } from './parser';
 import { validateChartBudget } from './budget';
 import { calculateLayout } from './layout';
-import { renderSVG } from './render';
-import { renderCrochetPatternText, renderCrochetTool } from './tool';
+import { renderCrochetTool } from './tool';
 import { renderCrochetError } from './errors';
 import { resolveLocale, type Locale } from './i18n';
 import { resolveOptions, resolvePanelOptions } from './options';
 import { isSafeProgressId } from './progress-id';
-import type { ChartHighlight, CrochetAst } from './types';
+import { renderEmbeddedChart } from './embed';
+import type { CrochetAst } from './types';
 import {
 	CrochetWeaverSettingTab,
 	normalizeSettings,
@@ -31,26 +31,7 @@ export default class CrochetWeaverPlugin extends Plugin {
 				const layout = calculateLayout(ast, opts);
 				const locale = this.getLocale();
 				const panel = resolvePanelOptions(ast, this.settings);
-				if (panel.showTool) {
-					const wrapper = el.createDiv({
-						cls: `crochet-weaver-chart-row crochet-weaver-panel-${panel.position}`,
-					});
-					const chartContainer = wrapper.createDiv({ cls: 'crochet-weaver-chart-container' });
-					const paintChart = (highlight: ChartHighlight | undefined) => {
-						chartContainer.empty();
-						renderSVG(layout, chartContainer, opts, locale, highlight);
-					};
-					renderCrochetTool(source, wrapper, this, locale, paintChart);
-				} else if (panel.showText) {
-					const wrapper = el.createDiv({
-						cls: `crochet-weaver-chart-row crochet-weaver-panel-${panel.position}`,
-					});
-					const chartContainer = wrapper.createDiv({ cls: 'crochet-weaver-chart-container' });
-					renderSVG(layout, chartContainer, opts, locale);
-					renderCrochetPatternText(source, wrapper, locale);
-				} else {
-					renderSVG(layout, el, opts, locale);
-				}
+				renderEmbeddedChart(el, source, ast, layout, opts, panel, locale, this);
 			} catch (error) {
 				renderCrochetError(error, el, this.getLocale());
 			}
