@@ -26,6 +26,11 @@
 	opacity: 0.2;
 }
 
+.crochet-weaver-grid-guide {
+	color: var(--text-faint);
+	opacity: 0.6;
+}
+
 .crochet-weaver-chart-row {
 	display: flex;
 	flex-wrap: wrap;
@@ -56,6 +61,16 @@
 .crochet-weaver-panel-below .crochet-pattern-text {
 	flex: 1 1 auto;
 	width: 100%;
+}
+
+.crochet-weaver-grid {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	margin: 0.5em 0;
+	border-radius: 8px;
+	background-color: var(--background-secondary);
+	color: var(--text-muted); /* Guide lines use currentColor and follow the theme. */
 }
 
 .crochet-weaver-error {

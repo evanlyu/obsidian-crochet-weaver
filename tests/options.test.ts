@@ -15,6 +15,11 @@ const SETTINGS: CrochetWeaverSettings = {
 	showTool: false,
 	showPatternText: false,
 	panelPosition: 'right',
+	showGrid: false,
+	gridDefaultShape: 'polar',
+	gridDefaultRounds: 6,
+	gridDefaultColumns: 12,
+	gridDefaultRows: 6,
 	progress: {},
 	stitchProgress: {},
 };
@@ -30,6 +35,7 @@ describe('chart option resolution', () => {
 		expect(options).toEqual({
 			rotation: 'smart',
 			ringSpacing: 30,
+			grid: false,
 			scale: 1,
 			strokeWidth: 1.5,
 			highlightIncDec: false,
@@ -54,6 +60,7 @@ R1: sc
 		expect(options).toEqual({
 			rotation: 'all',
 			ringSpacing: 40,
+			grid: false,
 			scale: 1.25,
 			strokeWidth: 2,
 			highlightIncDec: true,
@@ -78,6 +85,7 @@ R1: sc
 		expect(options).toEqual({
 			rotation: 'smart',
 			ringSpacing: 30,
+			grid: false,
 			scale: 1,
 			strokeWidth: 1.5,
 			highlightIncDec: false,
@@ -102,6 +110,44 @@ R1: sc
 			scale: 1,
 			strokeWidth: 1.5,
 		}));
+	});
+
+	it('resolves grid from frontmatter or the global setting, with invalid values falling back', () => {
+		expect(resolveOptions(parseChart('R1: sc\n'), SETTINGS).grid).toBe(false);
+		expect(resolveOptions(parseChart('R1: sc\n'), { ...SETTINGS, showGrid: true }).grid).toBe(true);
+		expect(resolveOptions(parseChart('---\ngrid: on\n---\nR1: sc\n'), SETTINGS).grid).toBe(true);
+		expect(resolveOptions(parseChart('---\ngrid: off\n---\nR1: sc\n'), { ...SETTINGS, showGrid: true }).grid).toBe(
+			false,
+		);
+		expect(resolveOptions(parseChart('---\ngrid: maybe\n---\nR1: sc\n'), { ...SETTINGS, showGrid: true }).grid).toBe(
+			true,
+		);
+	});
+
+	it('resolves gridCount from rounds for round/spiral charts and from rows for flat charts', () => {
+		const round = resolveOptions(
+			parseChart('---\ntype: round\nrounds: 8\n---\nR1: 6 sc in MR\n'),
+			SETTINGS,
+		);
+		expect(round.gridCount).toBe(8);
+
+		const flat = resolveOptions(parseChart('---\ntype: flat\nrows: 5\n---\nR1: sc\n'), SETTINGS);
+		expect(flat.gridCount).toBe(5);
+
+		const noOverride = resolveOptions(parseChart('R1: sc\n'), SETTINGS);
+		expect(noOverride.gridCount).toBeUndefined();
+
+		const invalid = resolveOptions(
+			parseChart('---\ntype: round\nrounds: -1\n---\nR1: 6 sc in MR\n'),
+			SETTINGS,
+		);
+		expect(invalid.gridCount).toBeUndefined();
+	});
+
+	it('resolves gridColumns from the columns frontmatter key', () => {
+		expect(resolveOptions(parseChart('---\ncolumns: 16\n---\nR1: sc\n'), SETTINGS).gridColumns).toBe(16);
+		expect(resolveOptions(parseChart('R1: sc\n'), SETTINGS).gridColumns).toBeUndefined();
+		expect(resolveOptions(parseChart('---\ncolumns: 0\n---\nR1: sc\n'), SETTINGS).gridColumns).toBeUndefined();
 	});
 });
 

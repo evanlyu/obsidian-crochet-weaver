@@ -304,3 +304,114 @@ R4: [2 sc, inc] x 6
 ## 10. Progress Identity
 
 Set an explicit `id:` (used throughout this file, e.g. `demo-embedded-tool`) so progress survives edits to the pattern text. Without one, Crochet Weaver derives a hash from the block's own content, and editing that content can reset progress — try removing `id: demo-standalone-tool` above and see the id-derivation note in the README's Quick Start section.
+
+## 11. Blank Drafting Grid
+
+`crochet-grid` blocks render a blank grid for sketching a new design by hand — no stitches, no progress tracking, just guide geometry. Use the **Insert blank crochet grid** command (Command Palette) to drop in a starter block pre-filled with your grid-default settings.
+
+### Polar shape (default) — concentric rings + radial spokes
+
+`rounds` sets the ring count, `columns` sets the spoke count.
+
+```crochet-grid
+shape: polar
+rounds: 6
+columns: 12
+```
+
+### Rectangular shape — row/column mesh
+
+`rows` by `columns` cells, useful for planning a flat design.
+
+```crochet-grid
+shape: rect
+rows: 8
+columns: 8
+```
+
+### Sizing overrides
+
+`scale`, `stroke`, and `spacing` behave the same as they do for `crochet` charts — `spacing` sets the ring gap here instead of the mesh's default cell size.
+
+```crochet-grid
+shape: polar
+rounds: 8
+columns: 16
+spacing: 20
+stroke: 1
+```
+
+### Error handling
+
+A malformed config line (not `key: value`) reports which line is wrong:
+
+```crochet-grid
+shape: polar
+this is not a config line
+```
+
+Excessive `rounds`, `columns`, or `rows` are rejected the same way — current grid limits: 40 rounds, 72 columns, 40 rows.
+
+## 12. Grid Guide Overlay (on a real chart)
+
+`grid: on` draws a faint reference guide *behind a real chart's own stitches*, aligned to its real geometry — different from the blank `crochet-grid` block above, which has no stitches at all.
+
+### Round chart, default alignment
+
+No extra config needed — one guide ring per real round, spokes matching the last round's stitch count.
+
+```crochet
+---
+type: round
+grid: on
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6, sl st
+```
+
+### Extending the guide beyond the real pattern
+
+`rounds:` (and `columns:`) can extend the guide past the real round count — useful for previewing how many more rounds a design might need. They can only extend the guide, never shrink it below the real extent.
+
+```crochet
+---
+type: round
+grid: on
+rounds: 7
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6, sl st
+```
+
+### Spiral chart
+
+Spiral has no discrete rounds, so each guide ring approximates "round N" as the radius the spiral reaches by the end of row N.
+
+```crochet
+---
+type: spiral
+grid: on
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+```
+
+### Flat chart
+
+A row/column mesh sized to the chart's real row height and stitch width — a reference frame, not a per-stitch guarantee past row 0 (rows alternate direction).
+
+```crochet
+---
+type: flat
+grid: on
+---
+R1: 8 sc
+R2: 8 sc
+R3: 8 sc
+R4: 8 sc
+```

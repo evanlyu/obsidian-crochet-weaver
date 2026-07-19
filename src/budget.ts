@@ -11,6 +11,17 @@ export const CHART_BUDGET = {
 
 type ChartBudget = typeof CHART_BUDGET;
 
+// Grid-guide overlay limits, numerically mirroring the standalone
+// crochet-grid block's GRID_BUDGET (src/grid/budget.ts) but kept as an
+// independent constant: the guide overlay and the standalone grid block
+// share geometry types only, not code paths (see the add-grid-guide-overlay
+// design doc).
+export const GRID_GUIDE_BUDGET = {
+	maxRounds: 40,
+	maxColumns: 72,
+	maxRows: 40,
+} as const;
+
 export class ChartBudgetError extends Error {
 	readonly translationKey: TranslationKey;
 	readonly translationParams: Record<string, string | number>;
@@ -51,6 +62,41 @@ export function validateChartBudget(
 				params,
 			);
 		}
+	}
+}
+
+// Validates a resolved grid-guide override (rounds/rows and columns from
+// frontmatter) before layout, so a mistyped rounds: 999999999 with grid: on
+// can't generate an unbounded SVG. Only meaningful when the guide is enabled
+// — an unused override sitting in frontmatter with grid off never reaches
+// layout, so it needs no check.
+export function validateGridGuideBudget(
+	chartType: string,
+	options: { grid: boolean; gridCount?: number; gridColumns?: number },
+	budget: typeof GRID_GUIDE_BUDGET = GRID_GUIDE_BUDGET,
+): void {
+	if (!options.grid) return;
+
+	if (options.gridCount !== undefined) {
+		const isFlat = chartType === 'flat';
+		const max = isFlat ? budget.maxRows : budget.maxRounds;
+		if (options.gridCount > max) {
+			const params = { [isFlat ? 'rows' : 'rounds']: options.gridCount, max };
+			throw new ChartBudgetError(
+				`Grid guide has too many ${isFlat ? 'rows' : 'rounds'} (${options.gridCount}); maximum is ${max}.`,
+				isFlat ? 'budget.gridRows' : 'budget.gridRounds',
+				params,
+			);
+		}
+	}
+
+	if (options.gridColumns !== undefined && options.gridColumns > budget.maxColumns) {
+		const params = { columns: options.gridColumns, max: budget.maxColumns };
+		throw new ChartBudgetError(
+			`Grid guide has too many columns (${options.gridColumns}); maximum is ${budget.maxColumns}.`,
+			'budget.gridColumns',
+			params,
+		);
 	}
 }
 

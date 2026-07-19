@@ -1,10 +1,16 @@
-import { getLanguage, Plugin } from 'obsidian';
+import { getLanguage, Plugin, type Editor } from 'obsidian';
 import { parseChart } from './parse-chart';
-import { validateChartBudget } from './budget';
+import { validateChartBudget, validateGridGuideBudget } from './budget';
 import { calculateLayout } from './layout';
 import { renderCrochetTool } from './tool';
 import { renderCrochetError } from './errors';
-import { resolveLocale, type Locale } from './i18n';
+import { renderGridError } from './grid/errors';
+import { parseGridConfig } from './grid/parse';
+import { resolveGridOptions } from './grid/options';
+import { validateGridBudget } from './grid/budget';
+import { calculateGridLayout } from './grid/layout';
+import { renderGrid } from './grid/render';
+import { resolveLocale, t, type Locale } from './i18n';
 import { resolveOptions, resolvePanelOptions } from './options';
 import { isSafeProgressId } from './progress-id';
 import { renderEmbeddedChart } from './embed';
@@ -26,6 +32,7 @@ export default class CrochetWeaverPlugin extends Plugin {
 				const ast = parseChart(source);
 				validateChartBudget(ast);
 				const opts = resolveOptions(ast, this.settings);
+				validateGridGuideBudget(ast.config.type, opts);
 				const layout = calculateLayout(ast, opts);
 				const locale = this.getLocale();
 				const panel = resolvePanelOptions(ast, this.settings);
@@ -37,6 +44,36 @@ export default class CrochetWeaverPlugin extends Plugin {
 
 		this.registerMarkdownCodeBlockProcessor('crochet-tool', (source, el) => {
 			renderCrochetTool(source, el, this, this.getLocale());
+		});
+
+		this.registerMarkdownCodeBlockProcessor('crochet-grid', (source, el) => {
+			try {
+				const config = parseGridConfig(source);
+				const opts = resolveGridOptions(config, this.settings);
+				validateGridBudget(opts);
+				const layout = calculateGridLayout(opts);
+				renderGrid(layout, el, opts, this.getLocale());
+			} catch (error) {
+				renderGridError(error, el, this.getLocale());
+			}
+		});
+
+		this.addCommand({
+			id: 'insert-crochet-grid',
+			name: t(this.getLocale(), 'command.insertGrid'),
+			editorCallback: (editor: Editor) => {
+				const { gridDefaultShape, gridDefaultRounds, gridDefaultColumns, gridDefaultRows } = this.settings;
+				const template = [
+					'```crochet-grid',
+					`shape: ${gridDefaultShape}`,
+					`rounds: ${gridDefaultRounds}`,
+					`columns: ${gridDefaultColumns}`,
+					`rows: ${gridDefaultRows}`,
+					'```',
+					'',
+				].join('\n');
+				editor.replaceSelection(template);
+			},
 		});
 	}
 

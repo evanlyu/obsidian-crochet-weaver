@@ -15,6 +15,7 @@ export function resolveOptions(
 ): ResolvedOptions {
 	const config = ast.config;
 	const rotation = config.rotation?.toLowerCase();
+	const gridCountKey = config.type === 'flat' ? config.rows : config.rounds;
 	return {
 		rotation: isSymbolRotation(rotation) ? rotation : settings.symbolRotation,
 		ringSpacing: positiveFloat(config.spacing) ?? settings.ringSpacing,
@@ -22,6 +23,9 @@ export function resolveOptions(
 		strokeWidth: positiveFloat(config.stroke) ?? settings.strokeWidth,
 		highlightIncDec: boolOption(config.highlight) ?? settings.highlightIncDec,
 		chartMarkerColor: settings.chartMarkerColor,
+		grid: boolOption(config.grid) ?? settings.showGrid,
+		gridCount: positiveInt(gridCountKey),
+		gridColumns: positiveInt(config.columns),
 	};
 }
 
@@ -50,6 +54,12 @@ function positiveFloat(value: string | undefined): number | undefined {
 	if (value === undefined) return undefined;
 	const numberValue = Number(value);
 	return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined;
+}
+
+function positiveInt(value: string | undefined): number | undefined {
+	if (value === undefined) return undefined;
+	const numberValue = Number(value);
+	return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : undefined;
 }
 
 function boolOption(value: string | undefined): boolean | undefined {

@@ -195,6 +195,48 @@ R2: [sc, inc] x 6
 R3: [2 sc, inc] x 6
 ```
 
+## Blank Drafting Grid
+
+`crochet-grid` renders a blank grid for sketching a new design by hand — no stitches, no progress tracking, just guide geometry.
+
+```crochet-grid
+shape: polar
+rounds: 6
+columns: 12
+```
+
+- `shape: polar` (default) draws `rounds` concentric ring circles and `columns` evenly spaced radial spokes.
+- `shape: rect` draws a `rows` by `columns` rectangular mesh instead:
+
+  ```crochet-grid
+  shape: rect
+  rows: 8
+  columns: 8
+  ```
+
+- `scale`, `stroke`, and `spacing` behave the same as they do for `crochet` charts; `spacing` sets the ring gap for `polar` or the cell size for `rect`.
+- Run the **Insert blank crochet grid** command to insert a starter block pre-filled with your grid defaults.
+
+## Grid Guide Overlay
+
+Unlike the standalone blank grid above, a `grid: on` key on a real `crochet` block draws a faint reference guide *behind your actual chart*, aligned to its real geometry — useful for seeing "which round am I on" at a glance, especially alongside the embedded progress tool.
+
+```crochet
+---
+type: round
+grid: on
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6, sl st
+```
+
+- `type: round` / `type: spiral`: one guide ring per round, at that round's real radius (spiral rings approximate "round N" as the radius reached by the end of row N, since a spiral has no discrete rounds). Guide spokes default to the last round's stitch count, evenly spaced by angle.
+- `type: flat`: a row/column mesh sized to the chart's real row height and stitch width — a reference frame, not a guarantee every stitch past row 0 sits exactly on an intersection (rows alternate direction).
+- By default the guide matches the pattern's own extent — no extra config needed. Add `rounds:` (round/spiral) or `rows:` (flat) and/or `columns:` to extend the guide *beyond* the real pattern (e.g., to preview how many more rounds a design might need); these can only extend the guide, never shrink it below the real extent.
+- Turn it on for every chart by default with the **Show background grid guide** setting.
+
 ## Embedding the Progress Tool or Pattern Text
 
 A `crochet` block's `tool` and `text` frontmatter keys (or their matching global settings) let the chart carry its own progress panel, so the pattern only ever needs to be written once:
@@ -226,9 +268,14 @@ Open the plugin settings tab to configure global defaults:
 - **Show progress tool by default**: embed the progress tool on every `crochet` chart unless overridden per chart with `tool: on/off`.
 - **Show pattern text by default**: embed the read-only pattern text on every `crochet` chart unless overridden per chart with `text: on/off`.
 - **Panel position**: default position (right / left / below) for an embedded tool or text panel, overridable per chart with `position:`.
+- **Show background grid guide**: draw the round/row reference guide behind every `crochet` chart by default, overridable per chart with `grid: on/off`.
 - **Round symbol rotation**: `smart`, `all`, or `none` rotation for round and spiral symbols.
+- **Grid default shape**: `polar` or `rect` default for new `crochet-grid` blocks.
+- **Grid default rounds**: default ring count for a `polar` grid.
+- **Grid default columns**: default column/spoke count for a grid block.
+- **Grid default rows**: default row count for a `rect` grid.
 
-Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `rotation`, `tool`, `text`, `position`). `chartMarkerColor` is global-only.
+Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `rotation`, `tool`, `text`, `position`, `grid`). `chartMarkerColor` is global-only. `crochet-grid` blocks use their own config keys (`shape`, `rounds`, `columns`, `rows`, plus `scale`/`stroke`/`spacing`); the `grid` guide overlay on a real `crochet` chart adds `rounds`/`rows`/`columns` on top of that chart's own frontmatter, always as an extension of its real extent.
 
 ## Safety Limits
 
@@ -241,6 +288,9 @@ Current limits:
 - Maximum repeat count: 500
 - Maximum total rendered stitches: 5000
 - Maximum nesting depth: 8
+- Maximum grid rounds: 40 (applies to both `crochet-grid` blocks and a `crochet` chart's `grid: on` guide `rounds:` override)
+- Maximum grid columns: 72 (same scope as above)
+- Maximum grid rows: 40 (same scope as above)
 
 ## Privacy
 

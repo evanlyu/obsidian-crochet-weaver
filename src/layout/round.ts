@@ -1,5 +1,6 @@
 import type { CrochetAst, LayoutOptions, LayoutResult, RenderItem } from '../types';
 import { BASE_RADIUS, MIN_ARC } from './constants';
+import { buildRingGuide } from './grid-guide';
 import { normalize } from './normalize';
 import { placeUnitPolar, pushCenterAnchor } from './polar';
 import { isSlSt, outputStitches, tagLoop, unroll } from './steps';
@@ -9,6 +10,8 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 	pushCenterAnchor(ast, items);
 	let radius = 0;
 	let prevCount = -1;
+	let lastUnitCount = 0;
+	const roundRadii: number[] = [];
 
 	ast.rows.forEach((row, rowIndex) => {
 		const units = unroll(row.steps);
@@ -30,9 +33,17 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 		}
 		tagLoop(items, start, row.loop);
 		prevCount = stitchCount;
+		lastUnitCount = units.length;
+		roundRadii.push(radius);
 	});
 
-	return normalize(items);
+	// The guide's default spoke count matches units.length (rendered angular
+	// slots), not the stitch-weighted count nextRadius uses — an inc occupies
+	// one slot even though it outputs 2 stitches.
+	const gridGuide = options.grid
+		? buildRingGuide(roundRadii, lastUnitCount, options.ringSpacing, options.gridCount, options.gridColumns)
+		: undefined;
+	return normalize(items, undefined, gridGuide);
 }
 
 // Every round moves outward by at least one ring-spacing step, even a decrease

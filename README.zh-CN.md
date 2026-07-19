@@ -193,6 +193,48 @@ R2: [sc, inc] x 6
 R3: [2 sc, inc] x 6
 ```
 
+## 空白绘图网格
+
+`crochet-grid` 会渲染一张空白网格，方便手动起草新设计——没有针目、没有进度跟踪，只有辅助线几何图形。
+
+```crochet-grid
+shape: polar
+rounds: 6
+columns: 12
+```
+
+- `shape: polar`（默认）会画出 `rounds` 个同心圆环，以及 `columns` 条等角度分布的辐条。
+- `shape: rect` 则改画成 `rows` 乘 `columns` 的矩形网格：
+
+  ```crochet-grid
+  shape: rect
+  rows: 8
+  columns: 8
+  ```
+
+- `scale`、`stroke`、`spacing` 的行为与 `crochet` 织图相同；`spacing` 在 `polar` 下决定圈距，在 `rect` 下决定格距。
+- 执行「**插入空白钩织网格**」命令即可插入一个按你的网格默认值预填的起始代码块。
+
+## 织图背景参考网格
+
+和上面独立的空白网格不同，在「真正的」`crochet` 代码块里加上 `grid: on`，会在你实际的织图背后画出一张淡淡的参考网格，贴合织图真实的几何形状——方便一眼看出「目前织到第几圈」，尤其是搭配嵌入式进度工具使用时特别有用。
+
+```crochet
+---
+type: round
+grid: on
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6, sl st
+```
+
+- `type: round`／`type: spiral`：每一圈都有一圈参考圆，位置对齐该圈真实的半径（螺旋织图没有真正独立的圈，因此「第 N 圈」的参考圆是用第 N 行结束时螺旋所到达的半径来近似）。参考辐条默认数量等于最外圈的针数，并按等角度分布。
+- `type: flat`：会画出贴合织图真实行高与针宽的行／列网格——这是一个参考坐标系，并不保证第一行之外的每一针都精确落在网格交点上（因为平织每行方向会交替）。
+- 默认情况下，网格会自动贴合你当前写的织图范围，不需要额外配置。加上 `rounds:`（环织／螺旋）或 `rows:`（平织）以及／或 `columns:`，可以让网格延伸到超出当前织图范围（例如想预览这个设计大概还需要多少圈）；这些设置只能让网格变大，不会缩小到比实际织图范围更小。
+- 用「**显示背景参考网格**」设置可以让所有织图默认都显示这个网格。
+
 ## 嵌入进度工具或简码文字
 
 `crochet` 代码块的 `tool`／`text` frontmatter 键（或对应的全局设置）能让织图自带进度面板，让织图只需要写一次：
@@ -224,9 +266,14 @@ R3: [2 sc, inc] x 6
 - **默认显示进度工具**：让每张 `crochet` 织图默认嵌入进度工具，可用 `tool: on/off` 单独覆盖。
 - **默认显示简码文字**：让每张 `crochet` 织图默认嵌入只读简码文字，可用 `text: on/off` 单独覆盖。
 - **面板位置**：嵌入的工具或文字面板的默认位置（右／左／下方），可用 `position:` 单独覆盖。
+- **显示背景参考网格**：让每张 `crochet` 织图默认显示圈数／行列参考网格，可用 `grid: on/off` 单独覆盖。
 - **环织符号旋转**：同心圆环织／螺旋图中符号的旋转方式（`smart`、`all`、或 `none`）。
+- **网格默认形状**：新建 `crochet-grid` 代码块的默认形状（`polar` 或 `rect`）。
+- **网格默认圈数**：放射状网格的默认圈数。
+- **网格默认列数**：网格代码块的默认列数／辐条数。
+- **网格默认行数**：矩形网格的默认行数。
 
-标注「可单独覆盖」的设置，都能用对应的 frontmatter 键（`scale`、`stroke`、`spacing`、`highlight`、`rotation`、`tool`、`text`、`position`）在单张织图中覆盖。`chartMarkerColor` 仅限全局设置。
+标注「可单独覆盖」的设置，都能用对应的 frontmatter 键（`scale`、`stroke`、`spacing`、`highlight`、`rotation`、`tool`、`text`、`position`、`grid`）在单张织图中覆盖。`chartMarkerColor` 仅限全局设置。`crochet-grid` 代码块使用自己的配置键（`shape`、`rounds`、`columns`、`rows`，以及 `scale`／`stroke`／`spacing`）；真实织图上 `grid` 参考网格所用的 `rounds`／`rows`／`columns` 是叠加在该织图自身 frontmatter 之上的，且只能延伸、不会缩小到比真实范围更小。
 
 ## 安全限制
 
@@ -239,6 +286,9 @@ Crochet Weaver 会在展开布局之前先验证解析后的织图。行数、�
 - 最多重复 500 次
 - 最多渲染 5000 个针目
 - 最大嵌套深度 8 层
+- 网格最多 40 圈（`crochet-grid` 代码块与 `crochet` 织图 `grid: on` 的 `rounds:` 覆盖均适用）
+- 网格最多 72 列（适用范围同上）
+- 网格最多 40 行（适用范围同上）
 
 ## 隐私
 

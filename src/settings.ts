@@ -1,9 +1,12 @@
 import { PluginSettingTab, Setting, type App, type SettingDefinitionItem } from 'obsidian';
 import { t, type LanguagePreference } from './i18n';
 import type CrochetWeaverPlugin from './main';
-import type { PanelPosition, SymbolRotation } from './types';
+import type { GridShape, PanelPosition, SymbolRotation } from './types';
 import {
 	getLocalizedSettingDefinitions,
+	GRID_COLUMNS_OPTIONS,
+	GRID_ROUNDS_OPTIONS,
+	GRID_ROWS_OPTIONS,
 	RING_SPACING_OPTIONS,
 	SCALE_OPTIONS,
 	STROKE_WIDTH_OPTIONS,
@@ -20,8 +23,21 @@ export {
 
 // These settings back numeric dropdowns: Obsidian's dropdown control only persists
 // strings, so values round-trip through String()/Number() at the get/set boundary.
-type NumberSettingKey = 'scale' | 'strokeWidth' | 'ringSpacing';
-const NUMBER_KEYS: ReadonlySet<NumberSettingKey> = new Set(['scale', 'strokeWidth', 'ringSpacing']);
+type NumberSettingKey =
+	| 'scale'
+	| 'strokeWidth'
+	| 'ringSpacing'
+	| 'gridDefaultRounds'
+	| 'gridDefaultColumns'
+	| 'gridDefaultRows';
+const NUMBER_KEYS: ReadonlySet<NumberSettingKey> = new Set([
+	'scale',
+	'strokeWidth',
+	'ringSpacing',
+	'gridDefaultRounds',
+	'gridDefaultColumns',
+	'gridDefaultRows',
+]);
 
 function isNumberSettingKey(key: string): key is NumberSettingKey {
 	return NUMBER_KEYS.has(key as NumberSettingKey);
@@ -203,6 +219,18 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName(t(locale, 'settings.showGrid.name'))
+			.setDesc(t(locale, 'settings.showGrid.desc'))
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showGrid)
+					.onChange(async (value) => {
+						this.plugin.settings.showGrid = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
 			.setName(t(locale, 'settings.rotation.name'))
 			.setDesc(t(locale, 'settings.rotation.desc'))
 			.addDropdown((dd) =>
@@ -216,5 +244,82 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
+		new Setting(containerEl)
+			.setName(t(locale, 'settings.gridDefaultShape.name'))
+			.setDesc(t(locale, 'settings.gridDefaultShape.desc'))
+			.addDropdown((dd) =>
+				dd
+					.addOption('polar', t(locale, 'settings.gridDefaultShape.polar'))
+					.addOption('rect', t(locale, 'settings.gridDefaultShape.rect'))
+					.setValue(this.plugin.settings.gridDefaultShape)
+					.onChange(async (value) => {
+						this.plugin.settings.gridDefaultShape = value as GridShape;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t(locale, 'settings.gridDefaultRounds.name'))
+			.setDesc(t(locale, 'settings.gridDefaultRounds.desc'))
+			.addDropdown((dd) => {
+				const options: number[] = [...GRID_ROUNDS_OPTIONS];
+				const currentValue = this.plugin.settings.gridDefaultRounds;
+				if (!options.includes(currentValue)) {
+					options.push(currentValue);
+					options.sort((a, b) => a - b);
+				}
+				options.forEach((opt) => {
+					dd.addOption(opt.toString(), opt.toString());
+				});
+				return dd
+					.setValue(currentValue.toString())
+					.onChange(async (value) => {
+						this.plugin.settings.gridDefaultRounds = Number(value);
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(t(locale, 'settings.gridDefaultColumns.name'))
+			.setDesc(t(locale, 'settings.gridDefaultColumns.desc'))
+			.addDropdown((dd) => {
+				const options: number[] = [...GRID_COLUMNS_OPTIONS];
+				const currentValue = this.plugin.settings.gridDefaultColumns;
+				if (!options.includes(currentValue)) {
+					options.push(currentValue);
+					options.sort((a, b) => a - b);
+				}
+				options.forEach((opt) => {
+					dd.addOption(opt.toString(), opt.toString());
+				});
+				return dd
+					.setValue(currentValue.toString())
+					.onChange(async (value) => {
+						this.plugin.settings.gridDefaultColumns = Number(value);
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(t(locale, 'settings.gridDefaultRows.name'))
+			.setDesc(t(locale, 'settings.gridDefaultRows.desc'))
+			.addDropdown((dd) => {
+				const options: number[] = [...GRID_ROWS_OPTIONS];
+				const currentValue = this.plugin.settings.gridDefaultRows;
+				if (!options.includes(currentValue)) {
+					options.push(currentValue);
+					options.sort((a, b) => a - b);
+				}
+				options.forEach((opt) => {
+					dd.addOption(opt.toString(), opt.toString());
+				});
+				return dd
+					.setValue(currentValue.toString())
+					.onChange(async (value) => {
+						this.plugin.settings.gridDefaultRows = Number(value);
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 }

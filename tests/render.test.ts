@@ -189,6 +189,39 @@ describe('SVG rendering', () => {
 		expect(y2).toBeLessThanOrEqual(26);
 	});
 
+	it('draws the grid guide layer before the stitch symbols, using the guide class', () => {
+		const container = document.createElement('div');
+		const layout: LayoutResult = {
+			width: 100,
+			height: 80,
+			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0 }],
+			gridGuide: {
+				circles: [{ cx: 50, cy: 40, r: 20 }],
+				lines: [{ x1: 0, y1: 0, x2: 100, y2: 0 }],
+			},
+		};
+
+		renderSVG(layout, container, OPTIONS);
+
+		const svg = container.querySelector('svg');
+		const children = Array.from(svg?.children ?? []);
+		const guideCircle = svg?.querySelector('circle.crochet-weaver-grid-guide');
+		const guideLine = svg?.querySelector('line.crochet-weaver-grid-guide');
+		const use = svg?.querySelector('use');
+
+		expect(guideCircle?.getAttribute('r')).toBe('20');
+		expect(guideLine?.getAttribute('x2')).toBe('100');
+		expect(children.indexOf(guideCircle as Element)).toBeLessThan(children.indexOf(use as Element));
+	});
+
+	it('renders no guide elements when the layout has no gridGuide', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('sc'), container, OPTIONS);
+
+		expect(container.querySelector('.crochet-weaver-grid-guide')).toBeNull();
+	});
+
 	it('renders parse locations in error boxes with a generic localized message instead of raw PEG text', () => {
 		const container = document.createElement('div');
 		const error = Object.assign(new Error('Expected "R" or "Round" but "x" found.'), {

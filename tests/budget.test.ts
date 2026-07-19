@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateChartBudget } from '../src/budget';
+import { GRID_GUIDE_BUDGET, validateChartBudget, validateGridGuideBudget } from '../src/budget';
 import { calculateLayout } from '../src/layout';
 import { parse } from '../src/parser';
 import { renderCrochetTool } from '../src/tool';
@@ -8,6 +8,7 @@ import type { CrochetAst } from '../src/types';
 const OPTIONS = {
 	rotation: 'smart',
 	ringSpacing: 30,
+	grid: false,
 } as const;
 
 function parseChart(source: string): CrochetAst {
@@ -47,5 +48,39 @@ describe('chart budget validation', () => {
 
 		expect(container.querySelector('.crochet-weaver-error')).not.toBeNull();
 		expect(container.textContent).toContain('針數過多');
+	});
+});
+
+describe('grid guide budget validation', () => {
+	it('ignores gridCount/gridColumns when the guide is disabled', () => {
+		expect(() =>
+			validateGridGuideBudget('round', { grid: false, gridCount: 999999, gridColumns: 999999 }),
+		).not.toThrow();
+	});
+
+	it('accepts ordinary overrides within the limit', () => {
+		expect(() => validateGridGuideBudget('round', { grid: true, gridCount: 10, gridColumns: 20 })).not.toThrow();
+		expect(() => validateGridGuideBudget('flat', { grid: true, gridCount: 10, gridColumns: 20 })).not.toThrow();
+	});
+
+	it('rejects excessive rounds for round/spiral charts', () => {
+		expect(() =>
+			validateGridGuideBudget('round', { grid: true, gridCount: GRID_GUIDE_BUDGET.maxRounds + 1 }),
+		).toThrow(/rounds/i);
+		expect(() =>
+			validateGridGuideBudget('spiral', { grid: true, gridCount: GRID_GUIDE_BUDGET.maxRounds + 1 }),
+		).toThrow(/rounds/i);
+	});
+
+	it('rejects excessive rows for flat charts', () => {
+		expect(() =>
+			validateGridGuideBudget('flat', { grid: true, gridCount: GRID_GUIDE_BUDGET.maxRows + 1 }),
+		).toThrow(/rows/i);
+	});
+
+	it('rejects excessive columns for any chart type', () => {
+		expect(() =>
+			validateGridGuideBudget('round', { grid: true, gridColumns: GRID_GUIDE_BUDGET.maxColumns + 1 }),
+		).toThrow(/columns/i);
 	});
 });

@@ -6,6 +6,7 @@ import type { CrochetAst, RowNode } from '../src/types';
 const OPTIONS = {
 	rotation: 'smart',
 	ringSpacing: 30,
+	grid: false,
 } as const;
 
 function parseChart(source: string): CrochetAst {
@@ -202,5 +203,97 @@ R2: [inc] x 3, sl st
 
 		expect(roundStitchCount(row)).toBe(3);
 		expect(unitStitchCounts(row)).toEqual([1, 1, 1]);
+	});
+});
+
+describe('grid guide overlay', () => {
+	const roundSource = `---
+type: round
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+`;
+
+	it('draws no guide when grid is disabled', () => {
+		const layout = calculateLayout(parseChart(roundSource), OPTIONS);
+		expect(layout.gridGuide).toBeUndefined();
+	});
+
+	it('aligns round-chart guide rings to each round\'s real radius by default', () => {
+		const layout = calculateLayout(parseChart(roundSource), { ...OPTIONS, grid: true });
+		const center = { x: layout.items[0]?.x ?? 0, y: layout.items[0]?.y ?? 0 };
+		const radiusOf = (rowIndex: number) => {
+			const item = layout.items.find((i) => i.rowIndex === rowIndex);
+			return Math.hypot((item?.x ?? 0) - center.x, (item?.y ?? 0) - center.y);
+		};
+		const radii = layout.gridGuide?.circles.map((c) => c.r) ?? [];
+
+		expect(radii).toHaveLength(3);
+		expect(radii[0]).toBeCloseTo(radiusOf(0));
+		expect(radii[1]).toBeCloseTo(radiusOf(1));
+		expect(radii[2]).toBeCloseTo(radiusOf(2));
+	});
+
+	it('defaults round-chart guide spokes to the last round\'s rendered unit count', () => {
+		const layout = calculateLayout(parseChart(roundSource), { ...OPTIONS, grid: true });
+		// R3 is [sc, inc] x 6 = 12 rendered units (an inc is one angular slot,
+		// even though it outputs 2 stitches).
+		expect(layout.gridGuide?.lines).toHaveLength(12);
+	});
+
+	it('extends round-chart guide rings beyond the real round count, stepping by ringSpacing', () => {
+		const layout = calculateLayout(parseChart(roundSource), { ...OPTIONS, grid: true, gridCount: 5 });
+		const radii = layout.gridGuide?.circles.map((c) => c.r) ?? [];
+
+		expect(radii).toHaveLength(5);
+		expect(radii[3]).toBeCloseTo((radii[2] ?? 0) + OPTIONS.ringSpacing);
+		expect(radii[4]).toBeCloseTo((radii[3] ?? 0) + OPTIONS.ringSpacing);
+	});
+
+	it('ignores a rounds override below the real round count', () => {
+		const layout = calculateLayout(parseChart(roundSource), { ...OPTIONS, grid: true, gridCount: 1 });
+		expect(layout.gridGuide?.circles).toHaveLength(3);
+	});
+
+	it('lets gridColumns override the default spoke count', () => {
+		const layout = calculateLayout(parseChart(roundSource), { ...OPTIONS, grid: true, gridColumns: 20 });
+		expect(layout.gridGuide?.lines).toHaveLength(20);
+	});
+
+	it('builds a spiral guide from each row\'s end-of-row radius and last row\'s unit count', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: spiral\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n'),
+			{ ...OPTIONS, grid: true },
+		);
+
+		expect(layout.gridGuide?.circles).toHaveLength(2);
+		// R2 is [inc] x 6 = 6 rendered units (each inc is one angular slot).
+		expect(layout.gridGuide?.lines).toHaveLength(6);
+	});
+
+	it('builds a flat mesh guide sized to the real rows and widest row by default', () => {
+		const layout = calculateLayout(
+			parseChart('R1: 4 sc\nR2: 6 sc\n'),
+			{ ...OPTIONS, grid: true },
+		);
+
+		expect(layout.gridGuide?.circles).toHaveLength(0);
+		// 2 rows -> 3 horizontal lines, 6 columns (widest row) -> 7 vertical lines.
+		expect(layout.gridGuide?.lines).toHaveLength(3 + 7);
+	});
+
+	it('extends the flat mesh guide beyond the real extent, never below it', () => {
+		const grown = calculateLayout(
+			parseChart('R1: 4 sc\nR2: 6 sc\n'),
+			{ ...OPTIONS, grid: true, gridCount: 5, gridColumns: 10 },
+		);
+		expect(grown.gridGuide?.lines).toHaveLength((5 + 1) + (10 + 1));
+
+		const shrunk = calculateLayout(
+			parseChart('R1: 4 sc\nR2: 6 sc\n'),
+			{ ...OPTIONS, grid: true, gridCount: 1, gridColumns: 1 },
+		);
+		expect(shrunk.gridGuide?.lines).toHaveLength((2 + 1) + (6 + 1));
 	});
 });

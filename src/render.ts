@@ -95,6 +95,31 @@ export function renderSVG(
 	}
 	svg.appendChild(defs);
 
+	if (layout.gridGuide) {
+		for (const circle of layout.gridGuide.circles) {
+			const circleEl = doc.createElementNS(SVG_NS, 'circle');
+			circleEl.classList.add('crochet-weaver-grid-guide');
+			circleEl.setAttribute('cx', String(circle.cx));
+			circleEl.setAttribute('cy', String(circle.cy));
+			circleEl.setAttribute('r', String(circle.r));
+			circleEl.setAttribute('fill', 'none');
+			circleEl.setAttribute('stroke', 'currentColor');
+			circleEl.setAttribute('stroke-width', String(options.strokeWidth));
+			svg.appendChild(circleEl);
+		}
+		for (const line of layout.gridGuide.lines) {
+			const lineEl = doc.createElementNS(SVG_NS, 'line');
+			lineEl.classList.add('crochet-weaver-grid-guide');
+			lineEl.setAttribute('x1', String(line.x1));
+			lineEl.setAttribute('y1', String(line.y1));
+			lineEl.setAttribute('x2', String(line.x2));
+			lineEl.setAttribute('y2', String(line.y2));
+			lineEl.setAttribute('stroke', 'currentColor');
+			lineEl.setAttribute('stroke-width', String(options.strokeWidth));
+			svg.appendChild(lineEl);
+		}
+	}
+
 	for (const connector of rowConnectors) {
 		const direction = Math.sign(connector.toY - connector.fromY) || 1;
 		const gap = Math.min(ROW_CONNECTOR_GAP, Math.abs(connector.toY - connector.fromY) / 3);
