@@ -122,7 +122,7 @@ export function renderCrochetTool(
 				text: prevWeight !== undefined ? `−${prevWeight}` : '−',
 			});
 			subtract.type = 'button';
-			subtract.setAttribute('aria-label', t(locale, 'tool.stitchSubtract'));
+			subtract.setAttribute('aria-label', stitchSubtractLabel(locale, prevWeight ?? 1));
 			subtract.disabled = unitsDone <= 0;
 			subtract.addEventListener('click', () => {
 				void store.setStitchProgress(id, Math.max(0, unitsDone - 1));
@@ -140,7 +140,7 @@ export function renderCrochetTool(
 				text: `+${nextWeight}`,
 			});
 			add.type = 'button';
-			add.setAttribute('aria-label', t(locale, 'tool.stitchAdd'));
+			add.setAttribute('aria-label', stitchAddLabel(locale, nextWeight));
 			add.addEventListener('click', () => {
 				const nextUnitsDone = unitsDone + 1;
 				if (nextUnitsDone >= totalUnits) {
@@ -254,6 +254,14 @@ function patternTitle(type: string, locale: Locale): string {
 
 function unitWord(type: string, locale: Locale): string {
 	return type === 'flat' ? t(locale, 'tool.rowUnit') : t(locale, 'tool.roundUnit');
+}
+
+function stitchAddLabel(locale: Locale, count: number): string {
+	return count === 1 ? t(locale, 'tool.stitchAddOne') : t(locale, 'tool.stitchAddMany', { count });
+}
+
+function stitchSubtractLabel(locale: Locale, count: number): string {
+	return count === 1 ? t(locale, 'tool.stitchSubtractOne') : t(locale, 'tool.stitchSubtractMany', { count });
 }
 
 function clamp(value: number, lo: number, hi: number): number {
