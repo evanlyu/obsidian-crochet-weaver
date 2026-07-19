@@ -50,7 +50,7 @@ function isPanelPosition(value: string | undefined): value is PanelPosition {
 
 function positiveFloat(value: string | undefined): number | undefined {
 	if (value === undefined) return undefined;
-	const numberValue = Number.parseFloat(value);
+	const numberValue = Number(value);
 	return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined;
 }
 

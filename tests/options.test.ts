@@ -92,6 +92,25 @@ R1: sc
 			chartMarkerColor: '#1971c2',
 		});
 	});
+
+	it('rejects partial strings for numeric values', () => {
+		const options = resolveOptions(
+			parseChart(`---
+spacing: 40px
+scale: 1.25abc
+stroke: 2.0.0
+---
+R1: sc
+`),
+			SETTINGS,
+		);
+
+		expect(options).toEqual(expect.objectContaining({
+			ringSpacing: 30,
+			scale: 1,
+			strokeWidth: 1.5,
+		}));
+	});
 });
 
 describe('embedded panel resolution', () => {
