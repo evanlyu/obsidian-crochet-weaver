@@ -44,5 +44,5 @@ export function layoutFlat(ast: CrochetAst): LayoutResult {
 		prevRowY = y;
 	});
 
-	return normalize(items, undefined, rowConnectors);
+	return normalize(items, rowConnectors);
 }

@@ -177,11 +177,9 @@ After converting, add up each row's stitches and compare to the source pattern's
 
 ### Known limitation — don't fight it
 
-A top-down `round` chart draws each round as a ring whose radius only ever trends up or down based on that round's stitch count relative to the previous one. It **cannot** cleanly depict a closed 3D shape's full profile (e.g. a sphere: increases, then straight rounds, then decreases back down) — the decrease rounds will visually overlap the increase rounds instead of curving inward realistically. This matches how published amigurumi charts work too (they only diagram the flat/increase portion).
+A top-down `round` chart places every round at least one ring-spacing step farther out than the round before it — including decrease rounds. A decrease round does not shrink the ring back inward; it spreads fewer stitches around a same-or-larger ring instead, so rounds never overlap each other. This means a full pattern (increases, straight rounds, and decreases) can be charted in a single `round` block. What it still **cannot** do is curve back inward into a realistic closed 3D silhouette (e.g. a sphere) — the decrease portion will read as a continuously widening spiral of rings rather than a shape tapering back to a point. This matches how published amigurumi charts work too (they only diagram the flat/increase portion, not the finished 3D shape).
 
-When a pattern has this shape:
-1. Chart only the increase portion as a `round` chart.
-2. For the full pattern (including the straight and decrease rounds), either add a `crochet-tool` block with the complete row-by-row text, or set `tool: on` on the chart itself so the whole pattern has a trackable checklist right there. Don't try to force the whole 3D shape into one top-down chart.
+If a pattern's rounds go increase → straight → decrease, it's fine to chart every round in one `round` block — nothing will overlap. Add `tool: on` (or a separate `crochet-tool` block) so the full row-by-row pattern is trackable regardless of how the chart looks.
 
 ## Embedding a progress panel
 

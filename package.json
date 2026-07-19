@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-crochet-weaver",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Render crochet stitch charts and progress tools from text patterns in code blocks.",
 	"main": "main.js",
 	"type": "module",

@@ -21,8 +21,6 @@ export function resolveOptions(
 		scale: positiveFloat(config.scale) ?? settings.scale,
 		strokeWidth: positiveFloat(config.stroke) ?? settings.strokeWidth,
 		highlightIncDec: boolOption(config.highlight) ?? settings.highlightIncDec,
-		showNextRoundMarker: settings.showNextRoundMarker,
-		nextRoundMarkerColor: settings.nextRoundMarkerColor,
 		chartMarkerColor: settings.chartMarkerColor,
 	};
 }

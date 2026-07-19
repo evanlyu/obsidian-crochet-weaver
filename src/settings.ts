@@ -152,30 +152,6 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName(t(locale, 'settings.nextRoundMarker.name'))
-			.setDesc(t(locale, 'settings.nextRoundMarker.desc'))
-			.addToggle((t) =>
-				t
-					.setValue(this.plugin.settings.showNextRoundMarker)
-					.onChange(async (value) => {
-						this.plugin.settings.showNextRoundMarker = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.nextRoundMarkerColor.name'))
-			.setDesc(t(locale, 'settings.nextRoundMarkerColor.desc'))
-			.addColorPicker((picker) =>
-				picker
-					.setValue(this.plugin.settings.nextRoundMarkerColor)
-					.onChange(async (value) => {
-						this.plugin.settings.nextRoundMarkerColor = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
 			.setName(t(locale, 'settings.chartMarkerColor.name'))
 			.setDesc(t(locale, 'settings.chartMarkerColor.desc'))
 			.addColorPicker((picker) =>

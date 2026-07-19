@@ -33,6 +33,10 @@ The system SHALL accept row labels written as `R<number>:` or `Row <number>:` an
 - **WHEN** a row ends with `in MR` or `in ch ring`
 - **THEN** the parser SHALL set the row anchor to `MR` or `ch ring`
 
+#### Scenario: Steps after the round anchor
+- **WHEN** a row contains additional steps after `in MR` or `in ch ring` (for example, a join written as `R1: 6 sc in MR, sl st`)
+- **THEN** the parser SHALL set the row anchor to `MR` or `ch ring` and SHALL append the steps written after the anchor to the row's step list
+
 ### Requirement: Parse supported stitch instructions
 The system SHALL parse supported stitch names, optional quantity prefixes, repeat blocks, and grouped stitches into the AST.
 

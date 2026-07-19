@@ -93,7 +93,7 @@ position: right | left | below
 ---
 ```
 
-默认会应用全局插件设置。frontmatter 中有效的数值会覆盖该张织图的设置；无效的数值则会回退到全局设置。`tool`、`text`、`position` 同样有各自的全局默认值可以覆盖（见〈设置〉）。`showNextRoundMarker` 及其记号颜色仅限全局设置，没有对应的 frontmatter 覆盖键。
+默认会应用全局插件设置。frontmatter 中有效的数值会覆盖该张织图的设置；无效的数值则会回退到全局设置。`tool`、`text`、`position` 同样有各自的全局默认值可以覆盖（见〈设置〉）。
 
 ### 行（Row）
 
@@ -220,15 +220,13 @@ R3: [2 sc, inc] x 6
 - **符号线条粗细**：SVG 线条宽度。
 - **环织圈距**：同心圆环织／螺旋每圈之间的间距。
 - **强调加减针**：用强调色标示 `inc` 与 `dec`。
-- **显示下一圈记号**：在同心圆环织图上，于下一圈第一针的位置显示记号。
-- **显示下一圈记号颜色**：该记号使用的颜色。
 - **织图工具当前标记色**：当织图嵌入进度工具时，用于标示当前所在圈／目标针的颜色。
 - **默认显示进度工具**：让每张 `crochet` 织图默认嵌入进度工具，可用 `tool: on/off` 单独覆盖。
 - **默认显示简码文字**：让每张 `crochet` 织图默认嵌入只读简码文字，可用 `text: on/off` 单独覆盖。
 - **面板位置**：嵌入的工具或文字面板的默认位置（右／左／下方），可用 `position:` 单独覆盖。
 - **环织符号旋转**：同心圆环织／螺旋图中符号的旋转方式（`smart`、`all`、或 `none`）。
 
-标注「可单独覆盖」的设置，都能用对应的 frontmatter 键（`scale`、`stroke`、`spacing`、`highlight`、`rotation`、`tool`、`text`、`position`）在单张织图中覆盖。`showNextRoundMarker` 及两个记号颜色仅限全局设置。
+标注「可单独覆盖」的设置，都能用对应的 frontmatter 键（`scale`、`stroke`、`spacing`、`highlight`、`rotation`、`tool`、`text`、`position`）在单张织图中覆盖。`chartMarkerColor` 仅限全局设置。
 
 ## 安全限制
 

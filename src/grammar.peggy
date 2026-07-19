@@ -37,13 +37,16 @@ RestOfLine = [^\r\n]* { return text().trim(); }
 // PEG ordered choices do not backtrack after a successful branch, so 'Row' must
 // be listed before 'R'. Otherwise "Row 1:" is consumed as 'R' and then fails.
 
+// The anchor usually ends the row ("R1: 6 sc in MR"), but some patterns also
+// join round 1 right after the anchor ("R1: 6 sc in MR, sl st"). 'tail' picks
+// up any steps written after the anchor so they aren't lost.
 Row
-	= __ num:RowLabel _ ':' _ loop:LoopMod? steps:Steps _ ','? _ anchor:RingAnchor? _ (EOL / EOF) {
+	= __ num:RowLabel _ ':' _ loop:LoopMod? head:Steps _ ','? _ anchor:RingAnchor? tail:(_ ','? _ s:Steps { return s; })? _ (EOL / EOF) {
 			return {
 				type: 'Row',
 				num: num,
 				loop: loop ?? undefined,
-				steps: steps,
+				steps: tail ? [...head, ...tail] : head,
 				anchor: anchor ?? undefined,
 			};
 		}

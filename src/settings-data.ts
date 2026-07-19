@@ -14,8 +14,6 @@ export interface CrochetWeaverSettings {
 	strokeWidth: number;
 	ringSpacing: number;
 	highlightIncDec: boolean;
-	showNextRoundMarker: boolean;
-	nextRoundMarkerColor: string;
 	chartMarkerColor: string;
 	showTool: boolean;
 	showPatternText: boolean;
@@ -35,8 +33,6 @@ export const DEFAULT_SETTINGS: CrochetWeaverSettings = {
 	strokeWidth: 1.5,
 	ringSpacing: 30,
 	highlightIncDec: false,
-	showNextRoundMarker: true,
-	nextRoundMarkerColor: '#e8590c',
 	chartMarkerColor: '#f1c40f',
 	showTool: false,
 	showPatternText: false,
@@ -64,7 +60,7 @@ interface DropdownSettingDefinition extends SettingDefinitionBase {
 interface ToggleSettingDefinition extends SettingDefinitionBase {
 	readonly control: {
 		readonly type: 'toggle';
-		readonly key: 'highlightIncDec' | 'showNextRoundMarker' | 'showTool' | 'showPatternText';
+		readonly key: 'highlightIncDec' | 'showTool' | 'showPatternText';
 		readonly defaultValue: boolean;
 	};
 }
@@ -72,7 +68,7 @@ interface ToggleSettingDefinition extends SettingDefinitionBase {
 interface ColorSettingDefinition extends SettingDefinitionBase {
 	readonly control: {
 		readonly type: 'color';
-		readonly key: 'nextRoundMarkerColor' | 'chartMarkerColor';
+		readonly key: 'chartMarkerColor';
 		readonly defaultValue: string;
 	};
 }
@@ -133,24 +129,6 @@ export function getLocalizedSettingDefinitions(locale: Locale): readonly Crochet
 				type: 'toggle',
 				key: 'highlightIncDec',
 				defaultValue: DEFAULT_SETTINGS.highlightIncDec,
-			},
-		},
-		{
-			name: t(locale, 'settings.nextRoundMarker.name'),
-			desc: t(locale, 'settings.nextRoundMarker.desc'),
-			control: {
-				type: 'toggle',
-				key: 'showNextRoundMarker',
-				defaultValue: DEFAULT_SETTINGS.showNextRoundMarker,
-			},
-		},
-		{
-			name: t(locale, 'settings.nextRoundMarkerColor.name'),
-			desc: t(locale, 'settings.nextRoundMarkerColor.desc'),
-			control: {
-				type: 'color',
-				key: 'nextRoundMarkerColor',
-				defaultValue: DEFAULT_SETTINGS.nextRoundMarkerColor,
 			},
 		},
 		{
@@ -220,8 +198,6 @@ export function normalizeSettings(raw: unknown): CrochetWeaverSettings {
 		strokeWidth: parsePositiveNumber(record.strokeWidth) ?? DEFAULT_SETTINGS.strokeWidth,
 		ringSpacing: parsePositiveNumber(record.ringSpacing) ?? DEFAULT_SETTINGS.ringSpacing,
 		highlightIncDec: parseBoolean(record.highlightIncDec) ?? DEFAULT_SETTINGS.highlightIncDec,
-		showNextRoundMarker: parseBoolean(record.showNextRoundMarker) ?? DEFAULT_SETTINGS.showNextRoundMarker,
-		nextRoundMarkerColor: parseHexColor(record.nextRoundMarkerColor) ?? DEFAULT_SETTINGS.nextRoundMarkerColor,
 		chartMarkerColor: parseHexColor(record.chartMarkerColor) ?? DEFAULT_SETTINGS.chartMarkerColor,
 		showTool: parseBoolean(record.showTool) ?? DEFAULT_SETTINGS.showTool,
 		showPatternText: parseBoolean(record.showPatternText) ?? DEFAULT_SETTINGS.showPatternText,
