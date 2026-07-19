@@ -9,7 +9,6 @@ export const MIN_ARC = STITCH_WIDTH;
 export const GROUP_FAN_ARC_DEG = 8;
 export const CH_RING_RADIUS = 12;
 export const CH_RING_COUNT = 6;
-export const MIN_RADIUS = 12;
 
 const FIXED_ORIENTATION = new Set(['sc', 'ch', 'sl st', 'MR']);
 

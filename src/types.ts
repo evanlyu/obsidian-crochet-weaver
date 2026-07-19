@@ -48,7 +48,6 @@ export type PanelPosition = 'left' | 'right' | 'below';
 export interface LayoutOptions {
 	rotation: SymbolRotation;
 	ringSpacing: number;
-	showNextRoundMarker: boolean;
 }
 
 // Render item list emitted by the layout engine.
@@ -72,12 +71,6 @@ export interface ChartHighlight {
 	unitIndex?: number;
 }
 
-export interface NextRoundMarker {
-	x: number;
-	y: number;
-	rotation: number;
-}
-
 // A turn between two flat rows, drawn as a straight line so the S-shaped
 // back-and-forth working path reads clearly on the chart.
 export interface RowConnector {
@@ -90,7 +83,6 @@ export interface LayoutResult {
 	items: RenderItem[];
 	width: number;
 	height: number;
-	nextRoundMarker?: NextRoundMarker;
 	rowConnectors?: RowConnector[];
 }
 
@@ -99,6 +91,5 @@ export interface RenderOptions {
 	scale: number;
 	strokeWidth: number;
 	highlightIncDec: boolean;
-	nextRoundMarkerColor: string;
 	chartMarkerColor: string;
 }

@@ -1,5 +1,5 @@
 import type { CrochetAst, LayoutOptions, LayoutResult, RenderItem } from '../types';
-import { BASE_RADIUS, MIN_ARC, MIN_RADIUS } from './constants';
+import { BASE_RADIUS, MIN_ARC } from './constants';
 import { normalize } from './normalize';
 import { placeUnitPolar, pushCenterAnchor } from './polar';
 import { isSlSt, outputStitches, tagLoop, unroll } from './steps';
@@ -32,14 +32,13 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 		prevCount = stitchCount;
 	});
 
-	let nextRoundMarker;
-	if (options.showNextRoundMarker && ast.rows.length > 0) {
-		nextRoundMarker = { x: 0, y: -radius, rotation: 0 };
-	}
-
-	return normalize(items, nextRoundMarker);
+	return normalize(items);
 }
 
+// Every round moves outward by at least one ring-spacing step, even a decrease
+// round: a decrease just spreads fewer stitches around a same-or-larger ring,
+// matching how published crochet charts draw decreases. Shrinking the ring
+// instead would tuck it back inside earlier, larger rounds.
 function nextRadius(
 	prevRadius: number,
 	prevCount: number,
@@ -48,6 +47,5 @@ function nextRadius(
 ): number {
 	const circRadius = (stitchCount * MIN_ARC) / (2 * Math.PI);
 	if (prevCount < 0) return Math.max(BASE_RADIUS, circRadius);
-	if (stitchCount < prevCount) return Math.max(MIN_RADIUS, prevRadius - step);
 	return Math.max(prevRadius + step, circRadius);
 }

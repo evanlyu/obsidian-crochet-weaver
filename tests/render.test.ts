@@ -7,7 +7,6 @@ const OPTIONS: RenderOptions = {
 	scale: 1,
 	strokeWidth: 1.5,
 	highlightIncDec: true,
-	nextRoundMarkerColor: '#e8590c',
 	chartMarkerColor: '#1971c2',
 };
 
@@ -67,36 +66,34 @@ describe('SVG rendering', () => {
 		expect(container.querySelector('path[d="M -4 9 Q 0 13 4 9"]')).not.toBeNull();
 	});
 
-	it('renders the next round marker when present in layout', () => {
+	it('groups the loop marker with its stitch under the current-position highlight', () => {
 		const container = document.createElement('div');
 		const layout: LayoutResult = {
 			width: 100,
 			height: 80,
-			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0 }],
-			nextRoundMarker: { x: 20, y: 10, rotation: 0 },
+			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0, rowIndex: 0, unitIndex: 0, loop: 'blo' }],
 		};
 
-		renderSVG(layout, container, OPTIONS);
+		renderSVG(layout, container, OPTIONS, 'en', { rowIndex: 0, unitIndex: 0 });
 
-		const marker = container.querySelector('.crochet-weaver-next-round-marker');
-		expect(marker).not.toBeNull();
-		expect(marker?.getAttribute('transform')).toBe('translate(20 10) rotate(0)');
-		expect(marker?.getAttribute('stroke')).toBe('#e8590c');
+		const mark = container.querySelector('path[d="M -4 9 Q 0 13 4 9"]');
+		expect(mark?.classList.contains('crochet-weaver-stitch-highlight')).toBe(true);
+		expect(mark?.getAttribute('style')).toContain('#1971c2');
 	});
 
-	it('renders the next round marker using a custom configured color', () => {
+	it('does not highlight the loop marker outside the current position', () => {
 		const container = document.createElement('div');
 		const layout: LayoutResult = {
 			width: 100,
 			height: 80,
-			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0 }],
-			nextRoundMarker: { x: 20, y: 10, rotation: 0 },
+			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0, rowIndex: 1, unitIndex: 0, loop: 'flo' }],
 		};
 
-		renderSVG(layout, container, { ...OPTIONS, nextRoundMarkerColor: '#1971c2' });
+		renderSVG(layout, container, OPTIONS, 'en', { rowIndex: 0, unitIndex: 0 });
 
-		const marker = container.querySelector('.crochet-weaver-next-round-marker');
-		expect(marker?.getAttribute('stroke')).toBe('#1971c2');
+		const mark = container.querySelector('path[d="M -4 9 Q 0 5 4 9"]');
+		expect(mark?.classList.contains('crochet-weaver-row-highlight')).toBe(false);
+		expect(mark?.classList.contains('crochet-weaver-stitch-highlight')).toBe(false);
 	});
 
 	it('recolors items in the highlighted row via a class and inline color on the symbol itself', () => {

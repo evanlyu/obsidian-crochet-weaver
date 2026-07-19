@@ -139,19 +139,6 @@ R1: 6 sc in MR
 R2: [inc] x 6, sl st
 ```
 
-### Next-round marker
-
-Shown by default at the first stitch of the next round on concentric charts — toggle and recolor it from plugin settings (**Show next round marker** / **Next round marker color**).
-
-```crochet
----
-type: round
----
-R1: 6 sc in MR
-R2: [inc] x 6
-R3: [sc, inc] x 6
-```
-
 ## 4. Row Connector (the "S" turning path)
 
 `type: flat` rows alternate direction; a faint arrowed line connects the end of one row to the start of the next so the back-and-forth working path reads at a glance.

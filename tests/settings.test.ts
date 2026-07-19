@@ -18,7 +18,6 @@ describe('plugin settings', () => {
 			"strokeWidth": "nope",
 			"ringSpacing": 40,
 			"highlightIncDec": "yes",
-			"nextRoundMarkerColor": "not-a-color",
 			"progress": {
 				"scarf": 2,
 				"bad": -1,
@@ -36,14 +35,6 @@ describe('plugin settings', () => {
 			highlightIncDec: true,
 			progress: { scarf: 2 },
 		});
-	});
-
-	it('accepts a valid persisted next round marker color and normalizes an invalid one', () => {
-		expect(normalizeSettings({ nextRoundMarkerColor: '#1971c2' }).nextRoundMarkerColor).toBe('#1971c2');
-		expect(normalizeSettings({ nextRoundMarkerColor: 'red' }).nextRoundMarkerColor).toBe(
-			DEFAULT_SETTINGS.nextRoundMarkerColor,
-		);
-		expect(normalizeSettings({}).nextRoundMarkerColor).toBe(DEFAULT_SETTINGS.nextRoundMarkerColor);
 	});
 
 	it('accepts a valid persisted chart marker color and normalizes an invalid one', () => {
@@ -74,8 +65,6 @@ describe('plugin settings', () => {
 			'strokeWidth',
 			'ringSpacing',
 			'highlightIncDec',
-			'showNextRoundMarker',
-			'nextRoundMarkerColor',
 			'chartMarkerColor',
 			'showTool',
 			'showPatternText',
@@ -88,12 +77,11 @@ describe('plugin settings', () => {
 		const definitions = getLocalizedSettingDefinitions('ja');
 
 		expect(definitions[0]?.name).toBe('言語');
-		expect(definitions[6]?.name).toBe('次の周のマーカーの色');
-		expect(definitions[7]?.name).toBe('チャートの現在位置マーカー色');
-		expect(definitions[8]?.name).toBe('進捗ツールを既定で表示');
-		expect(definitions[9]?.name).toBe('編み図テキストを既定で表示');
-		expect(definitions[10]?.name).toBe('パネルの位置');
-		expect(definitions[11]?.name).toBe('輪編み記号の回転');
+		expect(definitions[5]?.name).toBe('チャートの現在位置マーカー色');
+		expect(definitions[6]?.name).toBe('進捗ツールを既定で表示');
+		expect(definitions[7]?.name).toBe('編み図テキストを既定で表示');
+		expect(definitions[8]?.name).toBe('パネルの位置');
+		expect(definitions[9]?.name).toBe('輪編み記号の回転');
 	});
 
 	it('offers fine-grained numeric presets for chart settings', () => {

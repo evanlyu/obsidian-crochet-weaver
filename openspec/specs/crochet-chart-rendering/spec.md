@@ -25,10 +25,6 @@ The system SHALL apply global plugin settings as defaults and SHALL allow valid 
 - **WHEN** a pattern frontmatter contains an invalid numeric, boolean, or rotation value
 - **THEN** chart rendering SHALL fall back to the corresponding global setting
 
-#### Scenario: Next round marker setting resolution
-- **WHEN** a pattern frontmatter contains a `showNextRoundMarker` or `nextRoundMarkerColor` key
-- **THEN** chart rendering SHALL ignore these frontmatter keys and resolve both options only from global settings
-
 ### Requirement: Support flat chart layout
 The system SHALL lay out `type: flat` charts as alternating flat rows with dynamic canvas bounds.
 
@@ -42,6 +38,10 @@ The system SHALL lay out `type: flat` charts as alternating flat rows with dynam
 
 ### Requirement: Support round chart layout
 The system SHALL lay out `type: round` charts as concentric rounds with stitch symbols distributed around each round.
+
+#### Scenario: Every round moves outward, even a decrease round
+- **WHEN** a round chart contains a round whose stitch count is lower than the previous round's
+- **THEN** that round SHALL still be placed at a larger radius than the previous round, never at a smaller radius that would overlap or nest inside an earlier round
 
 #### Scenario: Magic ring anchor
 - **WHEN** a round chart starts from a row anchored `in MR`
@@ -76,33 +76,6 @@ The system SHALL render supported stitch symbols through SVG definitions using `
 #### Scenario: Loop marker
 - **WHEN** a row has `blo` or `flo`
 - **THEN** rendered items from that row SHALL include the corresponding loop marker path
-
-### Requirement: Render next-round first-stitch marker
-The system SHALL render a next-round marker at the first stitch of the next round in concentric round charts when enabled, using a user-configurable color.
-
-#### Scenario: Enabled marker for round charts
-- **WHEN** `showNextRoundMarker` is enabled and the chart type is `round`
-- **THEN** the chart SHALL render a marker at the first stitch of the next round
-
-#### Scenario: Disabled marker omission
-- **WHEN** `showNextRoundMarker` is disabled
-- **THEN** the chart SHALL NOT render a next-round marker
-
-#### Scenario: Flat or spiral chart marker omission
-- **WHEN** the chart type is `flat` or `spiral`
-- **THEN** the chart SHALL NOT render a next-round marker even if `showNextRoundMarker` is enabled
-
-#### Scenario: Marker styling and classes
-- **WHEN** a next-round marker is rendered
-- **THEN** the marker SHALL use the chart-local `.crochet-weaver-next-round-marker` class and SHALL use the `nextRoundMarkerColor` global setting as its stroke color
-
-#### Scenario: Marker color setting change
-- **WHEN** the user changes the `nextRoundMarkerColor` setting in the plugin settings tab
-- **THEN** subsequently rendered next-round markers SHALL use the newly selected color
-
-#### Scenario: Malformed persisted marker color
-- **WHEN** the persisted `nextRoundMarkerColor` value is not a valid 6-digit hex color string
-- **THEN** the system SHALL normalize it to the default marker color
 
 ### Requirement: Normalize persisted settings
 The system SHALL normalize malformed or invalid persisted settings to defaults or safe values during initialization.
@@ -217,6 +190,10 @@ The system SHALL, for a `crochet` block embedding the progress tool (`tool: on`)
 - **WHEN** the target unit is a group (e.g. `(dc, ch, dc)`)
 - **THEN** every chart symbol belonging to that group SHALL receive the stronger highlight together
 
+#### Scenario: Loop marker highlighted together with its stitch
+- **WHEN** a highlighted stitch (current row or current target) has a `blo` or `flo` loop marker
+- **THEN** that loop marker SHALL receive the same row- or stitch-level highlight class and the same `chartMarkerColor` as its stitch symbol, so the two read as one highlighted unit
+
 #### Scenario: No highlight once the pattern is complete
 - **WHEN** the embedded tool's completed row count equals the total row count
 - **THEN** the chart SHALL NOT show any highlight
@@ -238,5 +215,5 @@ The system SHALL resolve the highlight color from a global `chartMarkerColor` se
 
 #### Scenario: No frontmatter override
 - **WHEN** a `crochet` block frontmatter contains a `chartMarkerColor`-like key
-- **THEN** chart rendering SHALL ignore it and use the global setting, consistent with `showNextRoundMarker`/`nextRoundMarkerColor`
+- **THEN** chart rendering SHALL ignore it and use the global setting
 

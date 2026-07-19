@@ -95,7 +95,7 @@ position: right | left | below
 ---
 ```
 
-Global plugin settings are used by default. Valid frontmatter values override those settings for one chart. Invalid values fall back to the global settings. `tool`, `text`, and `position` fall back to their own global defaults the same way (see [Settings](#settings)). `showNextRoundMarker` and its marker color are global-only and have no frontmatter override.
+Global plugin settings are used by default. Valid frontmatter values override those settings for one chart. Invalid values fall back to the global settings. `tool`, `text`, and `position` fall back to their own global defaults the same way (see [Settings](#settings)).
 
 ### Rows
 
@@ -222,15 +222,13 @@ Open the plugin settings tab to configure global defaults:
 - **Symbol stroke width**: SVG stroke width.
 - **Round spacing**: spacing between round or spiral rings.
 - **Highlight increases and decreases**: accent `inc` and `dec` stitches.
-- **Show next round marker**: show a marker at the first stitch of the next round in concentric round charts.
-- **Next round marker color**: color used for that marker.
 - **Chart tool current-position color**: color used to highlight the current row/stitch on a chart with an embedded progress tool.
 - **Show progress tool by default**: embed the progress tool on every `crochet` chart unless overridden per chart with `tool: on/off`.
 - **Show pattern text by default**: embed the read-only pattern text on every `crochet` chart unless overridden per chart with `text: on/off`.
 - **Panel position**: default position (right / left / below) for an embedded tool or text panel, overridable per chart with `position:`.
 - **Round symbol rotation**: `smart`, `all`, or `none` rotation for round and spiral symbols.
 
-Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `rotation`, `tool`, `text`, `position`). `showNextRoundMarker` and both marker colors are global-only.
+Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `rotation`, `tool`, `text`, `position`). `chartMarkerColor` is global-only.
 
 ## Safety Limits
 

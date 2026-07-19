@@ -6,7 +6,6 @@ import type { CrochetAst, RowNode } from '../src/types';
 const OPTIONS = {
 	rotation: 'smart',
 	ringSpacing: 30,
-	showNextRoundMarker: true,
 } as const;
 
 function parseChart(source: string): CrochetAst {
@@ -113,49 +112,33 @@ R1: 6 sc, sl st in MR
 		expect(layout.items.filter((item) => item.symbol === 'sl st')).toHaveLength(1);
 	});
 
-	it('adds a next round marker for round charts when enabled', () => {
+	it('keeps each round farther out than the last even through a later decrease', () => {
 		const layout = calculateLayout(
 			parseChart(`---
 type: round
 ---
 R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [dec] x 6
 `),
 			OPTIONS,
 		);
 
-		expect(layout.nextRoundMarker).toBeDefined();
-		expect(layout.nextRoundMarker?.rotation).toBe(0);
-		expect(layout.nextRoundMarker?.y).toBeLessThan(layout.height / 2);
-	});
+		const center = { x: layout.items[0]?.x ?? 0, y: layout.items[0]?.y ?? 0 };
+		const radiusOf = (rowIndex: number) => {
+			const item = layout.items.find((i) => i.rowIndex === rowIndex);
+			return Math.hypot((item?.x ?? 0) - center.x, (item?.y ?? 0) - center.y);
+		};
 
-	it('does not add a next round marker for round charts when disabled', () => {
-		const layout = calculateLayout(
-			parseChart(`---
-type: round
----
-R1: 6 sc in MR
-`),
-			{ ...OPTIONS, showNextRoundMarker: false },
-		);
+		const r1 = radiusOf(0);
+		const r2 = radiusOf(1);
+		const r3 = radiusOf(2);
+		const r4 = radiusOf(3);
 
-		expect(layout.nextRoundMarker).toBeUndefined();
-	});
-
-	it('does not add a next round marker for flat charts', () => {
-		const layout = calculateLayout(parseChart('R1: 2 sc\n'), OPTIONS);
-		expect(layout.nextRoundMarker).toBeUndefined();
-	});
-
-	it('does not add a next round marker for spiral charts', () => {
-		const layout = calculateLayout(
-			parseChart(`---
-type: spiral
----
-R1: 6 sc in MR
-`),
-			OPTIONS,
-		);
-		expect(layout.nextRoundMarker).toBeUndefined();
+		expect(r2).toBeGreaterThan(r1);
+		expect(r3).toBeGreaterThan(r2);
+		expect(r4).toBeGreaterThan(r3);
 	});
 
 	it('continues spiral charts across rows without resetting radius', () => {

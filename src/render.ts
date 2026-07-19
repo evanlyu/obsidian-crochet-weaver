@@ -1,5 +1,5 @@
 import { t, type Locale } from './i18n';
-import type { ChartHighlight, LayoutResult, RenderOptions } from './types';
+import type { ChartHighlight, LayoutResult, RenderItem, RenderOptions } from './types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -119,18 +119,13 @@ export function renderSVG(
 		if (options.highlightIncDec && ACCENT_STITCHES.has(item.symbol)) {
 			use.classList.add('crochet-weaver-accent');
 		}
-		if (highlight && item.rowIndex === highlight.rowIndex) {
-			const isTarget = highlight.unitIndex !== undefined && item.unitIndex === highlight.unitIndex;
-			use.classList.add(
-				isTarget ? 'crochet-weaver-stitch-highlight' : 'crochet-weaver-row-highlight',
-			);
-			use.style.setProperty('color', options.chartMarkerColor);
-		}
+		applyCurrentPositionHighlight(use, item, highlight, options.chartMarkerColor);
 		svg.appendChild(use);
 		if (item.loop) {
 			const mark = doc.createElementNS(SVG_NS, 'path');
 			mark.setAttribute('d', item.loop === 'blo' ? BLO_MARK : FLO_MARK);
 			mark.setAttribute('transform', transform);
+			applyCurrentPositionHighlight(mark, item, highlight, options.chartMarkerColor);
 			mark.setAttribute('stroke', 'currentColor');
 			mark.setAttribute('stroke-width', String(options.strokeWidth));
 			mark.setAttribute('fill', 'none');
@@ -139,27 +134,25 @@ export function renderSVG(
 		}
 	}
 
-	if (layout.nextRoundMarker) {
-		const marker = doc.createElementNS(SVG_NS, 'path');
-		marker.classList.add('crochet-weaver-next-round-marker');
-		marker.setAttribute('d', 'M -3 -12 L 0 -9 L 3 -12 M 0 -9 L 0 -16');
-		marker.setAttribute(
-			'transform',
-			`translate(${layout.nextRoundMarker.x} ${layout.nextRoundMarker.y}) rotate(${layout.nextRoundMarker.rotation})`
-		);
-		marker.setAttribute('stroke', options.nextRoundMarkerColor);
-		marker.setAttribute('stroke-width', String(options.strokeWidth));
-		marker.setAttribute('fill', 'none');
-		marker.setAttribute('stroke-linecap', 'round');
-		marker.setAttribute('stroke-linejoin', 'round');
-		svg.appendChild(marker);
-	}
-
 	el.appendChild(svg);
 }
 
 function symbolId(uid: string, name: string): string {
 	return `${uid}-sym-${name.replace(/\s+/g, '-')}`;
+}
+
+// Groups a stitch symbol with its own blo/flo loop marker under one highlight:
+// both should light up together as "the current position," not just the symbol.
+function applyCurrentPositionHighlight(
+	node: SVGElement,
+	item: RenderItem,
+	highlight: ChartHighlight | undefined,
+	chartMarkerColor: string,
+): void {
+	if (!highlight || item.rowIndex !== highlight.rowIndex) return;
+	const isTarget = highlight.unitIndex !== undefined && item.unitIndex === highlight.unitIndex;
+	node.classList.add(isTarget ? 'crochet-weaver-stitch-highlight' : 'crochet-weaver-row-highlight');
+	node.style.setProperty('color', chartMarkerColor);
 }
 
 function createArrowMarker(doc: Document, id: string): SVGMarkerElement {

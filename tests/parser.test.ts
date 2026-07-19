@@ -64,6 +64,21 @@ R2: flo, 6 sc in ch ring
 		expect(ast.rows[1]).toMatchObject({ loop: 'flo', anchor: 'ch ring' });
 	});
 
+	it('parses a join right after the anchor on row 1', () => {
+		const ast = parseChart(`R1: 6 sc in MR, sl st
+R2: 6 sc in ch ring, sl st
+`);
+
+		expect(ast.rows[0]?.anchor).toBe('MR');
+		expect(ast.rows[0]?.steps).toHaveLength(2);
+		expectStitch(ast.rows[0]?.steps[0], 'sc', 6);
+		expectStitch(ast.rows[0]?.steps[1], 'sl st', 1);
+
+		expect(ast.rows[1]?.anchor).toBe('ch ring');
+		expect(ast.rows[1]?.steps).toHaveLength(2);
+		expectStitch(ast.rows[1]?.steps[1], 'sl st', 1);
+	});
+
 	it('parses all supported stitch names', () => {
 		const stitches = [
 			'ch',

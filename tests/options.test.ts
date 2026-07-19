@@ -11,8 +11,6 @@ const SETTINGS: CrochetWeaverSettings = {
 	strokeWidth: 1.5,
 	ringSpacing: 30,
 	highlightIncDec: false,
-	showNextRoundMarker: true,
-	nextRoundMarkerColor: '#e8590c',
 	chartMarkerColor: '#1971c2',
 	showTool: false,
 	showPatternText: false,
@@ -35,8 +33,6 @@ describe('chart option resolution', () => {
 			scale: 1,
 			strokeWidth: 1.5,
 			highlightIncDec: false,
-			showNextRoundMarker: true,
-			nextRoundMarkerColor: '#e8590c',
 			chartMarkerColor: '#1971c2',
 		});
 	});
@@ -61,8 +57,6 @@ R1: sc
 			scale: 1.25,
 			strokeWidth: 2,
 			highlightIncDec: true,
-			showNextRoundMarker: true,
-			nextRoundMarkerColor: '#e8590c',
 			chartMarkerColor: '#1971c2',
 		});
 	});
@@ -87,8 +81,6 @@ R1: sc
 			scale: 1,
 			strokeWidth: 1.5,
 			highlightIncDec: false,
-			showNextRoundMarker: true,
-			nextRoundMarkerColor: '#e8590c',
 			chartMarkerColor: '#1971c2',
 		});
 	});

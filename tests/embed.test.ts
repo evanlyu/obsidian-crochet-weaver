@@ -17,8 +17,6 @@ describe('renderEmbeddedChart', () => {
 		scale: 1,
 		strokeWidth: 1.5,
 		highlightIncDec: false,
-		showNextRoundMarker: true,
-		nextRoundMarkerColor: '#e8590c',
 		chartMarkerColor: '#1971c2',
 	};
 	const store: ProgressStore = {

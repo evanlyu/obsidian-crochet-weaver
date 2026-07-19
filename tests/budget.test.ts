@@ -8,7 +8,6 @@ import type { CrochetAst } from '../src/types';
 const OPTIONS = {
 	rotation: 'smart',
 	ringSpacing: 30,
-	showNextRoundMarker: true,
 } as const;
 
 function parseChart(source: string): CrochetAst {
