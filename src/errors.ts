@@ -13,7 +13,7 @@ export function renderCrochetError(error: unknown, el: HTMLElement, locale: Loca
 	const box = el.createDiv({ cls: 'crochet-weaver-error' });
 	box.createDiv({ cls: 'crochet-weaver-error-title', text: t(locale, 'error.title') });
 	const loc = hasParseErrorLocation(error) ? error.location?.start : undefined;
-	const message = localizedErrorMessage(error, locale);
+	const message = loc ? t(locale, 'error.parseMessage') : localizedErrorMessage(error, locale);
 	box.createDiv({
 		text: loc ? t(locale, 'error.location', { line: loc.line, column: loc.column, message }) : message,
 	});

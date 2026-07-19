@@ -192,9 +192,9 @@ describe('SVG rendering', () => {
 		expect(y2).toBeLessThanOrEqual(26);
 	});
 
-	it('renders parse locations in error boxes', () => {
+	it('renders parse locations in error boxes with a generic localized message instead of raw PEG text', () => {
 		const container = document.createElement('div');
-		const error = Object.assign(new Error('bad stitch'), {
+		const error = Object.assign(new Error('Expected "R" or "Round" but "x" found.'), {
 			location: { start: { line: 2, column: 4 } },
 		});
 
@@ -202,6 +202,7 @@ describe('SVG rendering', () => {
 
 		expect(container.querySelector('.crochet-weaver-error-title')?.textContent).toBe('織圖語法錯誤');
 		expect(container.textContent).toContain('第 2 行第 4 欄');
-		expect(container.textContent).toContain('bad stitch');
+		expect(container.textContent).toContain('無法解析的語法或未知的針目');
+		expect(container.textContent).not.toContain('Expected');
 	});
 });
