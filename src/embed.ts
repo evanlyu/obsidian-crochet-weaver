@@ -18,8 +18,7 @@ export function renderEmbeddedChart(
 		const wrapper = el.createDiv({
 			cls: `crochet-weaver-chart-row crochet-weaver-panel-${panel.position}`,
 		});
-		const chartContainer = wrapper.ownerDocument.createElement('div');
-		chartContainer.className = 'crochet-weaver-chart-container';
+		const chartContainer = createDiv({ cls: 'crochet-weaver-chart-container' });
 
 		const paintChart = (highlight: ChartHighlight | undefined) => {
 			chartContainer.empty();
@@ -37,8 +36,7 @@ export function renderEmbeddedChart(
 		const wrapper = el.createDiv({
 			cls: `crochet-weaver-chart-row crochet-weaver-panel-${panel.position}`,
 		});
-		const chartContainer = wrapper.ownerDocument.createElement('div');
-		chartContainer.className = 'crochet-weaver-chart-container';
+		const chartContainer = createDiv({ cls: 'crochet-weaver-chart-container' });
 
 		if (panel.position === 'left') {
 			renderCrochetPatternText(source, wrapper, locale);

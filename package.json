@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-crochet-weaver",
 	"version": "1.0.0",
-	"description": "Render crochet stitch charts from text patterns in Obsidian code blocks.",
+	"description": "Render crochet stitch charts and progress tools from text patterns in code blocks.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
@@ -24,7 +24,7 @@
 		"globals": "^17.6.0",
 		"happy-dom": "^20.10.6",
 		"jiti": "^2.6.1",
-		"obsidian": "latest",
+		"obsidian": "^1.13.1",
 		"peggy": "^3.0.2",
 		"ts-pegjs": "^4.2.1",
 		"typescript": "^5.8.3",

@@ -76,3 +76,35 @@ Object.defineProperty(HTMLElement.prototype, 'createEl', {
 		return element;
 	},
 });
+
+// Obsidian also exposes createDiv/createSpan/createEl as free functions that
+// build a *detached* element (no auto-append), unlike the Node.prototype methods above.
+function createDetachedElement<K extends keyof HTMLElementTagNameMap>(
+	tagName: K,
+	options?: ElementOptions,
+): HTMLElementTagNameMap[K] {
+	const element = document.createElement(tagName);
+	applyOptions(element, options);
+	return element;
+}
+
+Object.defineProperty(window, 'createDiv', {
+	value: function createDiv(options?: ElementOptions): HTMLDivElement {
+		return createDetachedElement('div', options);
+	},
+});
+
+Object.defineProperty(window, 'createSpan', {
+	value: function createSpan(options?: ElementOptions): HTMLSpanElement {
+		return createDetachedElement('span', options);
+	},
+});
+
+Object.defineProperty(window, 'createEl', {
+	value: function createEl<K extends keyof HTMLElementTagNameMap>(
+		tagName: K,
+		options?: ElementOptions,
+	): HTMLElementTagNameMap[K] {
+		return createDetachedElement(tagName, options);
+	},
+});

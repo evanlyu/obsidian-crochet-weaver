@@ -1,4 +1,4 @@
-import { PluginSettingTab, Setting, type App } from 'obsidian';
+import { PluginSettingTab, Setting, type App, type SettingDefinitionItem } from 'obsidian';
 import { t, type LanguagePreference } from './i18n';
 import type CrochetWeaverPlugin from './main';
 import type { PanelPosition, SymbolRotation } from './types';
@@ -7,7 +7,7 @@ import {
 	RING_SPACING_OPTIONS,
 	SCALE_OPTIONS,
 	STROKE_WIDTH_OPTIONS,
-	type CrochetSettingDefinition,
+	type CrochetWeaverSettings,
 } from './settings-data';
 
 export {
@@ -18,6 +18,15 @@ export {
 	type CrochetWeaverSettings,
 } from './settings-data';
 
+// These settings back numeric dropdowns: Obsidian's dropdown control only persists
+// strings, so values round-trip through String()/Number() at the get/set boundary.
+type NumberSettingKey = 'scale' | 'strokeWidth' | 'ringSpacing';
+const NUMBER_KEYS: ReadonlySet<NumberSettingKey> = new Set(['scale', 'strokeWidth', 'ringSpacing']);
+
+function isNumberSettingKey(key: string): key is NumberSettingKey {
+	return NUMBER_KEYS.has(key as NumberSettingKey);
+}
+
 export class CrochetWeaverSettingTab extends PluginSettingTab {
 	plugin: CrochetWeaverPlugin;
 
@@ -26,10 +35,24 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	getSettingDefinitions(): readonly CrochetSettingDefinition[] {
-		return getLocalizedSettingDefinitions(this.plugin.getLocale());
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return [...getLocalizedSettingDefinitions(this.plugin.getLocale())];
 	}
 
+	getControlValue(key: string): unknown {
+		if (isNumberSettingKey(key)) return String(this.plugin.settings[key]);
+		return this.plugin.settings[key as keyof CrochetWeaverSettings];
+	}
+
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		const settings = this.plugin.settings as unknown as Record<string, unknown>;
+		settings[key] = isNumberSettingKey(key) ? Number(value) : value;
+		await this.plugin.saveSettings();
+	}
+
+	// Fallback for Obsidian versions before 1.13.0, which don't know about
+	// getSettingDefinitions() and only ever call display(). Ignored by newer
+	// versions once getSettingDefinitions() returns a non-empty array.
 	display(): void {
 		const { containerEl } = this;
 		const locale = this.plugin.getLocale();
