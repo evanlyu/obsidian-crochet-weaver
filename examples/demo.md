@@ -47,15 +47,72 @@ R4: [2 sc, inc] x 6
 
 ## 2. Stitches
 
+### Reference table: the 32 stitches added in this update
+
+The library started with 14 basic names (`ch`, `sc`, `hdc`, `dc`, `tr`, `dtr`, `sl st`, `MR`, `fpdc`, `bpdc`, `bobble`, `popcorn`, `inc`, `dec`) and grew to 46 with these 32 additions, matching standard US/JIS crochet chart symbol references:
+
+| Symbol | Category | Description |
+| --- | --- | --- |
+| `picot` | Basic | Ch-3 picot |
+| `rsc` | Basic | Reverse single crochet (crab stitch) |
+| `sc2tog`, `sc3tog` | Decrease | Single crochet 2/3 together |
+| `hdc2tog`, `hdc3tog`, `hdc4tog`, `hdc5tog` | Decrease | Half double crochet 2–5 together |
+| `dc2tog`, `dc3tog`, `dc4tog`, `dc5tog` | Decrease | Double crochet 2–5 together |
+| `fpsc`, `fphdc`, `fptr` | Post stitch | Front post sc/hdc/tr (fpdc already existed) |
+| `bpsc`, `bphdc`, `bptr` | Post stitch | Back post sc/hdc/tr (bpdc already existed) |
+| `xhdc`, `xdc`, `xtr` | Crossed | 1-stitch crossed hdc/dc/tr |
+| `hdc2cl`, `hdc3cl`, `hdc5cl` | Cluster/puff | 2/3/5-hdc cluster (puff) |
+| `dc2cl`, `dc3cl`, `dc5cl` | Cluster/puff | 2/3/5-dc cluster |
+| `tr2cl`, `tr3cl`, `tr5cl` | Cluster/puff | 2/3/5-tr cluster |
+| `hdc popcorn`, `tr popcorn` | Popcorn | 5-hdc/5-tr popcorn (dc popcorn already existed as `popcorn`) |
+
+N-into-one increases and shells (the V/fan symbols) aren't new stitch names — the existing group syntax `(dc, dc)` / `(5 dc)` already draws them; see the last block below.
+
 ### Every supported symbol
 
-`ch`, `sc`, `hdc`, `dc`, `tr`, `dtr`, `sl st`, `fpdc`, `bpdc`, `bobble`, `popcorn`, `inc`, `dec`, `MR` — five stitch heights (sc through dtr) read taller as more yarn-over slashes appear.
+Basic stitches — five heights (sc through dtr) read taller as more yarn-over slashes appear:
 
 ```crochet
 ---
 type: flat
 ---
-R1: ch, sc, hdc, dc, tr, dtr, sl st, fpdc, bpdc, bobble, popcorn, inc, dec
+R1: ch, sc, hdc, dc, tr, dtr, sl st, MR, picot, rsc, inc, dec
+```
+
+Post stitches (front/back at every height) and crossed stitches:
+
+```crochet
+---
+type: flat
+---
+R1: fpsc, fphdc, fpdc, fptr, bpsc, bphdc, bpdc, bptr, xhdc, xdc, xtr
+```
+
+N-together decreases (these also pick up the inc/dec accent highlight):
+
+```crochet
+---
+type: flat
+---
+R1: sc2tog, sc3tog, hdc2tog, hdc3tog, hdc4tog, hdc5tog, dc2tog, dc3tog, dc4tog, dc5tog
+```
+
+Clusters, puffs, bobbles, and popcorns:
+
+```crochet
+---
+type: flat
+---
+R1: hdc2cl, hdc3cl, hdc5cl, dc2cl, dc3cl, dc5cl, tr2cl, tr3cl, tr5cl, bobble, hdc popcorn, popcorn, tr popcorn
+```
+
+N-into-one increases and shells are written as groups — `(dc, dc)` or `(5 dc)` renders the V/shell fan symbol directly, so they need no dedicated names:
+
+```crochet
+---
+type: flat
+---
+R1: 3 sc, (hdc, hdc), 3 sc, (dc, dc, dc), 3 sc, (5 dc), 3 sc
 ```
 
 ### Quantity prefixes

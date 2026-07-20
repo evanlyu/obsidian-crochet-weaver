@@ -108,11 +108,30 @@ Repeats and groups can nest and contain each other.
 
 ### Supported stitch names
 
-**Case-sensitive, lowercase**, except `MR` which is case-insensitive:
+**Case-sensitive, lowercase**, except `MR` which is case-insensitive. Two-word names (`sl st`, `hdc popcorn`, `tr popcorn`) are written with a literal space, exactly as shown — 46 names total:
 
-`ch` `sc` `hdc` `dc` `tr` `dtr` `sl st` `fpdc` `bpdc` `bobble` `popcorn` `inc` `dec` `MR`
+| Category | Names |
+|---|---|
+| Basic | `ch` `sc` `hdc` `dc` `tr` `dtr` `sl st` `MR` `picot` `rsc` |
+| Shaping | `inc` `dec` |
+| N-together decreases | `sc2tog` `sc3tog` `hdc2tog` `hdc3tog` `hdc4tog` `hdc5tog` `dc2tog` `dc3tog` `dc4tog` `dc5tog` |
+| Post stitches | `fpsc` `fphdc` `fpdc` `fptr` `bpsc` `bphdc` `bpdc` `bptr` |
+| Crossed stitches | `xhdc` `xdc` `xtr` |
+| Clusters / puffs | `hdc2cl` `hdc3cl` `hdc5cl` `dc2cl` `dc3cl` `dc5cl` `tr2cl` `tr3cl` `tr5cl` `bobble` |
+| Popcorns | `popcorn` (5-dc) `hdc popcorn` (5-hdc) `tr popcorn` (5-tr) |
 
-There is no `hdc2tog`/`dc3tog`/etc. token — represent a written "X sts together" decrease as `dec` (it renders as one symbol and counts as producing 1 output stitch, which is what matters for stitch counts and the chart). There is no turning-chain concept — omit `ch 1, turn` / `ch 3, turn` type instructions; they don't change the chart.
+**Every stitch except `inc` outputs 1 stitch for counting purposes** — that includes every N-together decrease (`dc3tog` still counts as 1, same as `dec`), every post/crossed stitch, every cluster/puff, and every popcorn. Only `inc` outputs 2.
+
+**Decreases — pick the right token, don't default to `dec` for everything.** `dec` is specifically the simple sc-height 2-together decrease (the common amigurumi "invisible decrease" / "sc2tog" case with no stated height) — keep using it for that. But if the source states a stitch height or a together-count other than sc2, use the matching dedicated token instead, so the chart shows the right symbol at the right height:
+
+- "sc2tog" / "invisible decrease" / unspecified amigurumi decrease → `dec` (or `sc2tog` — they render as different glyphs but count identically; prefer `dec` unless the source specifically writes "sc2tog")
+- "sc3tog" → `sc3tog`
+- "hdc2tog" through "hdc5tog" (any hdc-height N-together) → `hdc2tog`…`hdc5tog`
+- "dc2tog" through "dc5tog" (any dc-height N-together) → `dc2tog`…`dc5tog`
+
+There is still no dedicated token for N-into-one **increases** — those are groups, not stitch names (see "Group" below): "2 dc in next st" → `(dc, dc)`, "shell: 5 dc in next st" → `(5 dc)`.
+
+There is no turning-chain concept — omit `ch 1, turn` / `ch 3, turn` type instructions; they don't change the chart.
 
 ## Phrase → token cheat sheet
 
@@ -123,14 +142,31 @@ Use this to translate common written-pattern phrasing. When in doubt, prefer `in
 | "magic ring", "magic circle", "adjustable ring" | `in MR` anchor on row 1 |
 | "ch 2, join with sl st to form a ring" (or similar) | `in ch ring` anchor on row 1 |
 | "2 sc in same st" / "2 sc in next st" / "sc, inc" style increase | `inc` |
-| "sc2tog" / "dc2tog" / "invisible decrease" / "2 sts tog" | `dec` |
+| "invisible decrease" / unspecified amigurumi "2 sts tog" | `dec` |
+| "sc2tog" (stated explicitly) | `sc2tog` |
+| "sc3tog" | `sc3tog` |
+| "hdc2tog" … "hdc5tog" | `hdc2tog` … `hdc5tog` |
+| "dc2tog" … "dc5tog" | `dc2tog` … `dc5tog` |
 | "sc in each st around" for a round of N known stitches | `N sc` (write the literal count) |
 | "(sc, inc) 6 times" / "repeat 6 times" | `[sc, inc] x 6` |
 | "(dc, ch 1, dc) in next st" (shell/corner) | `(dc, ch, dc)` |
+| "2 dc in next st" (V-stitch increase) | `(dc, dc)` |
+| "5 dc in next st" (shell) | `(5 dc)` |
 | "join with sl st" at the end of a round | trailing `sl st` on that row |
 | "working in back loops only" | `blo` after the row label |
 | "working in front loops only" | `flo` after the row label |
 | "ch 1, turn" / "turn" (flat rows) | omit — no chart effect |
+| "FPdc" / "front post dc" | `fpdc` (also `fpsc`, `fphdc`, `fptr` at other heights) |
+| "BPdc" / "back post dc" | `bpdc` (also `bpsc`, `bphdc`, `bptr` at other heights) |
+| "cross 2 dc" / "crossed dc" (1-stitch cross) | `xdc` (also `xhdc`, `xtr` at other heights) |
+| "3-dc cluster" / "dc3tog" used as a decorative cluster (not a decrease) | `dc3cl` (context matters — see note below) |
+| "puff stitch" (typically hdc-based) | `hdc2cl` / `hdc3cl` / `hdc5cl` by stitch count |
+| "popcorn stitch" (5 dc, most common) | `popcorn` |
+| "5-hdc popcorn" / "5-tr popcorn" | `hdc popcorn` / `tr popcorn` |
+| "picot" / "ch-3 picot" | `picot` |
+| "crab stitch" / "reverse single crochet" | `rsc` |
+
+**Cluster vs. decrease ambiguity**: some patterns write "3tog" to mean an actual decrease (3 stitches become 1 — use `sc3tog`/`hdc3tog`/`dc3tog`) and others use "cluster" language for a *decorative* bundle of stitches worked into the *same* stitch that doesn't reduce the stitch count the same way (use `dc3cl`/`hdc3cl`/etc., or a group like `(dc, dc, dc)` if genuinely just 3 stitches fanned into one spot). Read the surrounding stitch-count annotations — if the row's total drops, it's a decrease token; if the count stays flat, it's a cluster/group.
 
 ### Worked example
 
@@ -162,7 +198,7 @@ Sanity-check with the counting rule below: R2 = 6 `inc` × 2 stitches each = 12 
 Crochet Weaver computes a row's stitch count the same way real patterns annotate "(N sc)":
 
 - `inc` = 2 output stitches.
-- Everything else (`sc`, `hdc`, `dc`, `tr`, `dtr`, `ch`, `sl st`, `fpdc`, `bpdc`, `bobble`, `popcorn`, `dec`) = 1 output stitch.
+- Every other stitch name = 1 output stitch — this includes every N-together decrease (`dc3tog` still counts as 1, same as `dec`), every post/crossed stitch, every cluster/puff, and every popcorn, not just the original basic set.
 - A group `(...)` = sum of its children's weights.
 - A repeat `[...] x N` = N × (sum of its children's weights).
 - **A trailing `sl st` at the very end of a row is treated as a join and excluded from the count** — don't count it, and don't be surprised the chart doesn't count it either.
@@ -208,6 +244,7 @@ Before returning your answer:
 3. Row-1 anchor set if the source uses a magic ring or chain ring.
 4. Trailing `sl st` added only where the source explicitly joins the round.
 5. Ran the stitch-counting rule against the source's own "(N)" annotations for at least the first few rows.
-6. Asked the user (or picked a sensible default) for `tool: on` vs `text: on` vs neither, if they didn't specify.
-7. Flagged anything you couldn't represent (unsupported stitch, ambiguous instruction) instead of silently guessing.
-8. Returned one fenced ` ```crochet ` block (plus a second ` ```crochet-tool ` block only if they explicitly asked for a separate standalone tracker).
+6. For any decrease/cluster, picked the token matching the source's stated height and count (`sc2tog` vs `hdc3tog` vs `dc5tog`, etc.) instead of defaulting everything to `dec`.
+7. Asked the user (or picked a sensible default) for `tool: on` vs `text: on` vs neither, if they didn't specify.
+8. Flagged anything you couldn't represent (unsupported stitch, ambiguous instruction) instead of silently guessing.
+9. Returned one fenced ` ```crochet ` block (plus a second ` ```crochet-tool ` block only if they explicitly asked for a separate standalone tracker).

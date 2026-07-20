@@ -66,6 +66,20 @@ describe('SVG rendering', () => {
 		expect(container.querySelector('path[d="M -4 9 Q 0 13 4 9"]')).not.toBeNull();
 	});
 
+	it('accents N-together decreases when highlightIncDec is on, and not otherwise', () => {
+		const highlighted = document.createElement('div');
+		renderSVG(makeLayout('dc2tog'), highlighted, OPTIONS);
+		expect(highlighted.querySelector('use')?.classList.contains('crochet-weaver-accent')).toBe(true);
+
+		const plain = document.createElement('div');
+		renderSVG(makeLayout('dc2tog'), plain, { ...OPTIONS, highlightIncDec: false });
+		expect(plain.querySelector('use')?.classList.contains('crochet-weaver-accent')).toBe(false);
+
+		const cluster = document.createElement('div');
+		renderSVG(makeLayout('dc3cl'), cluster, OPTIONS);
+		expect(cluster.querySelector('use')?.classList.contains('crochet-weaver-accent')).toBe(false);
+	});
+
 	it('groups the loop marker with its stitch under the current-position highlight', () => {
 		const container = document.createElement('div');
 		const layout: LayoutResult = {

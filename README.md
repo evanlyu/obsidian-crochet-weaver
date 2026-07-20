@@ -120,22 +120,37 @@ R2: flo, 6 sc in ch ring
 
 ### Stitches
 
-Supported stitch names:
+Supported stitch names, following standard US chart notation — 46 in total:
 
-- `ch`
-- `sc`
-- `hdc`
-- `dc`
-- `tr`
-- `dtr`
-- `sl st`
-- `fpdc`
-- `bpdc`
-- `bobble`
-- `popcorn`
-- `inc`
-- `dec`
-- `MR`
+| Symbol | Category | Description |
+| --- | --- | --- |
+| `ch` | Basic | Chain |
+| `sc` | Basic | Single crochet |
+| `hdc` | Basic | Half double crochet |
+| `dc` | Basic | Double crochet |
+| `tr` | Basic | Treble crochet |
+| `dtr` | Basic | Double treble crochet |
+| `sl st` | Basic | Slip stitch |
+| `MR` | Basic | Magic ring |
+| `picot` | Basic | Ch-3 picot |
+| `rsc` | Basic | Reverse single crochet (crab stitch) |
+| `inc` | Shaping | Increase (2 sc in one stitch) |
+| `dec` | Shaping | Decrease (sc2tog shorthand) |
+| `sc2tog`, `sc3tog` | Shaping | Single crochet 2/3 together |
+| `hdc2tog`…`hdc5tog` | Shaping | Half double crochet 2–5 together |
+| `dc2tog`…`dc5tog` | Shaping | Double crochet 2–5 together |
+| `fpsc`, `fphdc`, `fpdc`, `fptr` | Post stitch | Front post sc/hdc/dc/tr |
+| `bpsc`, `bphdc`, `bpdc`, `bptr` | Post stitch | Back post sc/hdc/dc/tr |
+| `xhdc`, `xdc`, `xtr` | Crossed | 1-stitch crossed hdc/dc/tr |
+| `hdc2cl`, `hdc3cl`, `hdc5cl` | Cluster/puff | 2/3/5-hdc cluster (puff) |
+| `dc2cl`, `dc3cl`, `dc5cl` | Cluster/puff | 2/3/5-dc cluster |
+| `tr2cl`, `tr3cl`, `tr5cl` | Cluster/puff | 2/3/5-tr cluster |
+| `bobble` | Cluster/puff | Generic bobble/puff |
+| `popcorn` | Popcorn | 5-dc popcorn |
+| `hdc popcorn` | Popcorn | 5-hdc popcorn |
+| `tr popcorn` | Popcorn | 5-tr popcorn |
+
+N-into-one increases and shells have no dedicated names — see the Groups example below.
 
 Quantity prefixes are supported:
 
@@ -149,10 +164,10 @@ Repeats use square brackets:
 R2: [sc, inc] x 6
 ```
 
-Groups use parentheses and render as a fan from one stitch position:
+Groups use parentheses and render as a fan from one stitch position — this is also how N-into-one increases and shells are written (there are no dedicated `2dc-in-1` names; `(dc, dc)` or `(5 dc)` draws exactly that chart symbol):
 
 ```crochet
-R3: (dc, ch, dc), sc
+R3: (dc, ch, dc), sc, (5 dc)
 ```
 
 ## Chart Types

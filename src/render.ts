@@ -56,13 +56,101 @@ const SYMBOLS: Record<string, SymbolSpec> = {
 	bpdc: {
 		paths: ['M -5 -8 L 5 -8 M 0 -8 L 0 6 M -3 -1 L 3 -5 M 0 6 Q -7 7 -7 1'],
 	},
+	// Picot (ch-3): a small chain loop pinched onto a stem.
+	picot: { paths: ['M 0 8 L 0 2', 'M 0 2 C -6 2 -6 -8 0 -8 C 6 -8 6 2 0 2'] },
+	// Reverse single crochet (crab stitch): X with a wave above.
+	rsc: { paths: ['M -4 -3 L 4 5 M 4 -3 L -4 5', 'M -4 -8 Q 0 -12 4 -8'] },
+	// Post single crochet: sc's X on a short stem ending in the post hook.
+	fpsc: { paths: ['M -4 -8 L 4 0 M 4 -8 L -4 0', 'M 0 0 L 0 4 M 0 4 Q 7 5 7 -1'] },
+	bpsc: { paths: ['M -4 -8 L 4 0 M 4 -8 L -4 0', 'M 0 0 L 0 4 M 0 4 Q -7 5 -7 -1'] },
+	// Post half double crochet: hdc's T with the post hook at the base.
+	fphdc: { paths: ['M -5 -9 L 5 -9 M 0 -9 L 0 5 M 0 5 Q 7 6 7 0'] },
+	bphdc: { paths: ['M -5 -9 L 5 -9 M 0 -9 L 0 5 M 0 5 Q -7 6 -7 0'] },
+	// Post treble crochet: tr's two yarn-over slashes plus the post hook.
+	fptr: { paths: ['M -5 -11 L 5 -11 M 0 -11 L 0 7 M -3 -4 L 3 -8 M -3 2 L 3 -2 M 0 7 Q 7 8 7 2'] },
+	bptr: { paths: ['M -5 -11 L 5 -11 M 0 -11 L 0 7 M -3 -4 L 3 -8 M -3 2 L 3 -2 M 0 7 Q -7 8 -7 2'] },
+	// Crossed stitches: two legs crossing, with yarn-over ticks per height.
+	xhdc: { paths: ['M -6 -8 L -2 -8 M 2 -8 L 6 -8', 'M -4 -8 L 4 8 M 4 -8 L -4 8'] },
+	xdc: {
+		paths: ['M -6 -8 L -2 -8 M 2 -8 L 6 -8', 'M -4 -8 L 4 8 M 4 -8 L -4 8', 'M -4 -3 L -1 -5 M 1 -5 L 4 -3'],
+	},
+	xtr: {
+		paths: [
+			'M -6 -10 L -2 -10 M 2 -10 L 6 -10',
+			'M -4 -10 L 4 10 M 4 -10 L -4 10',
+			'M -4 -6 L -1 -8 M 1 -8 L 4 -6',
+			'M -3 -1 L 0 -3 M 0 -3 L 3 -1',
+		],
+	},
+	// N-together decreases: legs converging to a joined top (apex X at sc
+	// height, top bar at hdc/dc heights, yarn-over ticks at dc height).
+	sc2tog: { paths: ['M -4 8 L 0 -2 M 4 8 L 0 -2', 'M -3 -3 L 3 -9 M 3 -3 L -3 -9'] },
+	sc3tog: { paths: ['M -4 8 L 0 -2 M 0 8 L 0 -2 M 4 8 L 0 -2', 'M -3 -3 L 3 -9 M 3 -3 L -3 -9'] },
+	hdc2tog: { paths: ['M -5 -9 L 5 -9', 'M 0 -9 L -4 9 M 0 -9 L 4 9'] },
+	hdc3tog: { paths: ['M -5 -9 L 5 -9', 'M 0 -9 L -4 9 M 0 -9 L 0 9 M 0 -9 L 4 9'] },
+	hdc4tog: { paths: ['M -6 -9 L 6 -9', 'M 0 -9 L -6 9 M 0 -9 L -2 9 M 0 -9 L 2 9 M 0 -9 L 6 9'] },
+	hdc5tog: { paths: ['M -6 -9 L 6 -9', 'M 0 -9 L -6 9 M 0 -9 L -3 9 M 0 -9 L 0 9 M 0 -9 L 3 9 M 0 -9 L 6 9'] },
+	dc2tog: { paths: ['M -5 -9 L 5 -9', 'M 0 -9 L -4 9 M 0 -9 L 4 9', 'M -4 1 L -1 -1 M 1 -1 L 4 1'] },
+	dc3tog: {
+		paths: ['M -5 -9 L 5 -9', 'M 0 -9 L -4 9 M 0 -9 L 0 9 M 0 -9 L 4 9', 'M -4 1 L -1 -1 M -1 1 L 1 -1 M 1 -1 L 4 1'],
+	},
+	dc4tog: {
+		paths: [
+			'M -6 -9 L 6 -9',
+			'M 0 -9 L -6 9 M 0 -9 L -2 9 M 0 -9 L 2 9 M 0 -9 L 6 9',
+			'M -5 1 L -2 -1 M -2 1 L 0 -1 M 0 -1 L 2 1 M 2 -1 L 5 1',
+		],
+	},
+	dc5tog: {
+		paths: [
+			'M -6 -9 L 6 -9',
+			'M 0 -9 L -6 9 M 0 -9 L -3 9 M 0 -9 L 0 9 M 0 -9 L 3 9 M 0 -9 L 6 9',
+			'M -5 1 L -2 -1 M -3 1 L 0 -1 M 0 1 L 3 -1 M 2 -1 L 5 1',
+		],
+	},
+	// Clusters/puffs: an oval bundle with interior legs by stitch count and
+	// yarn-over bars by height (none for hdc, one for dc, two for tr).
+	hdc2cl: { ellipse: { rx: 4, ry: 9 } },
+	hdc3cl: { ellipse: { rx: 5, ry: 9 }, paths: ['M 0 -7 L 0 7'] },
+	hdc5cl: { ellipse: { rx: 6, ry: 9 }, paths: ['M 0 -8 L 0 8 M -3 -6 L -3 6 M 3 -6 L 3 6'] },
+	dc2cl: { ellipse: { rx: 4, ry: 9 }, paths: ['M -3 0 L 3 0'] },
+	dc3cl: { ellipse: { rx: 5, ry: 9 }, paths: ['M 0 -7 L 0 7', 'M -4 0 L 4 0'] },
+	dc5cl: { ellipse: { rx: 6, ry: 9 }, paths: ['M 0 -8 L 0 8 M -3 -6 L -3 6 M 3 -6 L 3 6', 'M -5 0 L 5 0'] },
+	tr2cl: { ellipse: { rx: 4, ry: 10 }, paths: ['M -3 -3 L 3 -3 M -3 3 L 3 3'] },
+	tr3cl: { ellipse: { rx: 5, ry: 10 }, paths: ['M 0 -8 L 0 8', 'M -4 -3 L 4 -3 M -4 3 L 4 3'] },
+	tr5cl: {
+		ellipse: { rx: 6, ry: 10 },
+		paths: ['M 0 -9 L 0 9 M -3 -7 L -3 7 M 3 -7 L 3 7', 'M -5 -3 L 5 -3 M -5 3 L 5 3'],
+	},
+	// Popcorn family at other heights (plain `popcorn` stays the dc popcorn).
+	'hdc popcorn': { paths: ['M -5 6 C -7 -6 7 -6 5 6 M 0 -6 L 0 -9'] },
+	'tr popcorn': { paths: ['M -5 9 C -8 -9 8 -9 5 9 M 0 -9 L 0 -12 M -3 1 L 3 -3'] },
 };
 
-const ACCENT_STITCHES = new Set(['inc', 'dec']);
+const ACCENT_STITCHES = new Set([
+	'inc',
+	'dec',
+	'sc2tog',
+	'sc3tog',
+	'hdc2tog',
+	'hdc3tog',
+	'hdc4tog',
+	'hdc5tog',
+	'dc2tog',
+	'dc3tog',
+	'dc4tog',
+	'dc5tog',
+]);
 
 const BLO_MARK = 'M -4 9 Q 0 13 4 9';
 const FLO_MARK = 'M -4 9 Q 0 5 4 9';
 const ROW_CONNECTOR_GAP = 10;
+
+// Every stitch name that has a chart glyph. Tests sweep this list through the
+// parser and renderer to keep the grammar and the symbol library in sync.
+export function supportedSymbolNames(): readonly string[] {
+	return Object.keys(SYMBOLS);
+}
 
 let instanceCounter = 0;
 

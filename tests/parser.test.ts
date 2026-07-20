@@ -79,7 +79,9 @@ R2: 6 sc in ch ring, sl st
 		expectStitch(ast.rows[1]?.steps[1], 'sl st', 1);
 	});
 
-	it('parses all supported stitch names', () => {
+	// The exhaustive grammar/symbol sweep lives in tests/stitches.test.ts;
+	// this covers one representative of each naming family.
+	it('parses representative stitch names from every family', () => {
 		const stitches = [
 			'ch',
 			'sc',
@@ -95,6 +97,19 @@ R2: 6 sc in ch ring, sl st
 			'inc',
 			'dec',
 			'MR',
+			'picot',
+			'rsc',
+			'fpsc',
+			'bptr',
+			'xdc',
+			'sc2tog',
+			'hdc4tog',
+			'dc2tog',
+			'hdc3cl',
+			'dc5cl',
+			'tr2cl',
+			'hdc popcorn',
+			'tr popcorn',
 		];
 		const ast = parseChart(`R1: ${stitches.join(', ')}\n`);
 
