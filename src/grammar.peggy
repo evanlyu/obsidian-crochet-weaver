@@ -93,16 +93,53 @@ Stitch
 			return makeStitch(name, count);
 		}
 
+// Ordered longest-first within each shared prefix: PEG never backtracks into a
+// succeeded StitchName, so once 'sc' matches inside "sc2tog" the Stitch rule's
+// word-boundary lookahead fails the whole step with no retry. Compound names
+// ('hdc popcorn') and digit-containing names ('dc2tog', 'tr5cl') must all be
+// listed before the plain name they start with.
 StitchName
 	= 'sl' _ 'st' { return 'sl st'; }
-	/ 'ch'
-	/ 'sc'
+	/ 'hdc' _ 'popcorn' { return 'hdc popcorn'; }
+	/ 'tr' _ 'popcorn' { return 'tr popcorn'; }
+	/ 'hdc2tog'
+	/ 'hdc3tog'
+	/ 'hdc4tog'
+	/ 'hdc5tog'
+	/ 'hdc2cl'
+	/ 'hdc3cl'
+	/ 'hdc5cl'
 	/ 'hdc'
+	/ 'sc2tog'
+	/ 'sc3tog'
+	/ 'sc'
+	/ 'dc2tog'
+	/ 'dc3tog'
+	/ 'dc4tog'
+	/ 'dc5tog'
+	/ 'dc2cl'
+	/ 'dc3cl'
+	/ 'dc5cl'
 	/ 'dtr'
 	/ 'dc'
+	/ 'tr2cl'
+	/ 'tr3cl'
+	/ 'tr5cl'
 	/ 'tr'
+	/ 'ch'
+	/ 'fpsc'
+	/ 'fphdc'
 	/ 'fpdc'
+	/ 'fptr'
+	/ 'bpsc'
+	/ 'bphdc'
 	/ 'bpdc'
+	/ 'bptr'
+	/ 'xhdc'
+	/ 'xdc'
+	/ 'xtr'
+	/ 'rsc'
+	/ 'picot'
 	/ 'bobble'
 	/ 'popcorn'
 	/ 'inc'

@@ -14,6 +14,7 @@ describe('renderEmbeddedChart', () => {
 	const opts: ResolvedOptions = {
 		rotation: 'smart',
 		ringSpacing: 30,
+		grid: false,
 		scale: 1,
 		strokeWidth: 1.5,
 		highlightIncDec: false,

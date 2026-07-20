@@ -54,6 +54,8 @@ describe('plugin settings', () => {
 		expect(normalizeSettings({ panelPosition: 'below' }).panelPosition).toBe('below');
 		expect(normalizeSettings({ panelPosition: 'sideways' }).panelPosition).toBe(DEFAULT_SETTINGS.panelPosition);
 		expect(normalizeSettings({}).panelPosition).toBe(DEFAULT_SETTINGS.panelPosition);
+		expect(normalizeSettings({ showGrid: 'on' }).showGrid).toBe(true);
+		expect(normalizeSettings({ showGrid: 'nope' }).showGrid).toBe(DEFAULT_SETTINGS.showGrid);
 	});
 
 	it('exposes settings definitions for Obsidian settings search', () => {
@@ -69,7 +71,12 @@ describe('plugin settings', () => {
 			'showTool',
 			'showPatternText',
 			'panelPosition',
+			'showGrid',
 			'symbolRotation',
+			'gridDefaultShape',
+			'gridDefaultRounds',
+			'gridDefaultColumns',
+			'gridDefaultRows',
 		]);
 	});
 
@@ -81,7 +88,28 @@ describe('plugin settings', () => {
 		expect(definitions[6]?.name).toBe('進捗ツールを既定で表示');
 		expect(definitions[7]?.name).toBe('編み図テキストを既定で表示');
 		expect(definitions[8]?.name).toBe('パネルの位置');
-		expect(definitions[9]?.name).toBe('輪編み記号の回転');
+		expect(definitions[9]?.name).toBe('背景の参考グリッドを表示');
+		expect(definitions[10]?.name).toBe('輪編み記号の回転');
+		expect(definitions[11]?.name).toBe('グリッドの既定の形状');
+		expect(definitions[12]?.name).toBe('グリッドの既定の周数');
+		expect(definitions[13]?.name).toBe('グリッドの既定の列数');
+		expect(definitions[14]?.name).toBe('グリッドの既定の行数');
+	});
+
+	it('normalizes malformed grid default settings', () => {
+		expect(normalizeSettings({ gridDefaultShape: 'rect' }).gridDefaultShape).toBe('rect');
+		expect(normalizeSettings({ gridDefaultShape: 'triangle' }).gridDefaultShape).toBe(
+			DEFAULT_SETTINGS.gridDefaultShape,
+		);
+		expect(normalizeSettings({ gridDefaultRounds: '8' }).gridDefaultRounds).toBe(8);
+		expect(normalizeSettings({ gridDefaultRounds: -3 }).gridDefaultRounds).toBe(
+			DEFAULT_SETTINGS.gridDefaultRounds,
+		);
+		expect(normalizeSettings({ gridDefaultColumns: 1.5 }).gridDefaultColumns).toBe(
+			DEFAULT_SETTINGS.gridDefaultColumns,
+		);
+		expect(normalizeSettings({ gridDefaultRows: 10 }).gridDefaultRows).toBe(10);
+		expect(normalizeSettings({}).gridDefaultRows).toBe(DEFAULT_SETTINGS.gridDefaultRows);
 	});
 
 	it('offers fine-grained numeric presets for chart settings', () => {

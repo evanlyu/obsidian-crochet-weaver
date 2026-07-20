@@ -5,7 +5,7 @@ import {
 	type Locale,
 } from './i18n';
 import { isSafeProgressId } from './progress-id';
-import type { PanelPosition, SymbolRotation } from './types';
+import type { GridShape, PanelPosition, SymbolRotation } from './types';
 
 export interface CrochetWeaverSettings {
 	languagePreference: LanguagePreference;
@@ -18,6 +18,11 @@ export interface CrochetWeaverSettings {
 	showTool: boolean;
 	showPatternText: boolean;
 	panelPosition: PanelPosition;
+	showGrid: boolean;
+	gridDefaultShape: GridShape;
+	gridDefaultRounds: number;
+	gridDefaultColumns: number;
+	gridDefaultRows: number;
 	progress: Record<string, number>;
 	stitchProgress: Record<string, number>;
 }
@@ -25,6 +30,9 @@ export interface CrochetWeaverSettings {
 export const SCALE_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3] as const;
 export const STROKE_WIDTH_OPTIONS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5, 4] as const;
 export const RING_SPACING_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80] as const;
+export const GRID_ROUNDS_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20] as const;
+export const GRID_COLUMNS_OPTIONS = [4, 6, 8, 10, 12, 16, 18, 20, 24, 32, 36, 48] as const;
+export const GRID_ROWS_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20] as const;
 
 export const DEFAULT_SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
@@ -37,6 +45,11 @@ export const DEFAULT_SETTINGS: CrochetWeaverSettings = {
 	showTool: false,
 	showPatternText: false,
 	panelPosition: 'right',
+	showGrid: false,
+	gridDefaultShape: 'polar',
+	gridDefaultRounds: 6,
+	gridDefaultColumns: 12,
+	gridDefaultRows: 6,
 	progress: {},
 	stitchProgress: {},
 };
@@ -60,7 +73,7 @@ interface DropdownSettingDefinition extends SettingDefinitionBase {
 interface ToggleSettingDefinition extends SettingDefinitionBase {
 	readonly control: {
 		readonly type: 'toggle';
-		readonly key: 'highlightIncDec' | 'showTool' | 'showPatternText';
+		readonly key: 'highlightIncDec' | 'showTool' | 'showPatternText' | 'showGrid';
 		readonly defaultValue: boolean;
 	};
 }
@@ -173,6 +186,15 @@ export function getLocalizedSettingDefinitions(locale: Locale): readonly Crochet
 			},
 		},
 		{
+			name: t(locale, 'settings.showGrid.name'),
+			desc: t(locale, 'settings.showGrid.desc'),
+			control: {
+				type: 'toggle',
+				key: 'showGrid',
+				defaultValue: DEFAULT_SETTINGS.showGrid,
+			},
+		},
+		{
 			name: t(locale, 'settings.rotation.name'),
 			desc: t(locale, 'settings.rotation.desc'),
 			control: {
@@ -184,6 +206,49 @@ export function getLocalizedSettingDefinitions(locale: Locale): readonly Crochet
 					all: t(locale, 'settings.rotation.all'),
 					none: t(locale, 'settings.rotation.none'),
 				},
+			},
+		},
+		{
+			name: t(locale, 'settings.gridDefaultShape.name'),
+			desc: t(locale, 'settings.gridDefaultShape.desc'),
+			control: {
+				type: 'dropdown',
+				key: 'gridDefaultShape',
+				defaultValue: DEFAULT_SETTINGS.gridDefaultShape,
+				options: {
+					polar: t(locale, 'settings.gridDefaultShape.polar'),
+					rect: t(locale, 'settings.gridDefaultShape.rect'),
+				},
+			},
+		},
+		{
+			name: t(locale, 'settings.gridDefaultRounds.name'),
+			desc: t(locale, 'settings.gridDefaultRounds.desc'),
+			control: {
+				type: 'dropdown',
+				key: 'gridDefaultRounds',
+				defaultValue: String(DEFAULT_SETTINGS.gridDefaultRounds),
+				options: numberOptions(GRID_ROUNDS_OPTIONS),
+			},
+		},
+		{
+			name: t(locale, 'settings.gridDefaultColumns.name'),
+			desc: t(locale, 'settings.gridDefaultColumns.desc'),
+			control: {
+				type: 'dropdown',
+				key: 'gridDefaultColumns',
+				defaultValue: String(DEFAULT_SETTINGS.gridDefaultColumns),
+				options: numberOptions(GRID_COLUMNS_OPTIONS),
+			},
+		},
+		{
+			name: t(locale, 'settings.gridDefaultRows.name'),
+			desc: t(locale, 'settings.gridDefaultRows.desc'),
+			control: {
+				type: 'dropdown',
+				key: 'gridDefaultRows',
+				defaultValue: String(DEFAULT_SETTINGS.gridDefaultRows),
+				options: numberOptions(GRID_ROWS_OPTIONS),
 			},
 		},
 	];
@@ -202,6 +267,11 @@ export function normalizeSettings(raw: unknown): CrochetWeaverSettings {
 		showTool: parseBoolean(record.showTool) ?? DEFAULT_SETTINGS.showTool,
 		showPatternText: parseBoolean(record.showPatternText) ?? DEFAULT_SETTINGS.showPatternText,
 		panelPosition: parsePanelPosition(record.panelPosition) ?? DEFAULT_SETTINGS.panelPosition,
+		showGrid: parseBoolean(record.showGrid) ?? DEFAULT_SETTINGS.showGrid,
+		gridDefaultShape: parseGridShape(record.gridDefaultShape) ?? DEFAULT_SETTINGS.gridDefaultShape,
+		gridDefaultRounds: parsePositiveInteger(record.gridDefaultRounds) ?? DEFAULT_SETTINGS.gridDefaultRounds,
+		gridDefaultColumns: parsePositiveInteger(record.gridDefaultColumns) ?? DEFAULT_SETTINGS.gridDefaultColumns,
+		gridDefaultRows: parsePositiveInteger(record.gridDefaultRows) ?? DEFAULT_SETTINGS.gridDefaultRows,
 		progress: normalizeProgress(record.progress),
 		stitchProgress: normalizeProgress(record.stitchProgress),
 	};
@@ -243,6 +313,15 @@ function parseBoolean(value: unknown): boolean | undefined {
 
 function parsePanelPosition(value: unknown): PanelPosition | undefined {
 	return value === 'left' || value === 'right' || value === 'below' ? value : undefined;
+}
+
+function parseGridShape(value: unknown): GridShape | undefined {
+	return value === 'polar' || value === 'rect' ? value : undefined;
+}
+
+function parsePositiveInteger(value: unknown): number | undefined {
+	const numberValue = typeof value === 'string' || typeof value === 'number' ? Number(value) : NaN;
+	return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : undefined;
 }
 
 function parseHexColor(value: unknown): string | undefined {

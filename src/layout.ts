@@ -14,7 +14,7 @@ export function calculateLayout(
 	validateChartBudget(ast);
 	switch (ast.config.type) {
 		case 'flat':
-			return layoutFlat(ast);
+			return layoutFlat(ast, options);
 		case 'round':
 			return layoutRound(ast, options);
 		case 'spiral':
