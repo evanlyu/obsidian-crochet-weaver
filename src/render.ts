@@ -1,4 +1,5 @@
 import { t, type Locale } from './i18n';
+import { wrapScrollable } from './scroll-pan';
 import type { ChartHighlight, LayoutResult, RenderItem, RenderOptions } from './types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -247,7 +248,7 @@ export function renderSVG(
 		}
 	}
 
-	el.appendChild(svg);
+	wrapScrollable(el, svg);
 }
 
 function symbolId(uid: string, name: string): string {
