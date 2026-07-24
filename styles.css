@@ -1,12 +1,27 @@
 /* Crochet Weaver chart styles */
 
-.crochet-weaver-chart {
+/* Scrollable, drag-to-pan viewport around a chart/grid SVG. The SVG keeps its
+   real configured pixel size (see scale/stroke settings) instead of being
+   squeezed to fit; this just bounds how much space it takes in the note and
+   lets you pan when it's larger than that. */
+.crochet-weaver-canvas {
 	display: block;
 	max-width: 100%;
-	height: auto;
+	max-height: 70vh;
+	overflow: auto;
 	margin: 0.5em 0;
 	border-radius: 8px;
 	background-color: var(--background-secondary);
+	cursor: grab;
+}
+
+.crochet-weaver-canvas.is-dragging {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.crochet-weaver-chart {
+	display: block;
 	color: var(--text-normal); /* Symbol strokes use currentColor and follow the theme. */
 }
 
@@ -46,7 +61,15 @@
 	flex-direction: column;
 }
 
-.crochet-weaver-chart-row .crochet-weaver-chart {
+.crochet-weaver-chart-row .crochet-weaver-chart-container {
+	/* Flex items default to min-width/min-height: auto, which refuses to
+	   shrink below the chart's real content size — that silently defeats
+	   .crochet-weaver-canvas's own overflow:auto/drag-to-pan on this axis. */
+	min-width: 0;
+	min-height: 0;
+}
+
+.crochet-weaver-chart-row .crochet-weaver-canvas {
 	margin: 0;
 	flex: 0 0 auto;
 }
@@ -55,6 +78,11 @@
 .crochet-weaver-chart-row .crochet-pattern-text {
 	margin: 0;
 	flex: 1 1 260px;
+	/* Same min-width: auto flex-item issue as the chart wrapper and the row
+	   text below: without this, the panel itself won't shrink below its
+	   unwrapped content's width on a narrow (portrait phone) screen, which
+	   defeats every wrapping fix inside it. */
+	min-width: 0;
 }
 
 .crochet-weaver-panel-below .crochet-tool,
@@ -65,11 +93,6 @@
 
 .crochet-weaver-grid {
 	display: block;
-	max-width: 100%;
-	height: auto;
-	margin: 0.5em 0;
-	border-radius: 8px;
-	background-color: var(--background-secondary);
 	color: var(--text-muted); /* Guide lines use currentColor and follow the theme. */
 }
 
@@ -96,8 +119,10 @@
 
 .crochet-tool-header {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: baseline;
 	justify-content: space-between;
+	gap: 4px 8px;
 	margin-bottom: 8px;
 }
 
@@ -139,19 +164,23 @@
 
 .crochet-tool-stitch-controls {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
+	justify-content: center;
 	gap: 8px;
 }
 
 .crochet-tool-stitch-count {
 	flex: 1 1 auto;
+	min-width: 5em;
 	text-align: center;
 	font-variant-numeric: tabular-nums;
 	font-weight: 600;
 }
 
 .crochet-tool-stitch-btn,
-.crochet-tool-stitch-reset {
+.crochet-tool-stitch-reset,
+.crochet-tool-stitch-reset-all {
 	cursor: pointer;
 }
 
@@ -166,11 +195,20 @@
 	margin-bottom: 10px;
 }
 
+/* Grid, not flex: the round badge and stitch count are fixed-width columns
+   (sized to their own content) that can never overlap the middle column,
+   which takes whatever width is left and wraps in height when that isn't
+   enough — a flex row can't guarantee that without fighting min-width: auto
+   on every level of the tree (and on some engines, on <button> itself). */
 .crochet-tool-row {
-	display: flex;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
 	align-items: center;
 	width: 100%;
-	gap: 8px;
+	height: auto;
+	min-height: 0;
+	overflow: visible;
+	column-gap: 8px;
 	padding: 4px 6px;
 	border: 0;
 	border-radius: 6px;
@@ -186,7 +224,6 @@
 }
 
 .crochet-tool-badge {
-	flex: 0 0 auto;
 	min-width: 2.2em;
 	text-align: center;
 	font-variant-numeric: tabular-nums;
@@ -195,13 +232,14 @@
 }
 
 .crochet-tool-steps {
-	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: break-word;
+	word-break: normal;
 	font-family: var(--font-monospace);
 	font-size: 0.9em;
 }
 
 .crochet-tool-count {
-	flex: 0 0 auto;
 	color: var(--text-muted);
 	font-size: 0.8em;
 	font-variant-numeric: tabular-nums;
@@ -223,10 +261,12 @@
 
 .crochet-tool-controls {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 8px;
 }
 
 .crochet-tool-controls button {
+	flex: 1 1 auto;
 	cursor: pointer;
 }
 
@@ -251,15 +291,17 @@
 	gap: 2px;
 }
 
+/* See .crochet-tool-row: grid, not flex, so the badge/count columns can
+   never overlap the pattern-text column — it just wraps in height. */
 .crochet-pattern-text-row {
-	display: flex;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
 	align-items: center;
-	gap: 8px;
+	column-gap: 8px;
 	padding: 4px 6px;
 }
 
 .crochet-pattern-text-badge {
-	flex: 0 0 auto;
 	min-width: 2.2em;
 	text-align: center;
 	font-variant-numeric: tabular-nums;
@@ -268,13 +310,14 @@
 }
 
 .crochet-pattern-text-steps {
-	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: break-word;
+	word-break: normal;
 	font-family: var(--font-monospace);
 	font-size: 0.9em;
 }
 
 .crochet-pattern-text-count {
-	flex: 0 0 auto;
 	color: var(--text-muted);
 	font-size: 0.8em;
 	font-variant-numeric: tabular-nums;
