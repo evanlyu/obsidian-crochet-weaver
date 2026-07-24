@@ -29,7 +29,7 @@ describe('renderEmbeddedChart', () => {
 
 	it('appends panel before chart when position is left', () => {
 		const el = document.createElement('div');
-		const panel: PanelOptions = { showTool: true, showText: false, position: 'left' };
+		const panel: PanelOptions = { showTool: true, showText: false, position: 'left', textStyle: 'raw' };
 
 		renderEmbeddedChart(el, 'R1: sc', ast, layout, opts, panel, 'en', store);
 
@@ -47,7 +47,7 @@ describe('renderEmbeddedChart', () => {
 
 	it('appends chart before panel when position is right', () => {
 		const el = document.createElement('div');
-		const panel: PanelOptions = { showTool: true, showText: false, position: 'right' };
+		const panel: PanelOptions = { showTool: true, showText: false, position: 'right', textStyle: 'raw' };
 
 		renderEmbeddedChart(el, 'R1: sc', ast, layout, opts, panel, 'en', store);
 

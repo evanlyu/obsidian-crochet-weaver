@@ -1,5 +1,6 @@
 import { getLanguage, Plugin, type Editor } from 'obsidian';
 import { parseChart } from './parse-chart';
+import type { PatternTextStyle } from './types';
 import { validateChartBudget, validateGridGuideBudget } from './budget';
 import { calculateLayout } from './layout';
 import { renderCrochetTool } from './tool';
@@ -43,7 +44,13 @@ export default class CrochetWeaverPlugin extends Plugin {
 		});
 
 		this.registerMarkdownCodeBlockProcessor('crochet-tool', (source, el) => {
-			renderCrochetTool(source, el, this, this.getLocale());
+			let textStyle: PatternTextStyle = 'raw';
+			try {
+				textStyle = resolvePanelOptions(parseChart(source), this.settings).textStyle;
+			} catch {
+				// renderCrochetTool below re-parses source and reports the error itself.
+			}
+			renderCrochetTool(source, el, this, this.getLocale(), textStyle);
 		});
 
 		this.registerMarkdownCodeBlockProcessor('crochet-grid', (source, el) => {

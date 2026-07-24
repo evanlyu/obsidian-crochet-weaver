@@ -8,11 +8,17 @@ export interface StitchNode {
 	type: 'StitchNode';
 	stitch: string;
 	count: number;
+	// Yarn color in effect at this stitch, set by unroll() from the nearest
+	// preceding ColorChangeNode (in this row or an earlier one). Not set by
+	// the parser itself.
+	color?: string;
 }
 
 export interface GroupNode {
 	type: 'GroupNode';
 	children: AstNode[];
+	// See StitchNode.color.
+	color?: string;
 }
 
 export interface RepeatNode {
@@ -21,7 +27,14 @@ export interface RepeatNode {
 	children: AstNode[];
 }
 
-export type AstNode = StitchNode | GroupNode | RepeatNode;
+// Mid-row yarn color change (e.g. "color white"). Carries no width of its
+// own — layout.unroll() consumes it to tag the stitches that follow.
+export interface ColorChangeNode {
+	type: 'ColorChangeNode';
+	color: string;
+}
+
+export type AstNode = StitchNode | GroupNode | RepeatNode | ColorChangeNode;
 
 export interface RowNode {
 	type: 'Row';
@@ -43,6 +56,11 @@ export type SymbolRotation = 'smart' | 'all' | 'none';
 
 // Where an embedded tool/text panel sits relative to its chart.
 export type PanelPosition = 'left' | 'right' | 'below';
+
+// How the progress tool and pattern-text panel display each row's steps:
+// raw keeps the typed shorthand (e.g. "6 sc"); readable translates stitch
+// abbreviations into full, localized names (e.g. "短針6").
+export type PatternTextStyle = 'raw' | 'readable';
 
 // Layout options resolved from global settings and per-chart frontmatter.
 export interface LayoutOptions {
@@ -72,6 +90,10 @@ export interface RenderItem {
 	loop?: 'blo' | 'flo';
 	rowIndex?: number;
 	unitIndex?: number;
+	// Yarn color for this stitch (CSS color name or #hex), from a "color"
+	// step earlier in this row or a previous one. Undefined means "use the
+	// theme's default symbol color," same as before this feature existed.
+	color?: string;
 }
 
 // Which row/unit an embedded progress tool wants highlighted on its paired chart.
@@ -98,12 +120,23 @@ export interface ChartGridGuide {
 	lines: readonly GridLine[];
 }
 
+// Marks the first stitch worked in a new yarn color, drawn as a small flag
+// so the change is legible even where the color itself isn't obvious (e.g.
+// two similar shades, or a symbol whose color a viewer can't easily compare
+// stitch-to-stitch at a glance).
+export interface ColorMarker {
+	x: number;
+	y: number;
+	color: string;
+}
+
 export interface LayoutResult {
 	items: RenderItem[];
 	width: number;
 	height: number;
 	rowConnectors?: RowConnector[];
 	gridGuide?: ChartGridGuide;
+	colorMarkers?: ColorMarker[];
 }
 
 // Render options resolved from global settings and per-chart frontmatter.

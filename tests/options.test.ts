@@ -14,6 +14,7 @@ const SETTINGS: CrochetWeaverSettings = {
 	chartMarkerColor: '#1971c2',
 	showTool: false,
 	showPatternText: false,
+	patternTextStyle: 'raw',
 	panelPosition: 'right',
 	showGrid: false,
 	gridDefaultShape: 'polar',
@@ -157,6 +158,7 @@ describe('embedded panel resolution', () => {
 			showTool: false,
 			showText: false,
 			position: 'right',
+			textStyle: 'raw',
 		});
 	});
 
@@ -167,6 +169,7 @@ describe('embedded panel resolution', () => {
 			showTool: true,
 			showText: true,
 			position: 'below',
+			textStyle: 'raw',
 		});
 	});
 
@@ -182,7 +185,7 @@ R1: sc
 			SETTINGS,
 		);
 
-		expect(options).toEqual({ showTool: true, showText: true, position: 'left' });
+		expect(options).toEqual({ showTool: true, showText: true, position: 'left', textStyle: 'raw' });
 	});
 
 	it('falls back to global settings for invalid frontmatter values', () => {
@@ -197,7 +200,29 @@ R1: sc
 			settings,
 		);
 
-		expect(options).toEqual({ showTool: true, showText: false, position: 'below' });
+		expect(options).toEqual({ showTool: true, showText: false, position: 'below', textStyle: 'raw' });
+	});
+
+	it('resolves textStyle from global settings or the readable frontmatter override', () => {
+		expect(resolvePanelOptions(parseChart('R1: sc\n'), SETTINGS).textStyle).toBe('raw');
+		expect(
+			resolvePanelOptions(parseChart('R1: sc\n'), { ...SETTINGS, patternTextStyle: 'readable' }).textStyle,
+		).toBe('readable');
+		expect(
+			resolvePanelOptions(parseChart('---\nreadable: on\n---\nR1: sc\n'), SETTINGS).textStyle,
+		).toBe('readable');
+		expect(
+			resolvePanelOptions(
+				parseChart('---\nreadable: off\n---\nR1: sc\n'),
+				{ ...SETTINGS, patternTextStyle: 'readable' },
+			).textStyle,
+		).toBe('raw');
+		expect(
+			resolvePanelOptions(
+				parseChart('---\nreadable: maybe\n---\nR1: sc\n'),
+				{ ...SETTINGS, patternTextStyle: 'readable' },
+			).textStyle,
+		).toBe('readable');
 	});
 
 	it('lets a chart turn the tool off even when the global default is on', () => {

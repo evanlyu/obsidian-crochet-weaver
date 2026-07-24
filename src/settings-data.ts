@@ -5,7 +5,7 @@ import {
 	type Locale,
 } from './i18n';
 import { isSafeProgressId } from './progress-id';
-import type { GridShape, PanelPosition, SymbolRotation } from './types';
+import type { GridShape, PanelPosition, PatternTextStyle, SymbolRotation } from './types';
 
 export interface CrochetWeaverSettings {
 	languagePreference: LanguagePreference;
@@ -17,6 +17,7 @@ export interface CrochetWeaverSettings {
 	chartMarkerColor: string;
 	showTool: boolean;
 	showPatternText: boolean;
+	patternTextStyle: PatternTextStyle;
 	panelPosition: PanelPosition;
 	showGrid: boolean;
 	gridDefaultShape: GridShape;
@@ -44,6 +45,7 @@ export const DEFAULT_SETTINGS: CrochetWeaverSettings = {
 	chartMarkerColor: '#f1c40f',
 	showTool: false,
 	showPatternText: false,
+	patternTextStyle: 'raw',
 	panelPosition: 'right',
 	showGrid: false,
 	gridDefaultShape: 'polar',
@@ -172,6 +174,19 @@ export function getLocalizedSettingDefinitions(locale: Locale): readonly Crochet
 			},
 		},
 		{
+			name: t(locale, 'settings.patternTextStyle.name'),
+			desc: t(locale, 'settings.patternTextStyle.desc'),
+			control: {
+				type: 'dropdown',
+				key: 'patternTextStyle',
+				defaultValue: DEFAULT_SETTINGS.patternTextStyle,
+				options: {
+					raw: t(locale, 'settings.patternTextStyle.raw'),
+					readable: t(locale, 'settings.patternTextStyle.readable'),
+				},
+			},
+		},
+		{
 			name: t(locale, 'settings.panelPosition.name'),
 			desc: t(locale, 'settings.panelPosition.desc'),
 			control: {
@@ -266,6 +281,7 @@ export function normalizeSettings(raw: unknown): CrochetWeaverSettings {
 		chartMarkerColor: parseHexColor(record.chartMarkerColor) ?? DEFAULT_SETTINGS.chartMarkerColor,
 		showTool: parseBoolean(record.showTool) ?? DEFAULT_SETTINGS.showTool,
 		showPatternText: parseBoolean(record.showPatternText) ?? DEFAULT_SETTINGS.showPatternText,
+		patternTextStyle: parsePatternTextStyle(record.patternTextStyle) ?? DEFAULT_SETTINGS.patternTextStyle,
 		panelPosition: parsePanelPosition(record.panelPosition) ?? DEFAULT_SETTINGS.panelPosition,
 		showGrid: parseBoolean(record.showGrid) ?? DEFAULT_SETTINGS.showGrid,
 		gridDefaultShape: parseGridShape(record.gridDefaultShape) ?? DEFAULT_SETTINGS.gridDefaultShape,
@@ -313,6 +329,10 @@ function parseBoolean(value: unknown): boolean | undefined {
 
 function parsePanelPosition(value: unknown): PanelPosition | undefined {
 	return value === 'left' || value === 'right' || value === 'below' ? value : undefined;
+}
+
+function parsePatternTextStyle(value: unknown): PatternTextStyle | undefined {
+	return value === 'raw' || value === 'readable' ? value : undefined;
 }
 
 function parseGridShape(value: unknown): GridShape | undefined {
