@@ -10,6 +10,13 @@ export const GROUP_FAN_ARC_DEG = 8;
 export const CH_RING_RADIUS = 12;
 export const CH_RING_COUNT = 6;
 
+// Radius of the hollow ring drawn around the first stitch worked in a new
+// yarn color, flagging the color change without covering the stitch symbol
+// (a filled marker would hide it, and read as a second "current position"
+// dot next to the progress tool's own highlight). Close enough to the
+// symbol to read as "circling this stitch," not a loose halo around it.
+export const COLOR_MARKER_RADIUS = 8;
+
 const FIXED_ORIENTATION = new Set(['sc', 'ch', 'sl st', 'MR', 'rsc']);
 
 const SYMBOL_EXTENT: Record<string, number> = {

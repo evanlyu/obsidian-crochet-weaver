@@ -72,7 +72,19 @@ Steps
 			return [head, ...tail];
 		}
 
-Step = Repeat / Group / Stitch
+Step = Repeat / Group / ColorChange / Stitch
+
+// Mid-row yarn color change, e.g. "color white" or "color: #ffffff". Not a
+// stitch — carries no width of its own, but sets the color every following
+// stitch (in this row and any later row, until changed again) is rendered in.
+ColorChange
+	= 'color'i ![a-zA-Z0-9_] _ ':'? _ value:ColorValue ![a-zA-Z0-9_] {
+			return { type: 'ColorChangeNode', color: value };
+		}
+
+ColorValue
+	= '#' hex:$([0-9a-fA-F]+) { return '#' + hex; }
+	/ $([a-zA-Z]+)
 
 // Repeat block: [sc, inc] x 6.
 Repeat

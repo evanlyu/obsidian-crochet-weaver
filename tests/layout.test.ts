@@ -311,3 +311,61 @@ R3: [sc, inc] x 6
 		expect(shrunk.gridGuide?.lines).toHaveLength((2 + 1) + (6 + 1));
 	});
 });
+
+describe('color changes', () => {
+	it('tags stitches with the nearest preceding color and marks only the first stitch of each new color', () => {
+		const layout = calculateLayout(parseChart('R1: 8 sc, color white, 8 sc, color black, 8 sc\n'), OPTIONS);
+
+		const colors = layout.items.map((item) => item.color);
+		expect(colors.slice(0, 8)).toEqual(Array(8).fill(undefined));
+		expect(colors.slice(8, 16)).toEqual(Array(8).fill('white'));
+		expect(colors.slice(16, 24)).toEqual(Array(8).fill('black'));
+
+		expect(layout.colorMarkers).toHaveLength(2);
+		expect(layout.colorMarkers?.[0]).toMatchObject({ color: 'white' });
+		expect(layout.colorMarkers?.[0]?.x).toBeCloseTo(layout.items[8]?.x ?? NaN);
+		expect(layout.colorMarkers?.[0]?.y).toBeCloseTo(layout.items[8]?.y ?? NaN);
+		expect(layout.colorMarkers?.[1]).toMatchObject({ color: 'black' });
+		expect(layout.colorMarkers?.[1]?.x).toBeCloseTo(layout.items[16]?.x ?? NaN);
+	});
+
+	it('carries a color set in one row into later rows until changed again', () => {
+		const layout = calculateLayout(parseChart('R1: color red, 2 sc\nR2: 2 sc\n'), OPTIONS);
+
+		expect(layout.items.map((item) => item.color)).toEqual(['red', 'red', 'red', 'red']);
+		expect(layout.colorMarkers).toHaveLength(1);
+	});
+
+	it('applies a group\'s color to every fanned-out child', () => {
+		const layout = calculateLayout(parseChart('R1: color blue, (dc, ch, dc)\n'), OPTIONS);
+
+		expect(layout.items.map((item) => item.color)).toEqual(['blue', 'blue', 'blue']);
+	});
+
+	it('propagates color through round and spiral layouts too', () => {
+		const round = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: color green, [inc] x 6\n'),
+			OPTIONS,
+		);
+		const round2 = round.items.filter((item) => item.rowIndex === 1);
+		expect(round2.every((item) => item.color === 'green')).toBe(true);
+		expect(round.items.filter((item) => item.rowIndex === 0).every((item) => item.color === undefined)).toBe(
+			true,
+		);
+
+		const spiral = calculateLayout(
+			parseChart('---\ntype: spiral\n---\nR1: color pink, sc in MR\nR2: sc\n'),
+			OPTIONS,
+		);
+		expect(spiral.items.filter((item) => item.rowIndex !== undefined).every((item) => item.color === 'pink')).toBe(
+			true,
+		);
+	});
+
+	it('does not mark or color anything when no color step is used', () => {
+		const layout = calculateLayout(parseChart('R1: 4 sc\n'), OPTIONS);
+
+		expect(layout.items.every((item) => item.color === undefined)).toBe(true);
+		expect(layout.colorMarkers).toBeUndefined();
+	});
+});

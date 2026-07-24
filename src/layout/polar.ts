@@ -35,7 +35,7 @@ export function placeUnitPolar(
 	unitIndex?: number,
 ) {
 	if (unit.type === 'StitchNode') {
-		items.push(polarItem(unit.stitch, radius, phiDeg, rotation, rowIndex, unitIndex));
+		items.push(polarItem(unit.stitch, radius, phiDeg, rotation, rowIndex, unitIndex, unit.color));
 	} else {
 		const children = flattenGroup(unit);
 		const mid = (children.length - 1) / 2;
@@ -48,6 +48,7 @@ export function placeUnitPolar(
 					rotation,
 					rowIndex,
 					unitIndex,
+					unit.color,
 				),
 			);
 		});
@@ -61,6 +62,7 @@ function polarItem(
 	rotation: SymbolRotation,
 	rowIndex?: number,
 	unitIndex?: number,
+	color?: string,
 ): RenderItem {
 	const rad = (phiDeg * Math.PI) / 180;
 	return {
@@ -70,6 +72,7 @@ function polarItem(
 		rotation: symbolAngle(symbol, phiDeg, rotation),
 		rowIndex,
 		unitIndex,
+		color,
 	};
 }
 

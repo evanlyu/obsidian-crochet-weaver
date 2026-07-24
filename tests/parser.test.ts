@@ -134,6 +134,22 @@ R2: 6 sc in ch ring, sl st
 		expect(repeat.children).toHaveLength(2);
 	});
 
+	it('parses color-change steps by name, by hex, and with an optional colon', () => {
+		const named = parseChart('R1: 8 sc, color white, 8 sc\n');
+		expect(named.rows[0]?.steps[1]).toEqual({ type: 'ColorChangeNode', color: 'white' });
+
+		const hex = parseChart('R1: color #FF8800, 8 sc\n');
+		expect(hex.rows[0]?.steps[0]).toEqual({ type: 'ColorChangeNode', color: '#FF8800' });
+
+		const colon = parseChart('R1: color: black, 8 sc\n');
+		expect(colon.rows[0]?.steps[0]).toEqual({ type: 'ColorChangeNode', color: 'black' });
+	});
+
+	it('requires a word boundary and a value for color-change steps', () => {
+		expect(() => parseChart('R1: colorwhite\n')).toThrow();
+		expect(() => parseChart('R1: color\n')).toThrow();
+	});
+
 	it('rejects unsupported stitch words', () => {
 		expect(() => parseChart('R1: chain\n')).toThrow();
 	});

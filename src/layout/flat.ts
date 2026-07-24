@@ -1,7 +1,15 @@
-import type { ChartGridGuide, CrochetAst, LayoutOptions, LayoutResult, RenderItem, RowConnector } from '../types';
+import type {
+	ChartGridGuide,
+	ColorMarker,
+	CrochetAst,
+	LayoutOptions,
+	LayoutResult,
+	RenderItem,
+	RowConnector,
+} from '../types';
 import { GROUP_FAN_ANGLE, GROUP_FAN_SPREAD, ROW_HEIGHT, STITCH_WIDTH } from './constants';
 import { normalize } from './normalize';
-import { flattenGroup, tagLoop, unroll } from './steps';
+import { flattenGroup, tagLoop, unroll, type ColorState } from './steps';
 
 export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResult {
 	const items: RenderItem[] = [];
@@ -11,6 +19,9 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 	let prevRowY = 0;
 	let minSlotX = Infinity;
 	let maxSlotX = -Infinity;
+	const colorState: ColorState = {};
+	const colorMarkers: ColorMarker[] = [];
+	let previousColor: string | undefined;
 
 	ast.rows.forEach((row, rowIndex) => {
 		const y = -rowIndex * ROW_HEIGHT;
@@ -19,13 +30,14 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 			rowConnectors.push({ x: prevRowEndX, fromY: prevRowY, toY: y });
 		}
 		const start = items.length;
-		const units = unroll(row.steps);
+		const units = unroll(row.steps, colorState);
 
 		units.forEach((unit, unitIndex) => {
 			minSlotX = Math.min(minSlotX, x);
 			maxSlotX = Math.max(maxSlotX, x);
+			const itemStart = items.length;
 			if (unit.type === 'StitchNode') {
-				items.push({ symbol: unit.stitch, x, y, rotation: 0, rowIndex, unitIndex });
+				items.push({ symbol: unit.stitch, x, y, rotation: 0, rowIndex, unitIndex, color: unit.color });
 			} else {
 				const children = flattenGroup(unit);
 				const mid = (children.length - 1) / 2;
@@ -37,8 +49,14 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 						rotation: (i - mid) * GROUP_FAN_ANGLE,
 						rowIndex,
 						unitIndex,
+						color: unit.color,
 					});
 				});
+			}
+			if (unit.color !== undefined && unit.color !== previousColor) {
+				const first = items[itemStart];
+				if (first) colorMarkers.push({ x: first.x, y: first.y, color: unit.color });
+				previousColor = unit.color;
 			}
 			prevRowEndX = x;
 			x += STITCH_WIDTH * direction;
@@ -52,7 +70,7 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 	const gridGuide = options.grid
 		? buildMeshGuide(ast.rows.length, minSlotX, maxSlotX, options.gridCount, options.gridColumns)
 		: undefined;
-	return normalize(items, rowConnectors, gridGuide);
+	return normalize(items, rowConnectors, gridGuide, colorMarkers);
 }
 
 // A plain row/column mesh over the chart's real extent. Flat rows alternate

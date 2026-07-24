@@ -1,4 +1,5 @@
 import { t, type Locale } from './i18n';
+import { COLOR_MARKER_RADIUS } from './layout/constants';
 import { wrapScrollable } from './scroll-pan';
 import type { ChartHighlight, LayoutResult, RenderItem, RenderOptions } from './types';
 
@@ -207,6 +208,22 @@ export function renderSVG(
 			lineEl.setAttribute('stroke-width', String(options.strokeWidth));
 			svg.appendChild(lineEl);
 		}
+	}
+
+	// A hollow ring, not a filled dot: a fill would hide the stitch symbol it's
+	// flagging, and read as a second "current position" marker next to the
+	// progress tool's own highlight. Drawn before the stitches so the symbol's
+	// own strokes stay on top wherever the ring crosses them.
+	for (const marker of layout.colorMarkers ?? []) {
+		const markerEl = doc.createElementNS(SVG_NS, 'circle');
+		markerEl.classList.add('crochet-weaver-color-marker');
+		markerEl.setAttribute('cx', String(marker.x));
+		markerEl.setAttribute('cy', String(marker.y));
+		markerEl.setAttribute('r', String(COLOR_MARKER_RADIUS));
+		markerEl.setAttribute('fill', 'none');
+		markerEl.setAttribute('stroke-width', String(options.strokeWidth * 1.3));
+		markerEl.style.setProperty('stroke', marker.color);
+		svg.appendChild(markerEl);
 	}
 
 	for (const connector of rowConnectors) {
