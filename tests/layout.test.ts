@@ -283,6 +283,20 @@ R3: [sc, inc] x 6
 		expect(layout.gridGuide?.lines).toHaveLength(3 + 7);
 	});
 
+	it('anchors the flat mesh guide to real stitch positions when rows drift off column 0', () => {
+		// Symmetric increases push row 2 a half-stitch left of where row 1
+		// started, so the mesh can't assume column 0 is the left edge.
+		const layout = calculateLayout(parseChart('R1: sc, inc\nR2: sc, inc, sc\n'), { ...OPTIONS, grid: true });
+
+		const xs = layout.items.map((item) => item.x);
+		const verticalLineXs = (layout.gridGuide?.lines ?? [])
+			.filter((line) => line.x1 === line.x2)
+			.map((line) => line.x1);
+
+		expect(Math.min(...xs)).toBeGreaterThanOrEqual(Math.min(...verticalLineXs));
+		expect(Math.max(...xs)).toBeLessThanOrEqual(Math.max(...verticalLineXs));
+	});
+
 	it('extends the flat mesh guide beyond the real extent, never below it', () => {
 		const grown = calculateLayout(
 			parseChart('R1: 4 sc\nR2: 6 sc\n'),
