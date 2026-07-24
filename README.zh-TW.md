@@ -14,10 +14,16 @@ Crochet Weaver 會把文字織圖轉換成 Obsidian 筆記中的鉤針織圖。�
 - `crochet-tool` 區塊會渲染成可讀的行清單，含針數統計、進度控制，以及每行的針數計數器。
 - **可直接把進度工具或唯讀簡碼文字嵌入 `crochet` 織圖旁邊**（`tool: on` / `text: on`），不用再把同一份織圖複製貼上到兩個程式碼區塊。
 - **嵌入進度工具時，會在織圖上即時標示目前所在圈與目標針**，顏色可自訂。
+- **用 `color <顏色>` 步驟標記換線**，可在行中或整圈換色──織圖會在每次換色的第一針畫一個該顏色的小圓圈（不會把針目本身重新上色），工具／文字面板也會直接寫出「換成 `<顏色>`」。
+- **織圖文字可切換成完整翻譯的易讀樣式**（`readable: on`），不用看縮寫──例如顯示「短針6」而不是「6 sc」，支援所有四種語言。
+- **超出筆記寬度的織圖可以拖曳／捲動**，不會被硬擠小──用滑鼠拖曳，或用觸控／觸控板的原生捲動；超出範圍時預設會置中顯示。
+- **可以直接在外掛設定頁面複製 AI 織圖撰寫參考文件**，支援四種語言，方便直接貼進 AI 對話請它幫忙轉換或撰寫織圖。
 - 所有進度都儲存在本機的外掛資料檔中。
 - 完整多語系介面：英文、繁體中文、簡體中文、日文。
 
 ## 快速開始
+
+[`examples/demo.md`](examples/demo.md) 這份筆記把本文提到的每個功能都實際示範了一遍──三種織圖類型、每種針法、行修飾詞、行與行的連接線、錯誤提示、進度工具（含易讀文字樣式與換線標記）、面板位置，以及一份真實織圖轉換範例。
 
 在筆記中加入一個 `crochet` 程式碼區塊：
 
@@ -167,6 +173,16 @@ R2: [sc, inc] x 6
 ```crochet
 R3: (dc, ch, dc), sc, (5 dc)
 ```
+
+### 換色
+
+`color <顏色>` 步驟（CSS 顏色名稱或 `#hex` 色碼）用來標記換線的位置──可以寫在行中間，也可以放在行首／圈首：
+
+```crochet
+R6: 8 sc, color white, 8 sc, color black, 8 sc
+```
+
+從這個步驟開始，之後的每一針──包含這一行剩下的部分，以及之後所有行──都套用這個顏色，直到下一個 `color` 步驟改變顏色為止；沒有「恢復成無顏色」的寫法。針目符號本身仍維持織圖原本的主題色；織圖上會在每次換成新顏色的第一針畫一個該顏色的小圓圈，進度工具／織圖文字面板也會直接寫出「換成 `<顏色>`」。
 
 ## 織圖類型
 
@@ -345,7 +361,7 @@ npm run lint
 
 ### 使用 AI 協助撰寫織圖
 
-如果你想請 AI 助理幫忙把織圖轉換成 Crochet Weaver 語法，可以參考 [`docs/ai-pattern-authoring.md`](docs/ai-pattern-authoring.md)——一份專為此用途撰寫、可獨立使用的語法參考文件。也提供現成的 Claude Code skill：[`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/)。
+如果你想請 AI 助理幫忙把織圖轉換成 Crochet Weaver 語法，可以參考 [`docs/ai-pattern-authoring.zh-TW.md`](docs/ai-pattern-authoring.zh-TW.md)——一份專為此用途撰寫、可獨立使用的語法參考文件，也提供 [English](docs/ai-pattern-authoring.md)、[简体中文](docs/ai-pattern-authoring.zh-CN.md)、[日本語](docs/ai-pattern-authoring.ja.md) 版本。也可以直接在外掛設定頁面複製這份文件的內容（設定 →「複製提供給 AI 的說明」）。也提供現成的 Claude Code skill：[`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/)。
 
 ## 手動安裝
 

@@ -14,12 +14,16 @@ Crochet Weaver renders crochet stitch charts from text patterns inside Obsidian 
 - Render `crochet-tool` blocks as a readable row checklist with stitch counts, progress controls, and a per-row stitch counter.
 - **Embed the progress tool or a read-only pattern-text list directly next to a `crochet` chart** (`tool: on` / `text: on`), so you never have to paste the same pattern into two code blocks.
 - **Highlight the current row and target stitch on the chart itself** when the progress tool is embedded, in a configurable color.
+- **Mark yarn color changes** with a `color <name>` step, mid-row or per-round — the chart flags each switch with a small colored ring (without repainting the stitches themselves), and the tool/text panels spell it out as "change to `<color>`".
+- **Show pattern text in a fully translated, readable style** (`readable: on`) instead of raw shorthand — e.g. `短針6` instead of `6 sc` — in any of the four supported languages.
+- **Pan and scroll charts that are larger than their note pane** instead of squeezing them to fit — drag with the mouse, or use native touch/trackpad scrolling; a chart that overflows opens centered.
+- **Copy the AI pattern-authoring reference from Settings**, in any of four languages, ready to paste into an AI chat for help converting or writing patterns.
 - Store all progress locally in the plugin data file.
 - Fully localized UI: English, Traditional Chinese, Simplified Chinese, and Japanese.
 
 ## Quick Start
 
-See [`examples/demo.md`](examples/demo.md) for every feature in this README exercised in one note — chart types, every stitch, row modifiers, the row connector line, error handling, the progress tool, panel positioning, and a real pattern conversion.
+See [`examples/demo.md`](examples/demo.md) for every feature in this README exercised in one note — chart types, every stitch, row modifiers, the row connector line, error handling, the progress tool (including its readable text style and yarn color changes), panel positioning, and a real pattern conversion.
 
 Add a `crochet` code block to a note:
 
@@ -169,6 +173,16 @@ Groups use parentheses and render as a fan from one stitch position — this is 
 ```crochet
 R3: (dc, ch, dc), sc, (5 dc)
 ```
+
+### Color changes
+
+A `color <name>` step (a CSS color name or `#hex` code) marks where a pattern switches yarn — mid-row, or at the start of a row/round:
+
+```crochet
+R6: 8 sc, color white, 8 sc, color black, 8 sc
+```
+
+It applies to every stitch from that point on — through the rest of the row and every later row — until another `color` step changes it; there's no "reset to no color" token. The stitch symbols stay the chart's normal theme color; instead, the first stitch of each new color gets a small hollow ring in that color, and the progress tool / pattern-text panels spell it out as "change to `<color>`".
 
 ## Chart Types
 
@@ -347,7 +361,7 @@ The parser is generated from `src/grammar.peggy` into `src/parser.ts`. Do not ed
 
 ### AI-assisted authoring
 
-If you use an AI assistant to write or convert crochet patterns into Crochet Weaver's syntax, point it at [`docs/ai-pattern-authoring.md`](docs/ai-pattern-authoring.md) — a self-contained reference to the pattern language written for that purpose. A ready-to-use Claude Code skill lives at [`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/).
+If you use an AI assistant to write or convert crochet patterns into Crochet Weaver's syntax, point it at [`docs/ai-pattern-authoring.md`](docs/ai-pattern-authoring.md) — a self-contained reference to the pattern language written for that purpose, also available in [繁體中文](docs/ai-pattern-authoring.zh-TW.md), [简体中文](docs/ai-pattern-authoring.zh-CN.md), and [日本語](docs/ai-pattern-authoring.ja.md). You can also copy any of these straight from the plugin's settings tab (Settings → "Copy AI pattern-authoring instructions"). A ready-to-use Claude Code skill lives at [`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/).
 
 ## Manual Install
 

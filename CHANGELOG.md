@@ -2,6 +2,23 @@
 
 All notable changes to Crochet Weaver are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions match the plugin's `manifest.json`.
 
+## [1.2.0]
+
+### Added
+
+- **Readable pattern text style**: the progress tool's row list and the read-only pattern-text panel can now show fully translated, localized stitch names (e.g. `魔術環(短針6)`) instead of raw shorthand (`6 sc in MR`). New global setting **"Pattern text style"** (Original / Readable), default Original — unchanged behavior unless you opt in. Override per chart with `readable: on/off` in frontmatter. Covers all 46 supported stitch symbols plus the round anchors (MR, ch ring) in all four supported languages (en/zh-TW/zh-CN/ja); any symbol without a translation falls back to its raw abbreviation instead of failing.
+- **"Reset all" button**: sits next to the stitch counter's existing "Reset stitch count" button and resets both the round/row progress and the stitch counter in one click — a shortcut for the same full reset already available at the bottom of the tool.
+- **Scrollable, drag-to-pan charts**: a chart or blank grid that's larger than its note pane no longer gets squeezed down to fit (which made many-round motifs illegible). It now renders at its real, configured size inside a bounded viewport — drag with the mouse, or use native touch/trackpad scrolling, to pan around. A chart that overflows opens centered on its middle instead of the top-left corner.
+- **Yarn color changes**: a new `color <name>` step (e.g. `color white`, `color: black`, `color #ff8800`) for marking where a pattern switches yarn — mid-row ("8 sc, color white, 8 sc, color black, 8 sc") or at the start of a row/round. It applies to every stitch from that point on and stays in effect through later rows until another `color` step changes it, matching how yarn color actually persists. The stitch symbols themselves stay the chart's normal theme color (painting them the literal yarn color would go illegible in a dark or light theme, and would double up with the progress tool's own current-position highlight); instead, the first stitch of each new color gets a small hollow ring in that color, so the switch is legible without covering the stitch underneath it. Also shown as "change to `<color>`" in the progress tool and pattern-text panels, in both the raw and readable text styles. Documented in the AI pattern-authoring reference (all four languages).
+- **AI pattern-authoring reference in four languages**: `docs/ai-pattern-authoring.md` now has 繁體中文 (`.zh-TW.md`), 简体中文 (`.zh-CN.md`), and 日本語 (`.ja.md`) translations alongside the existing English version — syntax tokens and code examples stay untranslated (they're literal syntax), only the explanatory text is translated. New settings-tab section, **"Copy AI pattern-authoring instructions"**, with one button per language that copies that translation straight to the clipboard, ready to paste into an AI chat.
+
+### Fixed
+
+- **Flat-chart grid guide misalignment**: the background grid guide (`grid: on`) for `type: flat` charts assumed row 1 always starts at column 0. Flat rows alternate direction, so a pattern that widens on both edges (e.g. a symmetric increase/decrease motif) could drift left of that assumed start — stitches then rendered outside the guide box instead of inside it. The guide now anchors to the real min/max position of the rendered stitches.
+- **Chart drag-panning not working left/right** when a chart has an embedded progress tool (`tool: on`): the chart's flex-row container defaulted to `min-width: auto`, which silently blocked horizontal overflow/scrolling. Vertical panning was unaffected since it doesn't sit on the flex row's main axis.
+- **Progress-tool row text clipped or overlapping the round/stitch-count badges on narrow (portrait phone) widths**: a long row's shorthand or readable-style text ran off the edge of the screen instead of wrapping. The stitch-counter and bottom control button rows now wrap onto additional lines when needed. The row list itself (`R<n>` / step text / stitch count) is rebuilt on CSS Grid instead of flex, so the round badge and stitch count stay in fixed-width columns that can never overlap the step text — a flex-based fix looked correct but still overlapped in practice, particularly since the row is a `<button>` element.
+- **`npm run lint` reporting false-positive "unsafe call" errors** on a fresh checkout: unlike `test`/`dev`/`build`, the `lint` script didn't regenerate `src/parser.ts` first, so linting without that generated file already present made every call into the parser look untyped.
+
 ## [1.1.0]
 
 ### Added
