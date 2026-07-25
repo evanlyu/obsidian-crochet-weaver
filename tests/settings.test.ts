@@ -61,6 +61,11 @@ describe('plugin settings', () => {
 			DEFAULT_SETTINGS.patternTextStyle,
 		);
 		expect(normalizeSettings({}).patternTextStyle).toBe(DEFAULT_SETTINGS.patternTextStyle);
+		expect(normalizeSettings({ roundChartStyle: 'book' }).roundChartStyle).toBe('book');
+		expect(normalizeSettings({ roundChartStyle: 'comic' }).roundChartStyle).toBe(
+			DEFAULT_SETTINGS.roundChartStyle,
+		);
+		expect(normalizeSettings({}).roundChartStyle).toBe(DEFAULT_SETTINGS.roundChartStyle);
 	});
 
 	it('exposes settings definitions for Obsidian settings search', () => {
@@ -79,6 +84,7 @@ describe('plugin settings', () => {
 			'panelPosition',
 			'showGrid',
 			'symbolRotation',
+			'roundChartStyle',
 			'gridDefaultShape',
 			'gridDefaultRounds',
 			'gridDefaultColumns',
@@ -97,10 +103,11 @@ describe('plugin settings', () => {
 		expect(definitions[9]?.name).toBe('パネルの位置');
 		expect(definitions[10]?.name).toBe('背景の参考グリッドを表示');
 		expect(definitions[11]?.name).toBe('輪編み記号の回転');
-		expect(definitions[12]?.name).toBe('グリッドの既定の形状');
-		expect(definitions[13]?.name).toBe('グリッドの既定の周数');
-		expect(definitions[14]?.name).toBe('グリッドの既定の列数');
-		expect(definitions[15]?.name).toBe('グリッドの既定の行数');
+		expect(definitions[12]?.name).toBe('輪編みチャートのスタイル');
+		expect(definitions[13]?.name).toBe('グリッドの既定の形状');
+		expect(definitions[14]?.name).toBe('グリッドの既定の周数');
+		expect(definitions[15]?.name).toBe('グリッドの既定の列数');
+		expect(definitions[16]?.name).toBe('グリッドの既定の行数');
 	});
 
 	it('normalizes malformed grid default settings', () => {

@@ -93,6 +93,7 @@ stroke: 2
 spacing: 40
 highlight: on
 rotation: smart | all | none
+style: standard | book
 tool: on | off
 text: on | off
 position: right | left | below
@@ -211,6 +212,19 @@ R1: 6 sc in MR
 R2: [sc, inc] x 6, sl st
 ```
 
+`style: book` switches a round chart to Japanese-pattern-book styling: separator circles enclose each round in its own band, every stitch sits directly above the previous-round stitch it is worked into (an increase fans its two stitches out from its parent, a decrease converges), and each round is numbered in red at the starting seam. The default `style: standard` keeps the original evenly spread layout; the global **Round chart style** setting changes the default for all charts.
+
+```crochet
+---
+type: round
+style: book
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+```
+
 ### Spiral
 
 `type: spiral` renders all rows along a single continuous spiral.
@@ -299,12 +313,13 @@ Open the plugin settings tab to configure global defaults:
 - **Panel position**: default position (right / left / below) for an embedded tool or text panel, overridable per chart with `position:`.
 - **Show background grid guide**: draw the round/row reference guide behind every `crochet` chart by default, overridable per chart with `grid: on/off`.
 - **Round symbol rotation**: `smart`, `all`, or `none` rotation for round and spiral symbols.
+- **Round chart style**: `standard` (evenly spread stitches) or `book` (round separators, parent-aligned stitches, and round numbers).
 - **Grid default shape**: `polar` or `rect` default for new `crochet-grid` blocks.
 - **Grid default rounds**: default ring count for a `polar` grid.
 - **Grid default columns**: default column/spoke count for a grid block.
 - **Grid default rows**: default row count for a `rect` grid.
 
-Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `rotation`, `tool`, `text`, `position`, `grid`). `chartMarkerColor` is global-only. `crochet-grid` blocks use their own config keys (`shape`, `rounds`, `columns`, `rows`, plus `scale`/`stroke`/`spacing`); the `grid` guide overlay on a real `crochet` chart adds `rounds`/`rows`/`columns` on top of that chart's own frontmatter, always as an extension of its real extent.
+Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `rotation`, `style`, `tool`, `text`, `position`, `grid`). `chartMarkerColor` is global-only. `crochet-grid` blocks use their own config keys (`shape`, `rounds`, `columns`, `rows`, plus `scale`/`stroke`/`spacing`); the `grid` guide overlay on a real `crochet` chart adds `rounds`/`rows`/`columns` on top of that chart's own frontmatter, always as an extension of its real extent.
 
 ## Safety Limits
 

@@ -1,4 +1,12 @@
-import type { CrochetAst, LayoutOptions, PanelPosition, PatternTextStyle, RenderOptions, SymbolRotation } from './types';
+import type {
+	CrochetAst,
+	LayoutOptions,
+	PanelPosition,
+	PatternTextStyle,
+	RenderOptions,
+	RoundStyle,
+	SymbolRotation,
+} from './types';
 import type { CrochetWeaverSettings } from './settings';
 
 export type ResolvedOptions = RenderOptions & LayoutOptions;
@@ -16,9 +24,11 @@ export function resolveOptions(
 ): ResolvedOptions {
 	const config = ast.config;
 	const rotation = config.rotation?.toLowerCase();
+	const style = config.style?.toLowerCase();
 	const gridCountKey = config.type === 'flat' ? config.rows : config.rounds;
 	return {
 		rotation: isSymbolRotation(rotation) ? rotation : settings.symbolRotation,
+		roundStyle: isRoundStyle(style) ? style : settings.roundChartStyle,
 		ringSpacing: positiveFloat(config.spacing) ?? settings.ringSpacing,
 		scale: positiveFloat(config.scale) ?? settings.scale,
 		strokeWidth: positiveFloat(config.stroke) ?? settings.strokeWidth,
@@ -47,6 +57,10 @@ export function resolvePanelOptions(
 
 function isSymbolRotation(value: string | undefined): value is SymbolRotation {
 	return value === 'smart' || value === 'all' || value === 'none';
+}
+
+function isRoundStyle(value: string | undefined): value is RoundStyle {
+	return value === 'standard' || value === 'book';
 }
 
 function isPanelPosition(value: string | undefined): value is PanelPosition {

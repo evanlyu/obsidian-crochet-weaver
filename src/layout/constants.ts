@@ -17,6 +17,10 @@ export const CH_RING_COUNT = 6;
 // symbol to read as "circling this stitch," not a loose halo around it.
 export const COLOR_MARKER_RADIUS = 8;
 
+// Half-extent of a chart text label (book-style round numbers) for
+// bounding-box purposes.
+export const LABEL_EXTENT = 6;
+
 const FIXED_ORIENTATION = new Set(['sc', 'ch', 'sl st', 'MR', 'rsc']);
 
 const SYMBOL_EXTENT: Record<string, number> = {

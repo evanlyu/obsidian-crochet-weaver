@@ -2,6 +2,12 @@
 
 All notable changes to Crochet Weaver are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions match the plugin's `manifest.json`.
 
+## [1.3.0]
+
+### Added
+
+- **Book-style round charts** (`style: book` in frontmatter, or the new global **"Round chart style"** setting): draws `type: round` charts the way Japanese pattern books do — separator circles enclose each round in its own annular band, every stitch sits directly above the previous-round stitch it is worked into (an increase fans its two stitches out from its parent, a decrease converges the parents it merges — including all the `*tog` decreases at their real together-counts), and each round is numbered in red at the starting seam, which drifts diagonally with the increases exactly like a printed chart. Stitches within each round stay evenly spaced (pure per-stitch genealogy compounds local density until symbols collide — verified numerically), with the round's phase chosen so parent alignment is exact for evenly distributed shaping, the overwhelming pattern-book case. The default `standard` style is unchanged.
+
 ## [1.2.0]
 
 ### Added

@@ -1,11 +1,12 @@
-import type { ChartGridGuide, ColorMarker, LayoutResult, RenderItem, RowConnector } from '../types';
-import { COLOR_MARKER_RADIUS, PADDING, symbolExtent } from './constants';
+import type { ChartGridGuide, ChartLabel, ColorMarker, LayoutResult, RenderItem, RowConnector } from '../types';
+import { COLOR_MARKER_RADIUS, LABEL_EXTENT, PADDING, symbolExtent } from './constants';
 
 export function normalize(
 	items: RenderItem[],
 	rowConnectors?: RowConnector[],
 	gridGuide?: ChartGridGuide,
 	colorMarkers?: ColorMarker[],
+	labels?: ChartLabel[],
 ): LayoutResult {
 	if (items.length === 0) {
 		return {
@@ -15,6 +16,7 @@ export function normalize(
 			rowConnectors,
 			gridGuide,
 			colorMarkers: emptyToUndefined(colorMarkers),
+			labels: emptyToUndefined(labels),
 		};
 	}
 	let minX = Infinity;
@@ -46,6 +48,12 @@ export function normalize(
 		minY = Math.min(minY, marker.y - COLOR_MARKER_RADIUS);
 		maxY = Math.max(maxY, marker.y + COLOR_MARKER_RADIUS);
 	}
+	for (const label of labels ?? []) {
+		minX = Math.min(minX, label.x - LABEL_EXTENT);
+		maxX = Math.max(maxX, label.x + LABEL_EXTENT);
+		minY = Math.min(minY, label.y - LABEL_EXTENT);
+		maxY = Math.max(maxY, label.y + LABEL_EXTENT);
+	}
 	const dx = PADDING - minX;
 	const dy = PADDING - minY;
 	for (const item of items) {
@@ -67,6 +75,7 @@ export function normalize(
 		})),
 	};
 	const shiftedMarkers = colorMarkers?.map((marker) => ({ ...marker, x: marker.x + dx, y: marker.y + dy }));
+	const shiftedLabels = labels?.map((label) => ({ ...label, x: label.x + dx, y: label.y + dy }));
 	return {
 		items,
 		width: maxX - minX + PADDING * 2,
@@ -74,6 +83,7 @@ export function normalize(
 		rowConnectors,
 		gridGuide: shiftedGuide,
 		colorMarkers: emptyToUndefined(shiftedMarkers),
+		labels: emptyToUndefined(shiftedLabels),
 	};
 }
 

@@ -278,6 +278,31 @@ describe('SVG rendering', () => {
 		expect(children.indexOf(marker as Element)).toBeLessThan(children.indexOf(use as Element));
 	});
 
+	it('draws round-number labels as text elements with the round-number class', () => {
+		const container = document.createElement('div');
+		const layout: LayoutResult = {
+			width: 100,
+			height: 80,
+			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0 }],
+			labels: [{ x: 40, y: 30, text: '3' }],
+		};
+
+		renderSVG(layout, container, OPTIONS);
+
+		const label = container.querySelector('text.crochet-weaver-round-number');
+		expect(label?.textContent).toBe('3');
+		expect(label?.getAttribute('x')).toBe('40');
+		expect(label?.getAttribute('fill')).toBe('currentColor');
+	});
+
+	it('draws no labels when the layout has none', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('sc'), container, OPTIONS);
+
+		expect(container.querySelector('.crochet-weaver-round-number')).toBeNull();
+	});
+
 	it('draws no color markers when the layout has none', () => {
 		const container = document.createElement('div');
 

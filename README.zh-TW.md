@@ -93,6 +93,7 @@ stroke: 2
 spacing: 40
 highlight: on
 rotation: smart | all | none
+style: standard | book
 tool: on | off
 text: on | off
 position: right | left | below
@@ -211,6 +212,19 @@ R1: 6 sc in MR
 R2: [sc, inc] x 6, sl st
 ```
 
+`style: book` 會把環織織圖切換成日本鉤織書的風格：用分隔圓圈把每一圈框在自己的環帶裡、讓每一針對齊上一圈所鉤入的針目（加針從母針展開、減針收合），並在起點縫線處用紅色標示圈數。預設的 `style: standard` 維持原本的平均分佈畫法；全域的「圓織圖樣式」設定可改變所有織圖的預設值。
+
+```crochet
+---
+type: round
+style: book
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+```
+
 ### 連續螺旋（Spiral）
 
 `type: spiral` 會把所有行沿著同一條連續螺旋線排列。
@@ -299,12 +313,13 @@ R4: [2 sc, inc] x 6, sl st
 - **面板位置**：嵌入的工具或文字面板預設位置（右／左／下方），可用 `position:` 個別覆蓋。
 - **顯示背景參考網格**：讓每張 `crochet` 織圖預設顯示圈數／行列參考網格，可用 `grid: on/off` 個別覆蓋。
 - **環織符號旋轉**：同心圓環織／螺旋圖裡符號的旋轉方式（`smart`、`all`、或 `none`）。
+- **圓織圖樣式**：`standard`（針目平均分佈）或 `book`（圈線分隔、針目對齊上一圈、標示圈數）。
 - **網格預設形狀**：新建 `crochet-grid` 區塊的預設形狀（`polar` 或 `rect`）。
 - **網格預設圈數**：放射狀網格的預設圈數。
 - **網格預設欄數**：網格區塊的預設欄數／輻條數。
 - **網格預設行數**：矩形網格的預設行數。
 
-標示「可個別覆蓋」的設定，都能用對應的 frontmatter 鍵（`scale`、`stroke`、`spacing`、`highlight`、`rotation`、`tool`、`text`、`position`、`grid`）在單一織圖中覆蓋。`chartMarkerColor` 僅限全域設定。`crochet-grid` 區塊使用自己的設定鍵（`shape`、`rounds`、`columns`、`rows`，以及 `scale`／`stroke`／`spacing`）；真實織圖上 `grid` 參考網格用的 `rounds`／`rows`／`columns` 是疊加在該織圖自己的 frontmatter 上，且永遠只能延伸、不會縮小其真實範圍。
+標示「可個別覆蓋」的設定，都能用對應的 frontmatter 鍵（`scale`、`stroke`、`spacing`、`highlight`、`rotation`、`style`、`tool`、`text`、`position`、`grid`）在單一織圖中覆蓋。`chartMarkerColor` 僅限全域設定。`crochet-grid` 區塊使用自己的設定鍵（`shape`、`rounds`、`columns`、`rows`，以及 `scale`／`stroke`／`spacing`）；真實織圖上 `grid` 參考網格用的 `rounds`／`rows`／`columns` 是疊加在該織圖自己的 frontmatter 上，且永遠只能延伸、不會縮小其真實範圍。
 
 ## 安全限制
 

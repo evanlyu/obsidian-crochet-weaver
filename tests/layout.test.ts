@@ -312,6 +312,119 @@ R3: [sc, inc] x 6
 	});
 });
 
+describe('book-style round layout', () => {
+	const BOOK = { ...OPTIONS, roundStyle: 'book' } as const;
+
+	function angleOf(center: { x: number; y: number }, item: { x: number; y: number }): number {
+		return (Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
+	}
+
+	function angleDiff(a: number, b: number): number {
+		const d = Math.abs(a - b) % 360;
+		return Math.min(d, 360 - d);
+	}
+
+	it('sits each increase directly above the previous-round stitch it is worked into', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const round1 = layout.items.filter((item) => item.rowIndex === 0);
+		const round2 = layout.items.filter((item) => item.rowIndex === 1);
+
+		expect(round2).toHaveLength(6);
+		round2.forEach((inc, i) => {
+			const parent = round1[i];
+			if (!parent) throw new Error('expected parent stitch');
+			expect(angleDiff(angleOf(center, inc), angleOf(center, parent))).toBeLessThan(0.01);
+		});
+	});
+
+	it('centers a decrease between the two previous-round stitches it merges', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [dec] x 3\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const round1 = layout.items.filter((item) => item.rowIndex === 0);
+		const round2 = layout.items.filter((item) => item.rowIndex === 1);
+
+		expect(round2).toHaveLength(3);
+		round2.forEach((dec, i) => {
+			const left = round1[2 * i];
+			const right = round1[2 * i + 1];
+			if (!left || !right) throw new Error('expected parent stitches');
+			const mid = (angleOf(center, left) + angleOf(center, right)) / 2;
+			expect(angleDiff(angleOf(center, dec), mid)).toBeLessThan(0.01);
+		});
+	});
+
+	it("aligns a plain round's stitches with the fanned-out children of the previous round's increases", () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: 12 sc\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const round1 = layout.items.filter((item) => item.rowIndex === 0);
+		const round3 = layout.items.filter((item) => item.rowIndex === 2);
+
+		// Each inc's two children straddle its parent by half an R3 step (15°
+		// for 12 stitches), so R3's stitch pair 2i/2i+1 sits ±15° around R1
+		// stitch i.
+		round3.forEach((sc, j) => {
+			const parent = round1[Math.floor(j / 2)];
+			if (!parent) throw new Error('expected grandparent stitch');
+			const offset = j % 2 === 0 ? 15 : -15;
+			const expected = angleOf(center, parent) + offset;
+			expect(angleDiff(angleOf(center, sc), expected)).toBeLessThan(0.01);
+		});
+	});
+
+	it('encloses every round between separator circles, without needing grid: on', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\n'),
+			BOOK,
+		);
+
+		// 3 rounds -> 4 band boundaries, no spokes.
+		expect(layout.gridGuide?.circles).toHaveLength(4);
+		expect(layout.gridGuide?.lines).toHaveLength(0);
+
+		// Each boundary circle sits strictly between adjacent round radii.
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const radiusOf = (rowIndex: number) => {
+			const item = layout.items.find((i) => i.rowIndex === rowIndex);
+			return Math.hypot((item?.x ?? 0) - center.x, (item?.y ?? 0) - center.y);
+		};
+		const rings = (layout.gridGuide?.circles ?? []).map((c) => c.r).sort((a, b) => a - b);
+		expect(rings[0]).toBeLessThan(radiusOf(0));
+		expect(rings[1]).toBeGreaterThan(radiusOf(0));
+		expect(rings[1]).toBeLessThan(radiusOf(1));
+		expect(rings[2]).toBeGreaterThan(radiusOf(1));
+		expect(rings[2]).toBeLessThan(radiusOf(2));
+		expect(rings[3]).toBeGreaterThan(radiusOf(2));
+	});
+
+	it('numbers each round with a label, and draws none in standard style', () => {
+		const book = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n'),
+			BOOK,
+		);
+		expect(book.labels?.map((label) => label.text)).toEqual(['1', '2']);
+
+		const standard = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n'),
+			OPTIONS,
+		);
+		expect(standard.labels).toBeUndefined();
+	});
+});
+
 describe('color changes', () => {
 	it('tags stitches with the nearest preceding color and marks only the first stitch of each new color', () => {
 		const layout = calculateLayout(parseChart('R1: 8 sc, color white, 8 sc, color black, 8 sc\n'), OPTIONS);

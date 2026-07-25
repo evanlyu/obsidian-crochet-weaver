@@ -5,11 +5,12 @@ import {
 	type Locale,
 } from './i18n';
 import { isSafeProgressId } from './progress-id';
-import type { GridShape, PanelPosition, PatternTextStyle, SymbolRotation } from './types';
+import type { GridShape, PanelPosition, PatternTextStyle, RoundStyle, SymbolRotation } from './types';
 
 export interface CrochetWeaverSettings {
 	languagePreference: LanguagePreference;
 	symbolRotation: SymbolRotation;
+	roundChartStyle: RoundStyle;
 	scale: number;
 	strokeWidth: number;
 	ringSpacing: number;
@@ -38,6 +39,7 @@ export const GRID_ROWS_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20] a
 export const DEFAULT_SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
 	symbolRotation: 'smart',
+	roundChartStyle: 'standard',
 	scale: 1,
 	strokeWidth: 1.5,
 	ringSpacing: 30,
@@ -224,6 +226,19 @@ export function getLocalizedSettingDefinitions(locale: Locale): readonly Crochet
 			},
 		},
 		{
+			name: t(locale, 'settings.roundStyle.name'),
+			desc: t(locale, 'settings.roundStyle.desc'),
+			control: {
+				type: 'dropdown',
+				key: 'roundChartStyle',
+				defaultValue: DEFAULT_SETTINGS.roundChartStyle,
+				options: {
+					standard: t(locale, 'settings.roundStyle.standard'),
+					book: t(locale, 'settings.roundStyle.book'),
+				},
+			},
+		},
+		{
 			name: t(locale, 'settings.gridDefaultShape.name'),
 			desc: t(locale, 'settings.gridDefaultShape.desc'),
 			control: {
@@ -274,6 +289,7 @@ export function normalizeSettings(raw: unknown): CrochetWeaverSettings {
 	return {
 		languagePreference: normalizeLanguagePreference(record.languagePreference) ?? DEFAULT_SETTINGS.languagePreference,
 		symbolRotation: parseSymbolRotation(record.symbolRotation) ?? DEFAULT_SETTINGS.symbolRotation,
+		roundChartStyle: parseRoundStyle(record.roundChartStyle) ?? DEFAULT_SETTINGS.roundChartStyle,
 		scale: parsePositiveNumber(record.scale) ?? DEFAULT_SETTINGS.scale,
 		strokeWidth: parsePositiveNumber(record.strokeWidth) ?? DEFAULT_SETTINGS.strokeWidth,
 		ringSpacing: parsePositiveNumber(record.ringSpacing) ?? DEFAULT_SETTINGS.ringSpacing,
@@ -311,6 +327,10 @@ function numberOptions(values: readonly number[]): Record<string, string> {
 
 function parseSymbolRotation(value: unknown): SymbolRotation | undefined {
 	return value === 'smart' || value === 'all' || value === 'none' ? value : undefined;
+}
+
+function parseRoundStyle(value: unknown): RoundStyle | undefined {
+	return value === 'standard' || value === 'book' ? value : undefined;
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {

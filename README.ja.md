@@ -93,6 +93,7 @@ stroke: 2
 spacing: 40
 highlight: on
 rotation: smart | all | none
+style: standard | book
 tool: on | off
 text: on | off
 position: right | left | below
@@ -211,6 +212,19 @@ R1: 6 sc in MR
 R2: [sc, inc] x 6, sl st
 ```
 
+`style: book` を指定すると、輪編みチャートが日本の編み物本のスタイルに切り替わります：各段を区切り円でそれぞれの帯に囲み、それぞれの針目を前段の編み入れ先の目の真上に配置し（増し目は親の目から扇状に広がり、減らし目は収束）、立ち上がり位置に段数を赤で表示します。既定の `style: standard` は従来の均等配置のままです。グローバル設定「輪編みチャートのスタイル」で全チャートの既定を変更できます。
+
+```crochet
+---
+type: round
+style: book
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+```
+
 ### 連続スパイラル（Spiral）
 
 `type: spiral` はすべての段を 1 本の連続したスパイラルに沿って描画します。
@@ -299,12 +313,13 @@ R4: [2 sc, inc] x 6, sl st
 - **パネルの位置**：埋め込まれたツールまたはテキストパネルの既定位置（右／左／下）です。`position:` で個別に上書きできます。
 - **背景の参考グリッドを表示**：すべての `crochet` チャートに既定で周／段の参考グリッドを表示します。`grid: on/off` で個別に上書きできます。
 - **輪編み記号の回転**：輪編み／スパイラルでの記号回転方式です（`smart`、`all`、`none`）。
+- **輪編みチャートのスタイル**：`standard`（針目を均等配置）または `book`（区切り円、前段の目に整列、段数表示）。
 - **グリッドの既定の形状**：新しい `crochet-grid` ブロックの既定の形状です（`polar` または `rect`）。
 - **グリッドの既定の周数**：放射状グリッドの既定の周数です。
 - **グリッドの既定の列数**：グリッドブロックの既定の列数／放射線の本数です。
 - **グリッドの既定の行数**：長方形グリッドの既定の行数です。
 
-「個別に上書きできます」と記載のある設定は、対応する frontmatter キー（`scale`、`stroke`、`spacing`、`highlight`、`rotation`、`tool`、`text`、`position`、`grid`）で 1 枚のチャートごとに上書きできます。`chartMarkerColor` はグローバル設定のみです。`crochet-grid` ブロックは独自の設定キー（`shape`、`rounds`、`columns`、`rows`、および `scale`／`stroke`／`spacing`）を使います。実際のチャート上の `grid` 参考グリッドが使う `rounds`／`rows`／`columns` は、そのチャート自体の frontmatter に追加で指定するもので、実際の範囲を拡張することしかできません。
+「個別に上書きできます」と記載のある設定は、対応する frontmatter キー（`scale`、`stroke`、`spacing`、`highlight`、`rotation`、`style`、`tool`、`text`、`position`、`grid`）で 1 枚のチャートごとに上書きできます。`chartMarkerColor` はグローバル設定のみです。`crochet-grid` ブロックは独自の設定キー（`shape`、`rounds`、`columns`、`rows`、および `scale`／`stroke`／`spacing`）を使います。実際のチャート上の `grid` 参考グリッドが使う `rounds`／`rows`／`columns` は、そのチャート自体の frontmatter に追加で指定するもので、実際の範囲を拡張することしかできません。
 
 ## 安全上の制限
 

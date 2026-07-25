@@ -35,3 +35,25 @@ export function buildRingGuide(
 
 	return { circles, lines };
 }
+
+// Book-style round charts: separator circles *between* rounds (at the
+// midpoint of each ring gap, plus an inner and outer boundary), so every
+// round's symbols sit enclosed in their own annular band the way Japanese
+// pattern books draw them — unlike buildRingGuide's rings, which pass
+// through the stitches themselves.
+export function buildBandGuide(actualRadii: readonly number[], ringSpacing: number): ChartGridGuide | undefined {
+	const first = actualRadii[0];
+	const last = actualRadii.at(-1);
+	if (first === undefined || last === undefined) return undefined;
+
+	const firstGap = (actualRadii[1] ?? first + ringSpacing) - first;
+	const lastGap = last - (actualRadii[actualRadii.length - 2] ?? last - ringSpacing);
+
+	const radii = [Math.max(first - firstGap / 2, 14)];
+	for (let i = 0; i + 1 < actualRadii.length; i++) {
+		radii.push(((actualRadii[i] ?? 0) + (actualRadii[i + 1] ?? 0)) / 2);
+	}
+	radii.push(last + lastGap / 2);
+
+	return { circles: radii.map((r) => ({ cx: 0, cy: 0, r })), lines: [] };
+}

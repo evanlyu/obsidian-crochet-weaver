@@ -49,6 +49,17 @@ export function outputStitches(unit: LayoutUnit): number {
 	return stitchWeight(unit.stitch);
 }
 
+// How many previous-round stitches a unit is worked into, for book-style
+// parent-aligned placement: decreases consume their together-count (`dec` is
+// the sc 2-together), a group fans many stitches into one parent, everything
+// else is worked into a single stitch.
+export function consumedStitches(unit: LayoutUnit): number {
+	if (unit.type === 'GroupNode') return 1;
+	if (unit.stitch === 'dec') return 2;
+	const together = /(\d)tog$/.exec(unit.stitch);
+	return together ? Number(together[1]) : 1;
+}
+
 export function roundStitchCount(row: RowNode): number {
 	return poppedUnits(row).reduce((sum, unit) => sum + outputStitches(unit), 0);
 }

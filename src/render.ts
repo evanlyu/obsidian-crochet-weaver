@@ -210,6 +210,19 @@ export function renderSVG(
 		}
 	}
 
+	// Book-style round numbers along the starting seam.
+	for (const label of layout.labels ?? []) {
+		const textEl = doc.createElementNS(SVG_NS, 'text');
+		textEl.classList.add('crochet-weaver-round-number');
+		textEl.setAttribute('x', String(label.x));
+		textEl.setAttribute('y', String(label.y));
+		textEl.setAttribute('text-anchor', 'middle');
+		textEl.setAttribute('dominant-baseline', 'central');
+		textEl.setAttribute('fill', 'currentColor');
+		textEl.textContent = label.text;
+		svg.appendChild(textEl);
+	}
+
 	// A hollow ring, not a filled dot: a fill would hide the stitch symbol it's
 	// flagging, and read as a second "current position" marker next to the
 	// progress tool's own highlight. Drawn before the stitches so the symbol's

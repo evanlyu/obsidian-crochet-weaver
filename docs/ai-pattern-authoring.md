@@ -48,6 +48,7 @@ Optional, delimited by `---` lines, flat `key: value` pairs (no nesting, no list
 | `spacing` | positive number | plugin setting | Pixel gap between round/spiral rings. |
 | `highlight` | `on`/`off`/`true`/`false`/`yes`/`no`/`1`/`0` | plugin setting | Accent-colors `inc`/`dec` stitches. |
 | `rotation` | `smart` \| `all` \| `none` | plugin setting | Symbol rotation in round/spiral charts. `smart` is almost always right. |
+| `style` | `standard` \| `book` | plugin setting | Round-chart drawing style. `book` gives Japanese-pattern-book styling: separator circles enclose each round, stitches sit above the previous-round stitch they're worked into, rounds are numbered. Only affects `type: round`. |
 | `tool` | boolean (as above) | plugin setting | Embeds the interactive progress tool next to the chart. See "Embedding a progress panel". |
 | `text` | boolean (as above) | plugin setting | Embeds a read-only shorthand list next to the chart (ignored if `tool` is also on). |
 | `position` | `right` \| `left` \| `below` | plugin setting | Where an embedded `tool`/`text` panel sits relative to the chart. |
@@ -222,7 +223,7 @@ After converting, add up each row's stitches and compare to the source pattern's
 
 ## Choosing a chart type
 
-- **`round`** — concentric rings from a center point. Use for anything worked in the round with joins (hats, coasters, amigurumi pieces, granny squares worked as circles). This is the most common choice for amigurumi.
+- **`round`** — concentric rings from a center point. Use for anything worked in the round with joins (hats, coasters, amigurumi pieces, granny squares worked as circles). This is the most common choice for amigurumi. Add `style: book` in frontmatter when the user asks for the printed-book look (enclosed rounds, parent-aligned stitches, numbered rounds); it changes only how the chart is drawn, never how the pattern is written.
 - **`spiral`** — one continuous spiral, no per-round joins. Use only when the source pattern explicitly says "continuous spiral, do not join, place a stitch marker" — most amigurumi patterns that say "join" or number their rounds discretely should be `round`, not `spiral`.
 - **`flat`** — alternating back-and-forth rows. Use for scarves, blankets worked flat, anything turned at the end of each row.
 

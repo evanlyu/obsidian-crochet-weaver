@@ -1,6 +1,6 @@
 # Crochet Weaver — Full Feature Demo
 
-This note exercises every feature of Crochet Weaver in one place: all three chart types, every supported stitch, row modifiers and anchors, the row-to-row connector line, error handling, the progress tool (standalone and embedded) — including its readable pattern-text style and yarn color changes — panel positioning, frontmatter overrides, and a real pattern conversion. Open it with the plugin enabled to see every block render.
+This note exercises every feature of Crochet Weaver in one place: all three chart types (including book-style round charts), every supported stitch, row modifiers and anchors, the row-to-row connector line, error handling, the progress tool (standalone and embedded) — including its readable pattern-text style and yarn color changes — panel positioning, frontmatter overrides, and a real pattern conversion. Open it with the plugin enabled to see every block render.
 
 ## 1. Chart Types
 
@@ -504,4 +504,34 @@ R1: color black, 6 sc in MR
 R2: [inc] x 6
 R3: [sc, inc] x 6
 R4: 8 sc, color white, 8 sc, color black, 8 sc
+```
+
+## 14. Book-Style Round Charts
+
+`style: book` switches a round chart to Japanese-pattern-book styling: separator circles enclose each round in its own band, every stitch sits directly above the previous-round stitch it is worked into (an increase fans its two stitches out from its parent, a decrease converges the parents it merges), and each round is numbered in red at the starting seam — which drifts diagonally with the increases, just like a printed chart. The default `style: standard` keeps the original evenly spread layout; the global **Round chart style** setting changes the default for every chart.
+
+```crochet
+---
+type: round
+style: book
+---
+R1: 8 sc in MR
+R2: [inc] x 8
+R3: [sc, inc] x 8
+R4: [2 sc, inc] x 8
+R5: [3 sc, inc] x 8
+R6: [4 sc, inc] x 8
+```
+
+Decreases converge the same way:
+
+```crochet
+---
+type: round
+style: book
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: 12 sc
+R4: [dec] x 6
 ```

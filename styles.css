@@ -46,6 +46,15 @@
 	opacity: 0.6;
 }
 
+/* Round numbers along the starting seam of a book-style round chart —
+   small and red, matching how Japanese pattern books print them. */
+.crochet-weaver-round-number {
+	color: var(--color-red, #c0392b);
+	font-size: 9px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
 .crochet-weaver-chart-row {
 	display: flex;
 	flex-wrap: wrap;

@@ -2,7 +2,7 @@ import { PluginSettingTab, Setting, type App, type ButtonComponent, type Setting
 import { AI_PATTERN_AUTHORING_DOCS } from './ai-doc-content';
 import { t, type Locale, type LanguagePreference, type TranslationKey } from './i18n';
 import type CrochetWeaverPlugin from './main';
-import type { GridShape, PanelPosition, PatternTextStyle, SymbolRotation } from './types';
+import type { GridShape, PanelPosition, PatternTextStyle, RoundStyle, SymbolRotation } from './types';
 import {
 	getLocalizedSettingDefinitions,
 	GRID_COLUMNS_OPTIONS,
@@ -300,6 +300,20 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.symbolRotation)
 					.onChange(async (value) => {
 						this.plugin.settings.symbolRotation = value as SymbolRotation;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t(locale, 'settings.roundStyle.name'))
+			.setDesc(t(locale, 'settings.roundStyle.desc'))
+			.addDropdown((dd) =>
+				dd
+					.addOption('standard', t(locale, 'settings.roundStyle.standard'))
+					.addOption('book', t(locale, 'settings.roundStyle.book'))
+					.setValue(this.plugin.settings.roundChartStyle)
+					.onChange(async (value) => {
+						this.plugin.settings.roundChartStyle = value as RoundStyle;
 						await this.plugin.saveSettings();
 					}),
 			);

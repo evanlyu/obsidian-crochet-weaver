@@ -11,6 +11,7 @@ import type { ResolvedGridOptions } from '../src/types';
 const SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
 	symbolRotation: 'smart',
+	roundChartStyle: 'standard',
 	scale: 1,
 	strokeWidth: 1.5,
 	ringSpacing: 30,

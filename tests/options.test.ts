@@ -7,6 +7,7 @@ import type { CrochetWeaverSettings } from '../src/settings';
 const SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
 	symbolRotation: 'smart',
+	roundChartStyle: 'standard',
 	scale: 1,
 	strokeWidth: 1.5,
 	ringSpacing: 30,
@@ -35,6 +36,7 @@ describe('chart option resolution', () => {
 
 		expect(options).toEqual({
 			rotation: 'smart',
+			roundStyle: 'standard',
 			ringSpacing: 30,
 			grid: false,
 			scale: 1,
@@ -60,6 +62,7 @@ R1: sc
 
 		expect(options).toEqual({
 			rotation: 'all',
+			roundStyle: 'standard',
 			ringSpacing: 40,
 			grid: false,
 			scale: 1.25,
@@ -85,6 +88,7 @@ R1: sc
 
 		expect(options).toEqual({
 			rotation: 'smart',
+			roundStyle: 'standard',
 			ringSpacing: 30,
 			grid: false,
 			scale: 1,
@@ -143,6 +147,28 @@ R1: sc
 			SETTINGS,
 		);
 		expect(invalid.gridCount).toBeUndefined();
+	});
+
+	it('resolves roundStyle from global settings or the style frontmatter override', () => {
+		expect(resolveOptions(parseChart('R1: sc\n'), SETTINGS).roundStyle).toBe('standard');
+		expect(
+			resolveOptions(parseChart('R1: sc\n'), { ...SETTINGS, roundChartStyle: 'book' }).roundStyle,
+		).toBe('book');
+		expect(
+			resolveOptions(parseChart('---\ntype: round\nstyle: book\n---\nR1: 6 sc in MR\n'), SETTINGS).roundStyle,
+		).toBe('book');
+		expect(
+			resolveOptions(
+				parseChart('---\ntype: round\nstyle: standard\n---\nR1: 6 sc in MR\n'),
+				{ ...SETTINGS, roundChartStyle: 'book' },
+			).roundStyle,
+		).toBe('standard');
+		expect(
+			resolveOptions(
+				parseChart('---\ntype: round\nstyle: fancy\n---\nR1: 6 sc in MR\n'),
+				{ ...SETTINGS, roundChartStyle: 'book' },
+			).roundStyle,
+		).toBe('book');
 	});
 
 	it('resolves gridColumns from the columns frontmatter key', () => {

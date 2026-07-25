@@ -62,10 +62,22 @@ export type PanelPosition = 'left' | 'right' | 'below';
 // abbreviations into full, localized names (e.g. "短針6").
 export type PatternTextStyle = 'raw' | 'readable';
 
+// Drawing style for type: round charts.
+// standard: each round's units spread evenly around the circle (the original
+// behavior). book: Japanese-pattern-book style — separator circles enclose
+// each round in its own band, every stitch sits directly above the
+// previous-round stitch it is worked into (an inc fans its two stitches out
+// from the parent, a dec converges its parents), and each round is numbered
+// at the starting seam.
+export type RoundStyle = 'standard' | 'book';
+
 // Layout options resolved from global settings and per-chart frontmatter.
 export interface LayoutOptions {
 	rotation: SymbolRotation;
 	ringSpacing: number;
+	// See RoundStyle; undefined behaves as 'standard'. Ignored by flat and
+	// spiral charts.
+	roundStyle?: RoundStyle;
 	// Background grid-guide overlay (see ChartGridGuide below).
 	grid: boolean;
 	// Explicit override for the guide's primary axis count: rounds for
@@ -130,6 +142,14 @@ export interface ColorMarker {
 	color: string;
 }
 
+// A small text label stamped onto the chart (currently the per-round numbers
+// drawn along the starting seam in book-style round charts).
+export interface ChartLabel {
+	x: number;
+	y: number;
+	text: string;
+}
+
 export interface LayoutResult {
 	items: RenderItem[];
 	width: number;
@@ -137,6 +157,7 @@ export interface LayoutResult {
 	rowConnectors?: RowConnector[];
 	gridGuide?: ChartGridGuide;
 	colorMarkers?: ColorMarker[];
+	labels?: ChartLabel[];
 }
 
 // Render options resolved from global settings and per-chart frontmatter.
