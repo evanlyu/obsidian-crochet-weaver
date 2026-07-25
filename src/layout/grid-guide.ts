@@ -46,7 +46,9 @@ export function buildRingGuide(
 // polyline that winds from the center outward. `seamAngles` (degrees, one
 // per round) places each step at that round's real seam so the steps line
 // up under the round numbers.
-const BAND_SEAM_GAP_DEG = 16;
+// Small so the step from one band out to the next is nearly radial (a short
+// near-90° jog at the seam) instead of a long slant that clips symbols.
+const BAND_SEAM_GAP_DEG = 6;
 const BAND_ARC_SEGMENTS = 120;
 
 export function buildBandGuide(

@@ -112,7 +112,7 @@ interface BookRing {
 // poorly; a narrower V still clearly points between them while staying
 // legible. Returns the tangential half-width in pixels at the unit's own
 // radius, or undefined for symbols that keep their fixed glyph.
-const BOOK_ARM_FRACTION = 0.55;
+const BOOK_ARM_FRACTION = 0.85;
 
 function bookArmSpan(
 	unit: LayoutUnit,
@@ -122,13 +122,19 @@ function bookArmSpan(
 ): number | undefined {
 	if (unit.type !== 'StitchNode') return undefined;
 	let halfAngle: number | undefined;
+	// inc: reach its two next-round output slots (±outStep/2). dec: lean toward
+	// the two parents it merges (±parentStep/2) — but at a sparse outer round
+	// those parents can be a wide angle apart, so the tight px cap below keeps
+	// the ∧ from ballooning; it only needs to signal the merge, not literally
+	// bridge the whole gap.
 	if (unit.stitch === 'inc') halfAngle = outStep / 2;
 	else if (unit.stitch === 'dec' && parentStep !== undefined) halfAngle = parentStep / 2;
 	if (halfAngle === undefined) return undefined;
 	const span = radius * Math.sin((halfAngle * Math.PI) / 180) * BOOK_ARM_FRACTION;
 	// Never narrower than the plain glyph (its arms sit at ±4), or the stretch
-	// would read as a shrink; capped so a lone huge round can't run away.
-	return Math.min(Math.max(span, 4.5), 40);
+	// would read as a shrink; capped so a sparse round's wide parent gap can't
+	// balloon the symbol.
+	return Math.min(Math.max(span, 4.5), 13);
 }
 
 // Book-style placement for one round. Output stitches are always spaced

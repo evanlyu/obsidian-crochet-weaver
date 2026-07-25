@@ -151,12 +151,15 @@ const ROW_CONNECTOR_GAP = 10;
 // Book-style stretched variants of the shaping glyphs: arms widened to the
 // layout-computed half-width so an inc reaches its two output stitches and a
 // dec reaches the two parents it merges (see RenderItem.armSpan).
-// Slightly taller than the fixed glyphs (12px vs 8) so the inc's apex
-// reaches down toward its parent stitch and the dec's legs reach down
-// toward the parents it merges, the way printed charts draw them.
+// Asymmetric and tall: an inc's apex sits close to its parent (inner side,
+// +4) while its arms reach outward toward the two next-round stitches worked
+// into it (-11); a dec is the mirror — apex just past the ring outward (-4)
+// with legs reaching inward toward the two parents it merges (+11). The
+// symbol's own local +y points toward the chart center (see polarItem's
+// outward-facing rotation for stretched items).
 const STRETCHED_SYMBOLS: Record<string, (halfWidth: number) => string> = {
-	inc: (w) => `M ${round2(-w)} -5 L 0 7 L ${round2(w)} -5`,
-	dec: (w) => `M ${round2(-w)} 7 L 0 -5 L ${round2(w)} 7`,
+	inc: (w) => `M ${round2(-w)} -12 L 0 4 L ${round2(w)} -12`,
+	dec: (w) => `M ${round2(-w)} 12 L 0 -4 L ${round2(w)} 12`,
 };
 
 function round2(value: number): number {
