@@ -372,15 +372,18 @@ describe('book-style round layout', () => {
 		const round1 = layout.items.filter((item) => item.rowIndex === 0);
 		const round3 = layout.items.filter((item) => item.rowIndex === 2);
 
-		// Each inc's two children straddle its parent by half an R3 step (15°
-		// for 12 stitches), so R3's stitch pair 2i/2i+1 sits ±15° around R1
-		// stitch i.
-		round3.forEach((sc, j) => {
-			const parent = round1[Math.floor(j / 2)];
-			if (!parent) throw new Error('expected grandparent stitch');
-			const offset = j % 2 === 0 ? 15 : -15;
-			const expected = angleOf(center, parent) + offset;
-			expect(angleDiff(angleOf(center, sc), expected)).toBeLessThan(0.01);
+		// R2's six increases each split one R1 parent into two children (the
+		// increases render as one V each, so their children only surface as
+		// R3's twelve plain sc). Each R3 pair 2i / 2i+1 descends from R1 stitch
+		// i and must straddle it symmetrically — the parent sits at the pair's
+		// midpoint.
+		expect(round3).toHaveLength(12);
+		round1.forEach((parent, i) => {
+			const left = round3[2 * i];
+			const right = round3[2 * i + 1];
+			if (!left || !right) throw new Error('expected two grandchildren');
+			const mid = (angleOf(center, left) + angleOf(center, right)) / 2;
+			expect(angleDiff(angleOf(center, parent), mid)).toBeLessThan(0.01);
 		});
 	});
 
