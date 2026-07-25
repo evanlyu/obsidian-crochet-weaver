@@ -148,6 +148,21 @@ const BLO_MARK = 'M -4 9 Q 0 13 4 9';
 const FLO_MARK = 'M -4 9 Q 0 5 4 9';
 const ROW_CONNECTOR_GAP = 10;
 
+// Book-style stretched variants of the shaping glyphs: arms widened to the
+// layout-computed half-width so an inc reaches its two output stitches and a
+// dec reaches the two parents it merges (see RenderItem.armSpan).
+// Slightly taller than the fixed glyphs (12px vs 8) so the inc's apex
+// reaches down toward its parent stitch and the dec's legs reach down
+// toward the parents it merges, the way printed charts draw them.
+const STRETCHED_SYMBOLS: Record<string, (halfWidth: number) => string> = {
+	inc: (w) => `M ${round2(-w)} -5 L 0 7 L ${round2(w)} -5`,
+	dec: (w) => `M ${round2(-w)} 7 L 0 -5 L ${round2(w)} 7`,
+};
+
+function round2(value: number): number {
+	return Math.round(value * 100) / 100;
+}
+
 // Every stitch name that has a chart glyph. Tests sweep this list through the
 // parser and renderer to keep the grammar and the symbol library in sync.
 export function supportedSymbolNames(): readonly string[] {
@@ -208,6 +223,19 @@ export function renderSVG(
 			lineEl.setAttribute('stroke-width', String(options.strokeWidth));
 			svg.appendChild(lineEl);
 		}
+		for (const polyline of layout.gridGuide.polylines ?? []) {
+			if (polyline.length === 0) continue;
+			const d = polyline
+				.map((point, i) => `${i === 0 ? 'M' : 'L'} ${round2(point.x)} ${round2(point.y)}`)
+				.join(' ');
+			const pathEl = doc.createElementNS(SVG_NS, 'path');
+			pathEl.classList.add('crochet-weaver-grid-guide');
+			pathEl.setAttribute('d', d);
+			pathEl.setAttribute('fill', 'none');
+			pathEl.setAttribute('stroke', 'currentColor');
+			pathEl.setAttribute('stroke-width', String(options.strokeWidth));
+			svg.appendChild(pathEl);
+		}
 	}
 
 	// Book-style round numbers along the starting seam.
@@ -257,14 +285,30 @@ export function renderSVG(
 	for (const item of layout.items) {
 		const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation})`;
 
-		const use = doc.createElementNS(SVG_NS, 'use');
-		use.setAttribute('href', `#${symbolId(uid, item.symbol)}`);
-		use.setAttribute('transform', transform);
-		if (options.highlightIncDec && ACCENT_STITCHES.has(item.symbol)) {
-			use.classList.add('crochet-weaver-accent');
+		const stretched = item.armSpan !== undefined ? STRETCHED_SYMBOLS[item.symbol]?.(item.armSpan) : undefined;
+		let symbolEl: SVGElement;
+		if (stretched !== undefined) {
+			// Book-style stretched shaping symbol: its arm width depends on the
+			// item's own radius/step, so it can't come from a shared <defs>
+			// glyph — drawn as an inline path in the same local frame instead.
+			const path = doc.createElementNS(SVG_NS, 'path');
+			path.setAttribute('d', stretched);
+			path.setAttribute('transform', transform);
+			path.setAttribute('stroke', 'currentColor');
+			path.setAttribute('stroke-width', String(options.strokeWidth));
+			path.setAttribute('fill', 'none');
+			symbolEl = path;
+		} else {
+			const use = doc.createElementNS(SVG_NS, 'use');
+			use.setAttribute('href', `#${symbolId(uid, item.symbol)}`);
+			use.setAttribute('transform', transform);
+			symbolEl = use;
 		}
-		applyCurrentPositionHighlight(use, item, highlight, options.chartMarkerColor);
-		svg.appendChild(use);
+		if (options.highlightIncDec && ACCENT_STITCHES.has(item.symbol)) {
+			symbolEl.classList.add('crochet-weaver-accent');
+		}
+		applyCurrentPositionHighlight(symbolEl, item, highlight, options.chartMarkerColor);
+		svg.appendChild(symbolEl);
 		if (item.loop) {
 			const mark = doc.createElementNS(SVG_NS, 'path');
 			mark.setAttribute('d', item.loop === 'blo' ? BLO_MARK : FLO_MARK);

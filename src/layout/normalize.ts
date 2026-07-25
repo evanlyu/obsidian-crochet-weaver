@@ -42,6 +42,14 @@ export function normalize(
 		minY = Math.min(minY, line.y1, line.y2);
 		maxY = Math.max(maxY, line.y1, line.y2);
 	}
+	for (const polyline of gridGuide?.polylines ?? []) {
+		for (const point of polyline) {
+			minX = Math.min(minX, point.x);
+			maxX = Math.max(maxX, point.x);
+			minY = Math.min(minY, point.y);
+			maxY = Math.max(maxY, point.y);
+		}
+	}
 	for (const marker of colorMarkers ?? []) {
 		minX = Math.min(minX, marker.x - COLOR_MARKER_RADIUS);
 		maxX = Math.max(maxX, marker.x + COLOR_MARKER_RADIUS);
@@ -73,6 +81,7 @@ export function normalize(
 			x2: line.x2 + dx,
 			y2: line.y2 + dy,
 		})),
+		polylines: gridGuide.polylines?.map((polyline) => polyline.map((point) => ({ x: point.x + dx, y: point.y + dy }))),
 	};
 	const shiftedMarkers = colorMarkers?.map((marker) => ({ ...marker, x: marker.x + dx, y: marker.y + dy }));
 	const shiftedLabels = labels?.map((label) => ({ ...label, x: label.x + dx, y: label.y + dy }));

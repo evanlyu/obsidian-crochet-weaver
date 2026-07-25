@@ -13,6 +13,7 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 	let prevCount = -1;
 	let lastUnitCount = 0;
 	const roundRadii: number[] = [];
+	const seamAngles: number[] = [];
 	const colorState: ColorState = {};
 	const colorMarkers: ColorMarker[] = [];
 	const labels: ChartLabel[] = [];
@@ -39,6 +40,7 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 		// book style it drifts with the increases, like the diagonal run of
 		// round numbers in a printed chart.
 		let seamAngle = -90 + outStep / 2;
+		const parentStep = prevRing !== undefined && prevRing.outputCount > 0 ? 360 / prevRing.outputCount : undefined;
 		if (book) {
 			const placed = placeBookRound(units, prevRing, outStep);
 			centers = placed.centers;
@@ -52,7 +54,8 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 		const start = items.length;
 		units.forEach((unit, i) => {
 			const itemStart = items.length;
-			placeUnitPolar(items, unit, radius, centers[i] ?? -90, options.rotation, rowIndex, i);
+			const armSpan = book ? bookArmSpan(unit, radius, outStep, parentStep) : undefined;
+			placeUnitPolar(items, unit, radius, centers[i] ?? -90, options.rotation, rowIndex, i, armSpan);
 			if (unit.color !== undefined && unit.color !== previousColor) {
 				const first = items[itemStart];
 				if (first) colorMarkers.push({ x: first.x, y: first.y, color: unit.color });
@@ -78,15 +81,16 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 		prevCount = stitchCount;
 		lastUnitCount = units.length;
 		roundRadii.push(radius);
+		seamAngles.push(seamAngle);
 	});
 
-	// Book style always draws its band separators (they are the style); the
-	// standard ring guide with spokes stays behind the grid option. The
-	// guide's default spoke count matches units.length (rendered angular
-	// slots), not the stitch-weighted count nextRadius uses — an inc occupies
-	// one slot even though it outputs 2 stitches.
+	// Book style always draws its band spiral (it is the style); the standard
+	// ring guide with spokes stays behind the grid option. The guide's default
+	// spoke count matches units.length (rendered angular slots), not the
+	// stitch-weighted count nextRadius uses — an inc occupies one slot even
+	// though it outputs 2 stitches.
 	const gridGuide = book
-		? buildBandGuide(roundRadii, options.ringSpacing)
+		? buildBandGuide(roundRadii, options.ringSpacing, seamAngles)
 		: options.grid
 			? buildRingGuide(roundRadii, lastUnitCount, options.ringSpacing, options.gridCount, options.gridColumns)
 			: undefined;
@@ -98,6 +102,33 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 interface BookRing {
 	phase: number;
 	outputCount: number;
+}
+
+// Book style stretches the shaping symbols so they visually connect to the
+// stitches they split into or merge: an inc leans toward its two
+// output-stitch slots (±outStep/2), a dec toward the two parent stitches it
+// consumes (±parentStep/2). Only a fraction of that full gap is used — arms
+// reaching all the way to the slot centers make a wide, flat V that reads
+// poorly; a narrower V still clearly points between them while staying
+// legible. Returns the tangential half-width in pixels at the unit's own
+// radius, or undefined for symbols that keep their fixed glyph.
+const BOOK_ARM_FRACTION = 0.55;
+
+function bookArmSpan(
+	unit: LayoutUnit,
+	radius: number,
+	outStep: number,
+	parentStep: number | undefined,
+): number | undefined {
+	if (unit.type !== 'StitchNode') return undefined;
+	let halfAngle: number | undefined;
+	if (unit.stitch === 'inc') halfAngle = outStep / 2;
+	else if (unit.stitch === 'dec' && parentStep !== undefined) halfAngle = parentStep / 2;
+	if (halfAngle === undefined) return undefined;
+	const span = radius * Math.sin((halfAngle * Math.PI) / 180) * BOOK_ARM_FRACTION;
+	// Never narrower than the plain glyph (its arms sit at ±4), or the stretch
+	// would read as a shrink; capped so a lone huge round can't run away.
+	return Math.min(Math.max(span, 4.5), 40);
 }
 
 // Book-style placement for one round. Output stitches are always spaced

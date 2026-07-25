@@ -55,7 +55,7 @@ Optional, delimited by \`---\` lines, flat \`key: value\` pairs (no nesting, no 
 | \`spacing\` | positive number | plugin setting | Pixel gap between round/spiral rings. |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | plugin setting | Accent-colors \`inc\`/\`dec\` stitches. |
 | \`rotation\` | \`smart\` \\| \`all\` \\| \`none\` | plugin setting | Symbol rotation in round/spiral charts. \`smart\` is almost always right. |
-| \`style\` | \`standard\` \\| \`book\` | plugin setting | Round-chart drawing style. \`book\` gives Japanese-pattern-book styling: separator circles enclose each round, stitches sit above the previous-round stitch they're worked into, rounds are numbered. Only affects \`type: round\`. |
+| \`style\` | \`standard\` \\| \`book\` | plugin setting | Round-chart drawing style. \`book\` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, inc/dec glyphs stretch to connect, rounds are numbered. Only affects \`type: round\`. |
 | \`tool\` | boolean (as above) | plugin setting | Embeds the interactive progress tool next to the chart. See "Embedding a progress panel". |
 | \`text\` | boolean (as above) | plugin setting | Embeds a read-only shorthand list next to the chart (ignored if \`tool\` is also on). |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | plugin setting | Where an embedded \`tool\`/\`text\` panel sits relative to the chart. |
@@ -323,7 +323,7 @@ R2: <步驟>
 | \`spacing\` | 正數 | 外掛設定值 | 圈與圈（round/spiral）之間的像素間距。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | 外掛設定值 | 將 \`inc\`/\`dec\` 針目標示為強調色。 |
 | \`rotation\` | \`smart\` \\| \`all\` \\| \`none\` | 外掛設定值 | 圓編／螺旋織圖中符號的旋轉方式。多數情況下用 \`smart\` 就對了。 |
-| \`style\` | \`standard\` \\| \`book\` | 外掛設定值 | 環織織圖的繪製樣式。\`book\` 為日本鉤織書風格：分隔圓圈框住每一圈、針目對齊上一圈鉤入的針目、並標示圈數。只影響 \`type: round\`。 |
+| \`style\` | \`standard\` \\| \`book\` | 外掛設定值 | 環織織圖的繪製樣式。\`book\` 為日本鉤織書風格：一條連續螺旋線繞過每一圈、針目對齊上一圈鉤入的針目、加減針符號拉寬連接、並標示圈數。只影響 \`type: round\`。 |
 | \`tool\` | 布林值（同上） | 外掛設定值 | 在織圖旁內嵌互動式進度工具。見「內嵌進度面板」。 |
 | \`text\` | 布林值（同上） | 外掛設定值 | 在織圖旁內嵌唯讀的縮寫清單（若 \`tool\` 也開啟則會被忽略）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | 外掛設定值 | 內嵌的 \`tool\`／\`text\` 面板相對於織圖要放在哪個位置。 |
@@ -591,7 +591,7 @@ R2: <步骤>
 | \`spacing\` | 正数 | 插件设置值 | 圈与圈（round/spiral）之间的像素间距。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | 插件设置值 | 把 \`inc\`/\`dec\` 针目标记为强调色。 |
 | \`rotation\` | \`smart\` \\| \`all\` \\| \`none\` | 插件设置值 | 圆编／螺旋织图中符号的旋转方式。大多数情况下用 \`smart\` 就对了。 |
-| \`style\` | \`standard\` \\| \`book\` | 插件设置值 | 环织织图的绘制样式。\`book\` 为日本钩织书风格：分隔圆圈框住每一圈、针目对齐上一圈钩入的针目、并标注圈数。只影响 \`type: round\`。 |
+| \`style\` | \`standard\` \\| \`book\` | 插件设置值 | 环织织图的绘制样式。\`book\` 为日本钩织书风格：一条连续螺旋线绕过每一圈、针目对齐上一圈钩入的针目、加减针符号拉宽连接、并标注圈数。只影响 \`type: round\`。 |
 | \`tool\` | 布尔值（同上） | 插件设置值 | 在织图旁内嵌交互式进度工具。见“内嵌进度面板”。 |
 | \`text\` | 布尔值（同上） | 插件设置值 | 在织图旁内嵌只读的缩写列表（如果 \`tool\` 也开启则会被忽略）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | 插件设置值 | 内嵌的 \`tool\`／\`text\` 面板相对于织图放在哪个位置。 |
@@ -859,7 +859,7 @@ R2: <ステップ>
 | \`spacing\` | 正の数値 | プラグイン設定 | 輪編み／スパイラルの段と段の間隔（ピクセル）。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | プラグイン設定 | \`inc\`/\`dec\` の目をアクセントカラーで強調表示します。 |
 | \`rotation\` | \`smart\` \\| \`all\` \\| \`none\` | プラグイン設定 | 輪編み／スパイラルでの記号の回転方法。ほとんどの場合 \`smart\` で問題ありません。 |
-| \`style\` | \`standard\` \\| \`book\` | プラグイン設定 | 輪編みチャートの描画スタイル。\`book\` は日本の編み物本風：区切り円が各段を囲み、針目が前段の編み入れ先の真上に並び、段数が表示されます。\`type: round\` にのみ影響します。 |
+| \`style\` | \`standard\` \\| \`book\` | プラグイン設定 | 輪編みチャートの描画スタイル。\`book\` は日本の編み物本風：連続したらせん線が各段を巡り、針目が前段の編み入れ先の真上に並び、増減記号が伸びてつながり、段数が表示されます。\`type: round\` にのみ影響します。 |
 | \`tool\` | 真偽値（上記と同様） | プラグイン設定 | 編み図の横にインタラクティブな進捗ツールを埋め込みます。「進捗パネルを埋め込む」を参照。 |
 | \`text\` | 真偽値（上記と同様） | プラグイン設定 | 編み図の横に読み取り専用の略記リストを埋め込みます（\`tool\` が有効な場合は無視されます）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | プラグイン設定 | 埋め込んだ \`tool\`／\`text\` パネルを編み図に対してどこに配置するか。 |
@@ -1034,7 +1034,7 @@ Crochet Weaver は、実際の編み図が「(N sc)」と注記するのと同�
 
 ## 編み図タイプの選び方
 
-- **\`round\`（輪編み）** — 中心点から外側へ広がる同心円。つなぎ（join）のある輪編み作品（帽子、コースター、アミグルミの各パーツ、円形のグラニースクエアなど）に使います。アミグルミで最もよく使われる選択肢です。編み物本のような描画（各段を囲む区切り円、針目の整列、段数表示）を求められたら frontmatter に \`style: book\` を追加してください。チャートの描き方だけが変わり、パターンの書き方には一切影響しません。
+- **\`round\`（輪編み）** — 中心点から外側へ広がる同心円。つなぎ（join）のある輪編み作品（帽子、コースター、アミグルミの各パーツ、円形のグラニースクエアなど）に使います。アミグルミで最もよく使われる選択肢です。編み物本のような描画（連続らせんの区切り線、針目の整列、段数表示）を求められたら frontmatter に \`style: book\` を追加してください。チャートの描き方だけが変わり、パターンの書き方には一切影響しません。
 - **\`spiral\`（スパイラル）** — 段ごとのつなぎがない、1 本の連続した螺旋。原文に「連続スパイラル、つながずに段目リングを付ける」と明記されている場合にのみ使ってください──「つなぐ」と書かれていたり、段番号がはっきり振られていたりするほとんどのアミグルミ編み図は \`spiral\` ではなく \`round\` にすべきです。
 - **\`flat\`（平編み）** — 交互に往復する段。マフラーや平編みのブランケットなど、各段の終わりで編み地を返す作品に使います。
 

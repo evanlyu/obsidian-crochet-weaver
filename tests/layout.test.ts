@@ -384,30 +384,31 @@ describe('book-style round layout', () => {
 		});
 	});
 
-	it('encloses every round between separator circles, without needing grid: on', () => {
+	it('encloses every round with one continuous spiral guide, without needing grid: on', () => {
 		const layout = calculateLayout(
 			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\n'),
 			BOOK,
 		);
 
-		// 3 rounds -> 4 band boundaries, no spokes.
-		expect(layout.gridGuide?.circles).toHaveLength(4);
+		// A single open polyline, no closed circles or straight spokes.
+		expect(layout.gridGuide?.circles).toHaveLength(0);
 		expect(layout.gridGuide?.lines).toHaveLength(0);
+		expect(layout.gridGuide?.polylines).toHaveLength(1);
 
-		// Each boundary circle sits strictly between adjacent round radii.
 		const center = layout.items[0];
 		if (!center) throw new Error('expected MR center');
 		const radiusOf = (rowIndex: number) => {
 			const item = layout.items.find((i) => i.rowIndex === rowIndex);
 			return Math.hypot((item?.x ?? 0) - center.x, (item?.y ?? 0) - center.y);
 		};
-		const rings = (layout.gridGuide?.circles ?? []).map((c) => c.r).sort((a, b) => a - b);
-		expect(rings[0]).toBeLessThan(radiusOf(0));
-		expect(rings[1]).toBeGreaterThan(radiusOf(0));
-		expect(rings[1]).toBeLessThan(radiusOf(1));
-		expect(rings[2]).toBeGreaterThan(radiusOf(1));
-		expect(rings[2]).toBeLessThan(radiusOf(2));
-		expect(rings[3]).toBeGreaterThan(radiusOf(2));
+		// The spiral winds from inside round 1 out past round 3: its per-point
+		// radius spans below the innermost round and beyond the outermost.
+		const polyline = layout.gridGuide?.polylines?.[0] ?? [];
+		const radii = polyline.map((p) => Math.hypot(p.x - center.x, p.y - center.y));
+		expect(Math.min(...radii)).toBeLessThan(radiusOf(0));
+		expect(Math.max(...radii)).toBeGreaterThan(radiusOf(2));
+		// Radius climbs overall (spiral), not one constant circle.
+		expect(Math.max(...radii) - Math.min(...radii)).toBeGreaterThan(radiusOf(1) - radiusOf(0));
 	});
 
 	it('numbers each round with a label, and draws none in standard style', () => {

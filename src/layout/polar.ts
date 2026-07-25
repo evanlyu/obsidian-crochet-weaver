@@ -33,9 +33,10 @@ export function placeUnitPolar(
 	rotation: SymbolRotation,
 	rowIndex?: number,
 	unitIndex?: number,
+	armSpan?: number,
 ) {
 	if (unit.type === 'StitchNode') {
-		items.push(polarItem(unit.stitch, radius, phiDeg, rotation, rowIndex, unitIndex, unit.color));
+		items.push(polarItem(unit.stitch, radius, phiDeg, rotation, rowIndex, unitIndex, unit.color, armSpan));
 	} else {
 		const children = flattenGroup(unit);
 		const mid = (children.length - 1) / 2;
@@ -63,16 +64,20 @@ function polarItem(
 	rowIndex?: number,
 	unitIndex?: number,
 	color?: string,
+	armSpan?: number,
 ): RenderItem {
 	const rad = (phiDeg * Math.PI) / 180;
 	return {
 		symbol,
 		x: radius * Math.cos(rad),
 		y: radius * Math.sin(rad),
-		rotation: symbolAngle(symbol, phiDeg, rotation),
+		// A stretched symbol's arms only make sense along the ring tangent,
+		// so it always faces outward regardless of the rotation setting.
+		rotation: armSpan !== undefined ? phiDeg + 90 : symbolAngle(symbol, phiDeg, rotation),
 		rowIndex,
 		unitIndex,
 		color,
+		armSpan,
 	};
 }
 

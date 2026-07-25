@@ -508,7 +508,7 @@ R4: 8 sc, color white, 8 sc, color black, 8 sc
 
 ## 14. Book-Style Round Charts
 
-`style: book` switches a round chart to Japanese-pattern-book styling: separator circles enclose each round in its own band, every stitch sits directly above the previous-round stitch it is worked into (an increase fans its two stitches out from its parent, a decrease converges the parents it merges), and each round is numbered in red at the starting seam — which drifts diagonally with the increases, just like a printed chart. The default `style: standard` keeps the original evenly spread layout; the global **Round chart style** setting changes the default for every chart.
+`style: book` switches a round chart to Japanese-pattern-book styling: a continuous spiral guide winds through the rounds (as crochet-in-the-round really is one spiralling line), stepping out to the next round at each starting seam; every stitch sits directly above the previous-round stitch it is worked into (an increase fans its two stitches out from its parent, a decrease converges the parents it merges); the `inc`/`dec` glyphs stretch into wide book-style V/∧ shapes reaching the stitches they connect; and each round is numbered in red at the seam — which drifts diagonally with the increases, just like a printed chart. The default `style: standard` keeps the original evenly spread layout; the global **Round chart style** setting changes the default for every chart.
 
 ```crochet
 ---

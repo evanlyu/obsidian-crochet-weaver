@@ -48,7 +48,7 @@ Optional, delimited by `---` lines, flat `key: value` pairs (no nesting, no list
 | `spacing` | positive number | plugin setting | Pixel gap between round/spiral rings. |
 | `highlight` | `on`/`off`/`true`/`false`/`yes`/`no`/`1`/`0` | plugin setting | Accent-colors `inc`/`dec` stitches. |
 | `rotation` | `smart` \| `all` \| `none` | plugin setting | Symbol rotation in round/spiral charts. `smart` is almost always right. |
-| `style` | `standard` \| `book` | plugin setting | Round-chart drawing style. `book` gives Japanese-pattern-book styling: separator circles enclose each round, stitches sit above the previous-round stitch they're worked into, rounds are numbered. Only affects `type: round`. |
+| `style` | `standard` \| `book` | plugin setting | Round-chart drawing style. `book` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, inc/dec glyphs stretch to connect, rounds are numbered. Only affects `type: round`. |
 | `tool` | boolean (as above) | plugin setting | Embeds the interactive progress tool next to the chart. See "Embedding a progress panel". |
 | `text` | boolean (as above) | plugin setting | Embeds a read-only shorthand list next to the chart (ignored if `tool` is also on). |
 | `position` | `right` \| `left` \| `below` | plugin setting | Where an embedded `tool`/`text` panel sits relative to the chart. |

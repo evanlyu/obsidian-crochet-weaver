@@ -106,6 +106,12 @@ export interface RenderItem {
 	// step earlier in this row or a previous one. Undefined means "use the
 	// theme's default symbol color," same as before this feature existed.
 	color?: string;
+	// Book-style round charts: tangential half-width (px) the symbol's arms
+	// should span — an inc stretches to reach its two output-stitch slots,
+	// a dec to the two parent stitches it merges — so the shaping symbols
+	// visually connect to the stitches they split into / consume, like
+	// printed charts draw them. Undefined renders the normal fixed glyph.
+	armSpan?: number;
 }
 
 // Which row/unit an embedded progress tool wants highlighted on its paired chart.
@@ -122,14 +128,23 @@ export interface RowConnector {
 	toY: number;
 }
 
+// A point on an open guide polyline.
+export interface GridPoint {
+	x: number;
+	y: number;
+}
+
 // A background reference layer drawn behind a chart's real stitches: round
 // guide rings/spokes for round and spiral charts, or a row/column mesh for
 // flat charts. Shares its shape with the standalone crochet-grid block's
 // geometry (GridCircle/GridLine) but is computed from the chart's own real
-// layout, not a blank shape of its own.
+// layout, not a blank shape of its own. `polylines` carries open curved
+// guides (the book-style continuous round spiral); each is drawn as one
+// stroked path.
 export interface ChartGridGuide {
 	circles: readonly GridCircle[];
 	lines: readonly GridLine[];
+	polylines?: readonly (readonly GridPoint[])[];
 }
 
 // Marks the first stitch worked in a new yarn color, drawn as a small flag
