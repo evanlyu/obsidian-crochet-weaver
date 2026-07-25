@@ -148,22 +148,6 @@ const BLO_MARK = 'M -4 9 Q 0 13 4 9';
 const FLO_MARK = 'M -4 9 Q 0 5 4 9';
 const ROW_CONNECTOR_GAP = 10;
 
-// Book-style stretched variants of the shaping glyphs: arms widened to the
-// layout-computed half-width so an inc reaches its two output stitches and a
-// dec reaches the two parents it merges (see RenderItem.armSpan).
-// Balanced and centered on the stitch's radius (which sits at its band's
-// midline), so the whole symbol reads as centered between the two spiral
-// guide lines rather than shoved against one. The inc's apex points inward
-// toward its parent (+7) and its arms toward the two next-round stitches
-// worked into it (-7); the dec is the mirror. Both ends stay short of the
-// half-band gap (~12px) so nothing touches the guide line. The symbol's own
-// local +y points toward the chart center (see polarItem's outward-facing
-// rotation for stretched items).
-const STRETCHED_SYMBOLS: Record<string, (halfWidth: number) => string> = {
-	inc: (w) => `M ${round2(-w)} -7 L 0 7 L ${round2(w)} -7`,
-	dec: (w) => `M ${round2(-w)} 7 L 0 -7 L ${round2(w)} 7`,
-};
-
 function round2(value: number): number {
 	return Math.round(value * 100) / 100;
 }
@@ -290,18 +274,22 @@ export function renderSVG(
 	for (const item of layout.items) {
 		const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation})`;
 
-		const stretched = item.armSpan !== undefined ? STRETCHED_SYMBOLS[item.symbol]?.(item.armSpan) : undefined;
 		let symbolEl: SVGElement;
-		if (stretched !== undefined) {
-			// Book-style stretched shaping symbol: its arm width depends on the
-			// item's own radius/step, so it can't come from a shared <defs>
-			// glyph — drawn as an inline path in the same local frame instead.
+		if (item.glyphPoints !== undefined && item.glyphPoints.length > 0) {
+			// Book-style shaping connector: each point is an absolute offset from
+			// the stitch, pointing at the real neighbouring-round stitches, so it
+			// can't come from a shared <defs> glyph — drawn as an inline path at
+			// the item's own position (no rotation; the offsets are absolute).
+			const d = item.glyphPoints
+				.map((p, i) => `${i === 0 ? 'M' : 'L'} ${round2(item.x + p.x)} ${round2(item.y + p.y)}`)
+				.join(' ');
 			const path = doc.createElementNS(SVG_NS, 'path');
-			path.setAttribute('d', stretched);
-			path.setAttribute('transform', transform);
+			path.setAttribute('d', d);
 			path.setAttribute('stroke', 'currentColor');
 			path.setAttribute('stroke-width', String(options.strokeWidth));
 			path.setAttribute('fill', 'none');
+			path.setAttribute('stroke-linejoin', 'round');
+			path.setAttribute('stroke-linecap', 'round');
 			symbolEl = path;
 		} else {
 			const use = doc.createElementNS(SVG_NS, 'use');

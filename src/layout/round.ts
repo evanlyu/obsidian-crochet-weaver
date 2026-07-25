@@ -1,4 +1,4 @@
-import type { ChartLabel, ColorMarker, CrochetAst, LayoutOptions, LayoutResult, RenderItem } from '../types';
+import type { ChartLabel, ColorMarker, CrochetAst, GridPoint, LayoutOptions, LayoutResult, RenderItem } from '../types';
 import { BASE_RADIUS, MIN_ARC } from './constants';
 import { buildBandGuide, buildRingGuide } from './grid-guide';
 import { normalize } from './normalize';
@@ -54,8 +54,10 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 		const start = items.length;
 		units.forEach((unit, i) => {
 			const itemStart = items.length;
-			const armSpan = book ? bookArmSpan(unit, radius, outStep, parentStep) : undefined;
-			placeUnitPolar(items, unit, radius, centers[i] ?? -90, options.rotation, rowIndex, i, armSpan);
+			const glyph = book
+				? bookGlyph(unit, radius, centers[i] ?? -90, outStep, parentStep, options.ringSpacing)
+				: undefined;
+			placeUnitPolar(items, unit, radius, centers[i] ?? -90, options.rotation, rowIndex, i, glyph);
 			if (unit.color !== undefined && unit.color !== previousColor) {
 				const first = items[itemStart];
 				if (first) colorMarkers.push({ x: first.x, y: first.y, color: unit.color });
@@ -104,37 +106,57 @@ interface BookRing {
 	outputCount: number;
 }
 
-// Book style stretches the shaping symbols so they visually connect to the
-// stitches they split into or merge: an inc leans toward its two
-// output-stitch slots (±outStep/2), a dec toward the two parent stitches it
-// consumes (±parentStep/2). Only a fraction of that full gap is used — arms
-// reaching all the way to the slot centers make a wide, flat V that reads
-// poorly; a narrower V still clearly points between them while staying
-// legible. Returns the tangential half-width in pixels at the unit's own
-// radius, or undefined for symbols that keep their fixed glyph.
-const BOOK_ARM_FRACTION = 0.85;
+// How far each arm/apex reaches from the stitch, in px. Kept short of the
+// half-band gap (~ringSpacing/2) so nothing touches the spiral guide line;
+// the reach only sets the length, while the *direction* points at the real
+// neighbouring stitch, so a short segment still aims correctly.
+const BOOK_GLYPH_REACH = 8.5;
 
-function bookArmSpan(
+// Builds the increase/decrease connector for a book-style round: three
+// offset points (arm, apex, arm) forming a V/∧ whose apex points at the one
+// stitch on the single side and whose two arms point at the two stitches on
+// the split side. The arms aim at the *actual* neighbouring-round positions
+// (an inc's two next-round children at ±outStep/2 one round out; a dec's two
+// parents at ±parentStep/2 one round in), so the symbol is genuinely
+// asymmetric when those positions are — it is not a stock symmetric glyph.
+function bookGlyph(
 	unit: LayoutUnit,
 	radius: number,
+	centerDeg: number,
 	outStep: number,
 	parentStep: number | undefined,
-): number | undefined {
+	ringSpacing: number,
+): GridPoint[] | undefined {
 	if (unit.type !== 'StitchNode') return undefined;
-	let halfAngle: number | undefined;
-	// inc: reach its two next-round output slots (±outStep/2). dec: lean toward
-	// the two parents it merges (±parentStep/2) — but at a sparse outer round
-	// those parents can be a wide angle apart, so the tight px cap below keeps
-	// the ∧ from ballooning; it only needs to signal the merge, not literally
-	// bridge the whole gap.
-	if (unit.stitch === 'inc') halfAngle = outStep / 2;
-	else if (unit.stitch === 'dec' && parentStep !== undefined) halfAngle = parentStep / 2;
-	if (halfAngle === undefined) return undefined;
-	const span = radius * Math.sin((halfAngle * Math.PI) / 180) * BOOK_ARM_FRACTION;
-	// Never narrower than the plain glyph (its arms sit at ±4), or the stretch
-	// would read as a shrink; capped so a sparse round's wide parent gap can't
-	// balloon the symbol.
-	return Math.min(Math.max(span, 4.5), 13);
+	const isInc = unit.stitch === 'inc';
+	const isDec = unit.stitch === 'dec';
+	if (!isInc && !isDec) return undefined;
+	if (isDec && parentStep === undefined) return undefined;
+
+	const centerRad = (centerDeg * Math.PI) / 180;
+	const px = radius * Math.cos(centerRad);
+	const py = radius * Math.sin(centerRad);
+
+	// Unit offset toward a stitch at angular offset `deltaDeg` (from this
+	// stitch's angle) and radius `targetRadius`, scaled to BOOK_GLYPH_REACH.
+	const toward = (deltaDeg: number, targetRadius: number): GridPoint => {
+		const a = ((centerDeg + deltaDeg) * Math.PI) / 180;
+		const dx = targetRadius * Math.cos(a) - px;
+		const dy = targetRadius * Math.sin(a) - py;
+		const len = Math.hypot(dx, dy) || 1;
+		return { x: (dx / len) * BOOK_GLYPH_REACH, y: (dy / len) * BOOK_GLYPH_REACH };
+	};
+
+	if (isInc) {
+		// Apex toward the one parent (one round in); arms toward the two
+		// next-round stitches worked into its two outputs (one round out).
+		const half = outStep / 2;
+		return [toward(half, radius + ringSpacing), toward(0, radius - ringSpacing), toward(-half, radius + ringSpacing)];
+	}
+	// dec: apex toward the one continuing stitch (one round out); legs toward
+	// the two parents it merges (one round in).
+	const half = (parentStep as number) / 2;
+	return [toward(half, radius - ringSpacing), toward(0, radius + ringSpacing), toward(-half, radius - ringSpacing)];
 }
 
 // Book-style placement for one round. Output stitches are always spaced

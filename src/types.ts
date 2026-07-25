@@ -106,12 +106,14 @@ export interface RenderItem {
 	// step earlier in this row or a previous one. Undefined means "use the
 	// theme's default symbol color," same as before this feature existed.
 	color?: string;
-	// Book-style round charts: tangential half-width (px) the symbol's arms
-	// should span — an inc stretches to reach its two output-stitch slots,
-	// a dec to the two parent stitches it merges — so the shaping symbols
-	// visually connect to the stitches they split into / consume, like
-	// printed charts draw them. Undefined renders the normal fixed glyph.
-	armSpan?: number;
+	// Book-style round charts: an explicit little polyline (offsets from this
+	// item's own x/y, in chart px) drawn in place of the fixed glyph, so an
+	// increase / decrease points at the actual stitches it connects to — its
+	// apex toward the one stitch on the single side, its two arms toward the
+	// two stitches on the split side. Computed per stitch from the real
+	// neighbouring-round geometry (see layout/round.ts), which is why it is
+	// not a symmetric stock symbol. Undefined renders the normal glyph.
+	glyphPoints?: readonly GridPoint[];
 }
 
 // Which row/unit an embedded progress tool wants highlighted on its paired chart.
