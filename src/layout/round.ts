@@ -106,19 +106,20 @@ interface BookRing {
 	outputCount: number;
 }
 
-// How far each arm/apex reaches from the stitch, in px. Kept short of the
-// half-band gap (~ringSpacing/2) so nothing touches the spiral guide line;
-// the reach only sets the length, while the *direction* points at the real
-// neighbouring stitch, so a short segment still aims correctly.
-const BOOK_GLYPH_REACH = 8.5;
+// Max tangential (sideways) half-spread of a shaping arm, px. Bounds how wide
+// the V/∧ can open so a sparse outer round — where the two merged parents sit
+// a wide angle apart on a large circle — can't balloon the symbol.
+const BOOK_MAX_TANGENT = 15;
 
-// Builds the increase/decrease connector for a book-style round: three
-// offset points (arm, apex, arm) forming a V/∧ whose apex points at the one
-// stitch on the single side and whose two arms point at the two stitches on
-// the split side. The arms aim at the *actual* neighbouring-round positions
-// (an inc's two next-round children at ±outStep/2 one round out; a dec's two
-// parents at ±parentStep/2 one round in), so the symbol is genuinely
-// asymmetric when those positions are — it is not a stock symmetric glyph.
+// Builds the increase/decrease connector for a book-style round: three offset
+// points (arm, apex, arm) forming a V/∧ whose apex points at the one stitch on
+// the single side and whose two arms open out toward the two stitches on the
+// split side. The arm tips land at the actual *angles* of those two stitches
+// (an inc's two next-round children at ±outStep/2; a dec's two parents at
+// ±parentStep/2) so each arm lines up radially under/over the stitch it
+// connects to — genuinely asymmetric when those angles are. Radial reach is
+// kept inside the band (so nothing crosses the spiral guide line) and
+// tangential spread is capped (so a sparse round can't balloon it).
 function bookGlyph(
 	unit: LayoutUnit,
 	radius: number,
@@ -134,29 +135,34 @@ function bookGlyph(
 	if (isDec && parentStep === undefined) return undefined;
 
 	const centerRad = (centerDeg * Math.PI) / 180;
-	const px = radius * Math.cos(centerRad);
-	const py = radius * Math.sin(centerRad);
+	const cos = Math.cos(centerRad);
+	const sin = Math.sin(centerRad);
+	const px = radius * cos;
+	const py = radius * sin;
+	const reachOut = Math.min(9, ringSpacing * 0.42);
+	const reachIn = Math.min(8, ringSpacing * 0.4);
 
-	// Unit offset toward a stitch at angular offset `deltaDeg` (from this
-	// stitch's angle) and radius `targetRadius`, scaled to BOOK_GLYPH_REACH.
-	const toward = (deltaDeg: number, targetRadius: number): GridPoint => {
+	// Offset from this stitch to a point at angular offset `deltaDeg` and
+	// radius `radius + radialReach`, with its tangential (sideways) component
+	// capped so the arm can't spread too wide.
+	const tip = (deltaDeg: number, radialReach: number): GridPoint => {
 		const a = ((centerDeg + deltaDeg) * Math.PI) / 180;
-		const dx = targetRadius * Math.cos(a) - px;
-		const dy = targetRadius * Math.sin(a) - py;
-		const len = Math.hypot(dx, dy) || 1;
-		return { x: (dx / len) * BOOK_GLYPH_REACH, y: (dy / len) * BOOK_GLYPH_REACH };
+		const offX = (radius + radialReach) * Math.cos(a) - px;
+		const offY = (radius + radialReach) * Math.sin(a) - py;
+		const radialComp = offX * cos + offY * sin;
+		let tangComp = -offX * sin + offY * cos;
+		tangComp = Math.max(-BOOK_MAX_TANGENT, Math.min(BOOK_MAX_TANGENT, tangComp));
+		return { x: radialComp * cos - tangComp * sin, y: radialComp * sin + tangComp * cos };
 	};
 
 	if (isInc) {
-		// Apex toward the one parent (one round in); arms toward the two
-		// next-round stitches worked into its two outputs (one round out).
+		// Apex in toward the one parent; arms out to the two next-round stitches.
 		const half = outStep / 2;
-		return [toward(half, radius + ringSpacing), toward(0, radius - ringSpacing), toward(-half, radius + ringSpacing)];
+		return [tip(half, reachOut), tip(0, -reachIn), tip(-half, reachOut)];
 	}
-	// dec: apex toward the one continuing stitch (one round out); legs toward
-	// the two parents it merges (one round in).
+	// dec: apex out toward the one continuing stitch; legs in to the two parents.
 	const half = (parentStep as number) / 2;
-	return [toward(half, radius - ringSpacing), toward(0, radius + ringSpacing), toward(-half, radius - ringSpacing)];
+	return [tip(half, -reachIn), tip(0, reachOut), tip(-half, -reachIn)];
 }
 
 // Book-style placement for one round. Output stitches are always spaced
