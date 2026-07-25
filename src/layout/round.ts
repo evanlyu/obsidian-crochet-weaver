@@ -10,6 +10,7 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 	const items: RenderItem[] = [];
 	pushCenterAnchor(ast, items);
 	let radius = 0;
+	let prevRadius = 0;
 	let prevCount = -1;
 	let lastUnitCount = 0;
 	const roundRadii: number[] = [];
@@ -18,10 +19,11 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 	const colorMarkers: ColorMarker[] = [];
 	const labels: ChartLabel[] = [];
 	let previousColor: string | undefined;
-	// Book style: the previous round's output-stitch layout (first stitch's
-	// angle plus its count), so the next round can phase itself over the
-	// stitches it consumes.
-	let prevRing: BookRing | undefined;
+	// Book style is a stitch graph: each round's stitches are positioned from
+	// the previous round's stitches they are worked into, so this holds the
+	// previous round's per-output-stitch angles in working order (an increase
+	// contributed two, a decrease one). It is undefined before round 1.
+	let prevOutAngles: number[] | undefined;
 
 	ast.rows.forEach((row, rowIndex) => {
 		const units = unroll(row.steps, colorState);
@@ -33,31 +35,27 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 
 		const stitchCount = units.reduce((sum, unit) => sum + outputStitches(unit), 0);
 		radius = nextRadius(radius, prevCount, stitchCount, options.ringSpacing);
-		const outStep = 360 / stitchCount;
 
 		let centers: number[];
-		// The seam gap sits counterclockwise of the round's first stitch; in
-		// book style it drifts with the increases, like the diagonal run of
-		// round numbers in a printed chart.
-		let seamAngle = -90 + outStep / 2;
-		const parentStep = prevRing !== undefined && prevRing.outputCount > 0 ? 360 / prevRing.outputCount : undefined;
+		let glyphs: (readonly GridPoint[] | undefined)[];
+		let seamAngle: number;
 		if (book) {
-			const placed = placeBookRound(units, prevRing, outStep);
+			const placed = placeBookRound(units, prevOutAngles, stitchCount, radius, prevRadius);
 			centers = placed.centers;
-			prevRing = { phase: placed.phase, outputCount: stitchCount };
-			seamAngle = placed.phase + outStep / 2;
+			glyphs = placed.glyphs;
+			prevOutAngles = placed.outAngles;
+			seamAngle = placed.seamAngle;
 		} else {
 			const angleStep = 360 / units.length;
 			centers = units.map((_, i) => -90 - i * angleStep);
+			glyphs = units.map(() => undefined);
+			seamAngle = -90 + angleStep / 2;
 		}
 
 		const start = items.length;
 		units.forEach((unit, i) => {
 			const itemStart = items.length;
-			const glyph = book
-				? bookGlyph(unit, radius, centers[i] ?? -90, outStep, parentStep, options.ringSpacing)
-				: undefined;
-			placeUnitPolar(items, unit, radius, centers[i] ?? -90, options.rotation, rowIndex, i, glyph);
+			placeUnitPolar(items, unit, radius, centers[i] ?? -90, options.rotation, rowIndex, i, book ? glyphs[i] : undefined);
 			if (unit.color !== undefined && unit.color !== previousColor) {
 				const first = items[itemStart];
 				if (first) colorMarkers.push({ x: first.x, y: first.y, color: unit.color });
@@ -81,6 +79,7 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 			});
 		}
 		prevCount = stitchCount;
+		prevRadius = radius;
 		lastUnitCount = units.length;
 		roundRadii.push(radius);
 		seamAngles.push(seamAngle);
@@ -99,119 +98,174 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 	return normalize(items, undefined, gridGuide, colorMarkers, book ? labels : undefined);
 }
 
-// The previous round's output-stitch layout: outputs sit evenly spaced, so
-// the first stitch's angle (phase) plus the count describes every position.
-interface BookRing {
-	phase: number;
-	outputCount: number;
+interface PlacedRound {
+	// One render-anchor angle per unit (degrees, continuous — not wrapped).
+	centers: number[];
+	// One optional connector glyph per unit (offsets from that unit's item x/y).
+	glyphs: (readonly GridPoint[] | undefined)[];
+	// This round's per-output-stitch angles in working order, for the next
+	// round to be worked into.
+	outAngles: number[];
+	// Angle of the round's starting seam, for the round number label.
+	seamAngle: number;
 }
 
-// Max tangential (sideways) half-spread of a shaping arm, px. Bounds how wide
-// the V/∧ can open so a sparse outer round — where the two merged parents sit
-// a wide angle apart on a large circle — can't balloon the symbol.
-const BOOK_MAX_TANGENT = 15;
-
-// Builds the increase/decrease connector for a book-style round: three offset
-// points (arm, apex, arm) forming a V/∧ whose apex points at the one stitch on
-// the single side and whose two arms open out toward the two stitches on the
-// split side. The arm tips land at the actual *angles* of those two stitches
-// (an inc's two next-round children at ±outStep/2; a dec's two parents at
-// ±parentStep/2) so each arm lines up radially under/over the stitch it
-// connects to — genuinely asymmetric when those angles are. Radial reach is
-// kept inside the band (so nothing crosses the spiral guide line) and
-// tangential spread is capped (so a sparse round can't balloon it).
-function bookGlyph(
-	unit: LayoutUnit,
-	radius: number,
-	centerDeg: number,
-	outStep: number,
-	parentStep: number | undefined,
-	ringSpacing: number,
-): GridPoint[] | undefined {
-	if (unit.type !== 'StitchNode') return undefined;
-	const isInc = unit.stitch === 'inc';
-	const isDec = unit.stitch === 'dec';
-	if (!isInc && !isDec) return undefined;
-	if (isDec && parentStep === undefined) return undefined;
-
-	const centerRad = (centerDeg * Math.PI) / 180;
-	const cos = Math.cos(centerRad);
-	const sin = Math.sin(centerRad);
-	const px = radius * cos;
-	const py = radius * sin;
-	const reachOut = Math.min(9, ringSpacing * 0.42);
-	const reachIn = Math.min(8, ringSpacing * 0.4);
-
-	// Offset from this stitch to a point at angular offset `deltaDeg` and
-	// radius `radius + radialReach`, with its tangential (sideways) component
-	// capped so the arm can't spread too wide.
-	const tip = (deltaDeg: number, radialReach: number): GridPoint => {
-		const a = ((centerDeg + deltaDeg) * Math.PI) / 180;
-		const offX = (radius + radialReach) * Math.cos(a) - px;
-		const offY = (radius + radialReach) * Math.sin(a) - py;
-		const radialComp = offX * cos + offY * sin;
-		let tangComp = -offX * sin + offY * cos;
-		tangComp = Math.max(-BOOK_MAX_TANGENT, Math.min(BOOK_MAX_TANGENT, tangComp));
-		return { x: radialComp * cos - tangComp * sin, y: radialComp * sin + tangComp * cos };
-	};
-
-	if (isInc) {
-		// Apex in toward the one parent; arms out to the two next-round stitches.
-		const half = outStep / 2;
-		return [tip(half, reachOut), tip(0, -reachIn), tip(-half, reachOut)];
-	}
-	// dec: apex out toward the one continuing stitch; legs in to the two parents.
-	const half = (parentStep as number) / 2;
-	return [tip(half, -reachIn), tip(0, reachOut), tip(-half, -reachIn)];
-}
-
-// Book-style placement for one round. Output stitches are always spaced
-// evenly (as printed charts draw them — pure per-stitch genealogy compounds
-// local density round over round until symbols collide), and the round's
-// *phase* is chosen so each unit sits as close as possible to the
-// previous-round stitch(es) it consumes. For evenly distributed shaping —
-// the overwhelming pattern-book case — that phase makes the alignment
-// exact: an inc's two children straddle it, a dec sits centered between the
-// parents it merges, and plain stitches stack straight above their parents.
-// The first round (no parents) starts its first stitch at the top.
+// Positions one round as a stitch graph (see the layout spec): every stitch's
+// angle comes from the previous-round stitch(es) it is worked into, never from
+// dividing the circle evenly. A plain stitch keeps its parent's angle; an
+// increase's two children straddle their shared parent by ±offset so the
+// parent sits exactly between them; a decrease's single child sits at the mean
+// of the two parents it merges. This makes increases and decreases visually
+// obvious and every stitch traceable to its ancestor, the way Japanese
+// pattern books draw them. The offset scales with the round's stitch count so
+// a regular increase pattern still comes out evenly spaced, while irregular
+// shaping bulges locally where it actually happens.
 function placeBookRound(
 	units: readonly LayoutUnit[],
-	parents: BookRing | undefined,
-	outStep: number,
-): { centers: number[]; phase: number } {
-	// Each unit's center in output-stitch positions (an inc spans 2 slots).
-	const outPositions: number[] = [];
-	let outCursor = 0;
-	for (const unit of units) {
+	prevOut: number[] | undefined,
+	outCount: number,
+	radius: number,
+	prevRadius: number,
+): PlacedRound {
+	const centers: number[] = [];
+	const glyphs: (readonly GridPoint[] | undefined)[] = [];
+	const outAngles: number[] = [];
+	// Half the round's average stitch spacing: an increase's two children sit
+	// one average-spacing apart (±offset), which keeps a regular increase round
+	// evenly spaced and an irregular one locally bulged.
+	const offset = 360 / outCount / 2;
+
+	if (prevOut === undefined) {
+		// Round 1 is worked into the ring, so it has no parents: spread its
+		// output stitches evenly from the top.
+		const step = 360 / outCount;
+		let outIndex = 0;
+		for (const unit of units) {
+			const width = outputStitches(unit);
+			const childAngles: number[] = [];
+			for (let j = 0; j < width; j++) childAngles.push(-90 - (outIndex + j) * step);
+			outAngles.push(...childAngles);
+			centers.push(mean(childAngles));
+			glyphs.push(undefined);
+			outIndex += width;
+		}
+		return { centers, glyphs, outAngles, seamAngle: -90 + step / 2 };
+	}
+
+	let cursor = 0;
+	units.forEach((unit) => {
+		const consumed = consumedStitches(unit);
 		const width = outputStitches(unit);
-		outPositions.push(outCursor + (width - 1) / 2);
-		outCursor += width;
-	}
+		const parents = prevOut.slice(cursor, cursor + consumed);
+		cursor += consumed;
+		const center = parents.length > 0 ? mean(parents) : -90;
 
-	let phase = -90;
-	if (parents !== undefined && parents.outputCount > 0) {
-		const parentStep = 360 / parents.outputCount;
-		// Scale consumption onto the real parent count so a round that doesn't
-		// consume its predecessor exactly (pattern licence, uncounted chains…)
-		// still distributes over the full circle instead of drifting.
-		const totalConsumed = units.reduce((sum, unit) => sum + consumedStitches(unit), 0);
-		const scale = parents.outputCount / totalConsumed;
-		let consumedBefore = 0;
-		let phaseSum = 0;
-		units.forEach((unit, i) => {
-			const consumed = consumedStitches(unit);
-			const parentMid = (consumedBefore + (consumed - 1) / 2) * scale;
-			consumedBefore += consumed;
-			const desiredCenter = parents.phase - parentMid * parentStep;
-			phaseSum += desiredCenter + (outPositions[i] ?? 0) * outStep;
-		});
-		phase = phaseSum / units.length;
-	}
+		// Children spread symmetrically around the consumed parents' midpoint.
+		const childAngles: number[] = [];
+		for (let j = 0; j < width; j++) childAngles.push(center - (j - (width - 1) / 2) * 2 * offset);
+		outAngles.push(...childAngles);
 
-	return {
-		centers: outPositions.map((position) => phase - position * outStep),
-		phase,
-	};
+		if (width === 2 && consumed === 1 && isInc(unit)) {
+			// Increase: apex points in at the one parent, arms out to the two
+			// children (this round's two stitches). Anchor on the parent angle.
+			centers.push(center);
+			glyphs.push(splitGlyph(center, childAngles, radius, radius, prevRadius));
+		} else if (width === 1 && consumed >= 2 && isDec(unit)) {
+			// Decrease: apex on the one child, legs in to the two-or-more parents.
+			centers.push(center);
+			glyphs.push(mergeGlyph(center, parents, radius, prevRadius));
+		} else {
+			// Plain stitch (or a group/other: rendered at its parent-derived
+			// centre, spread by the layout's own group fan).
+			centers.push(center);
+			glyphs.push(undefined);
+		}
+	});
+
+	return { centers, glyphs, outAngles, seamAngle: (outAngles[0] ?? -90) + offset };
+}
+
+function isInc(unit: LayoutUnit): boolean {
+	return unit.type === 'StitchNode' && unit.stitch === 'inc';
+}
+
+function isDec(unit: LayoutUnit): boolean {
+	return unit.type === 'StitchNode' && (unit.stitch === 'dec' || /\dtog$/.test(unit.stitch));
+}
+
+// px position of a stitch at (angleDeg, r).
+function polar(angleDeg: number, r: number): GridPoint {
+	const a = (angleDeg * Math.PI) / 180;
+	return { x: r * Math.cos(a), y: r * Math.sin(a) };
+}
+
+// Radial reach (px) of a shaping arm toward a neighbouring round, kept short of
+// the half-band gap so nothing crosses the spiral guide line.
+const BOOK_APEX_REACH = 8;
+
+// Max tangential (sideways) reach of a decrease leg, px. The two merged parents
+// can sit a wide angle apart on a late decrease round (stitch count drops but
+// the radius still grows), so cap how far the ∧ opens — it only needs to point
+// at them, not literally bridge the whole gap.
+const BOOK_MAX_LEG = 13;
+
+// Clamps a point's sideways (tangential) distance from the radial line through
+// `centerDeg`, leaving its radial distance untouched.
+function clampTangent(p: GridPoint, centerDeg: number, maxTangent: number): GridPoint {
+	const a = (centerDeg * Math.PI) / 180;
+	const cos = Math.cos(a);
+	const sin = Math.sin(a);
+	const radial = p.x * cos + p.y * sin;
+	let tang = -p.x * sin + p.y * cos;
+	tang = Math.max(-maxTangent, Math.min(maxTangent, tang));
+	return { x: radial * cos - tang * sin, y: radial * sin + tang * cos };
+}
+
+// Increase connector: apex points inward at the one parent, the two arms land
+// on the two children (this round's two stitches, at their real angles), so
+// the V opens exactly to the pair it splits into. Offsets are from the unit's
+// anchor at (centerDeg, radius).
+function splitGlyph(
+	centerDeg: number,
+	childAngles: number[],
+	radius: number,
+	childRadius: number,
+	parentRadius: number,
+): readonly GridPoint[] {
+	const anchor = polar(centerDeg, radius);
+	const apex = polar(centerDeg, radius - Math.min(BOOK_APEX_REACH, radius - parentRadius));
+	const points = [
+		sub(polar(childAngles[0] ?? centerDeg, childRadius), anchor),
+		sub(apex, anchor),
+		sub(polar(childAngles[childAngles.length - 1] ?? centerDeg, childRadius), anchor),
+	];
+	return points;
+}
+
+// Decrease connector: apex on the one child (nudged outward), legs point inward
+// toward the two-or-more parents it merges — at each parent's real *angle* so
+// the ∧ visibly gathers them into one, but at a band-bounded inner radius so
+// it stays clear of the guide line (the parents themselves sit a round in).
+function mergeGlyph(centerDeg: number, parents: number[], radius: number, parentRadius: number): readonly GridPoint[] {
+	void parentRadius;
+	const anchor = polar(centerDeg, radius);
+	const apex = polar(centerDeg, radius + BOOK_APEX_REACH);
+	const legRadius = radius - BOOK_APEX_REACH;
+	const first = parents[0] ?? centerDeg;
+	const last = parents[parents.length - 1] ?? centerDeg;
+	return [
+		clampTangent(sub(polar(first, legRadius), anchor), centerDeg, BOOK_MAX_LEG),
+		sub(apex, anchor),
+		clampTangent(sub(polar(last, legRadius), anchor), centerDeg, BOOK_MAX_LEG),
+	];
+}
+
+function sub(a: GridPoint, b: GridPoint): GridPoint {
+	return { x: a.x - b.x, y: a.y - b.y };
+}
+
+function mean(values: readonly number[]): number {
+	return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
 // Every round moves outward by at least one ring-spacing step, even a decrease
