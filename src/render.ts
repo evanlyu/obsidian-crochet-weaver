@@ -151,17 +151,17 @@ const ROW_CONNECTOR_GAP = 10;
 // Book-style stretched variants of the shaping glyphs: arms widened to the
 // layout-computed half-width so an inc reaches its two output stitches and a
 // dec reaches the two parents it merges (see RenderItem.armSpan).
-// Asymmetric: an inc's apex sits close to its parent (inner side, +4) while
-// its arms lean outward toward the two next-round stitches worked into it
-// (-9); a dec is the mirror — apex just past the ring outward (-4) with legs
-// leaning inward toward the two parents it merges (+9). The outward reach is
-// kept short of the half-band gap (~12px) so the arm tips point toward the
-// next round without touching the spiral guide line between them. The
-// symbol's own local +y points toward the chart center (see polarItem's
-// outward-facing rotation for stretched items).
+// Balanced and centered on the stitch's radius (which sits at its band's
+// midline), so the whole symbol reads as centered between the two spiral
+// guide lines rather than shoved against one. The inc's apex points inward
+// toward its parent (+7) and its arms toward the two next-round stitches
+// worked into it (-7); the dec is the mirror. Both ends stay short of the
+// half-band gap (~12px) so nothing touches the guide line. The symbol's own
+// local +y points toward the chart center (see polarItem's outward-facing
+// rotation for stretched items).
 const STRETCHED_SYMBOLS: Record<string, (halfWidth: number) => string> = {
-	inc: (w) => `M ${round2(-w)} -9 L 0 4 L ${round2(w)} -9`,
-	dec: (w) => `M ${round2(-w)} 9 L 0 -4 L ${round2(w)} 9`,
+	inc: (w) => `M ${round2(-w)} -7 L 0 7 L ${round2(w)} -7`,
+	dec: (w) => `M ${round2(-w)} 7 L 0 -7 L ${round2(w)} 7`,
 };
 
 function round2(value: number): number {
