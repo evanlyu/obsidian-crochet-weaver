@@ -18,6 +18,7 @@ const SETTINGS: CrochetWeaverSettings = {
 	chartMarkerColor: '#1971c2',
 	showTool: false,
 	showPatternText: false,
+	patternTextStyle: 'raw',
 	panelPosition: 'right',
 	showGrid: false,
 	gridDefaultShape: 'polar',

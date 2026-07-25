@@ -1,7 +1,8 @@
-import { PluginSettingTab, Setting, type App, type SettingDefinitionItem } from 'obsidian';
-import { t, type LanguagePreference } from './i18n';
+import { PluginSettingTab, Setting, type App, type ButtonComponent, type SettingDefinitionItem } from 'obsidian';
+import { AI_PATTERN_AUTHORING_DOCS } from './ai-doc-content';
+import { t, type Locale, type LanguagePreference, type TranslationKey } from './i18n';
 import type CrochetWeaverPlugin from './main';
-import type { GridShape, PanelPosition, SymbolRotation } from './types';
+import type { GridShape, PanelPosition, PatternTextStyle, SymbolRotation } from './types';
 import {
 	getLocalizedSettingDefinitions,
 	GRID_COLUMNS_OPTIONS,
@@ -12,6 +13,42 @@ import {
 	STROKE_WIDTH_OPTIONS,
 	type CrochetWeaverSettings,
 } from './settings-data';
+
+// One button per doc language, reusing the same language-name strings the
+// language-preference dropdown uses so the labels stay consistent.
+const AI_DOC_LANGUAGES: ReadonlyArray<{ readonly locale: Locale; readonly nameKey: TranslationKey }> = [
+	{ locale: 'en', nameKey: 'settings.language.en' },
+	{ locale: 'zh-TW', nameKey: 'settings.language.zhTW' },
+	{ locale: 'zh-CN', nameKey: 'settings.language.zhCN' },
+	{ locale: 'ja', nameKey: 'settings.language.ja' },
+];
+
+// Adds one "copy to clipboard" button per doc language to an existing
+// Setting row. Shared between the declarative getSettingDefinitions() path
+// and the pre-1.13.0 manual display() fallback.
+function addAiDocsButtons(setting: Setting, uiLocale: Locale): void {
+	for (const { locale: docLocale, nameKey } of AI_DOC_LANGUAGES) {
+		setting.addButton((button) => {
+			const label = t(uiLocale, nameKey);
+			button.setButtonText(label).onClick(() => {
+				void copyAiDoc(docLocale, uiLocale, button, label);
+			});
+		});
+	}
+}
+
+async function copyAiDoc(docLocale: Locale, uiLocale: Locale, button: ButtonComponent, label: string): Promise<void> {
+	try {
+		await navigator.clipboard.writeText(AI_PATTERN_AUTHORING_DOCS[docLocale]);
+	} catch {
+		// Clipboard access can be denied by the OS; nothing more we can do here.
+		return;
+	}
+	button.setButtonText(t(uiLocale, 'settings.aiDocs.copied'));
+	window.setTimeout(() => {
+		button.setButtonText(label);
+	}, 1500);
+}
 
 export {
 	DEFAULT_SETTINGS,
@@ -52,7 +89,15 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
-		return [...getLocalizedSettingDefinitions(this.plugin.getLocale())];
+		const locale = this.plugin.getLocale();
+		return [
+			...getLocalizedSettingDefinitions(locale),
+			{
+				name: t(locale, 'settings.aiDocs.name'),
+				desc: t(locale, 'settings.aiDocs.desc'),
+				render: (setting) => addAiDocsButtons(setting, locale),
+			},
+		];
 	}
 
 	getControlValue(key: string): unknown {
@@ -204,6 +249,20 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName(t(locale, 'settings.patternTextStyle.name'))
+			.setDesc(t(locale, 'settings.patternTextStyle.desc'))
+			.addDropdown((dd) =>
+				dd
+					.addOption('raw', t(locale, 'settings.patternTextStyle.raw'))
+					.addOption('readable', t(locale, 'settings.patternTextStyle.readable'))
+					.setValue(this.plugin.settings.patternTextStyle)
+					.onChange(async (value) => {
+						this.plugin.settings.patternTextStyle = value as PatternTextStyle;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
 			.setName(t(locale, 'settings.panelPosition.name'))
 			.setDesc(t(locale, 'settings.panelPosition.desc'))
 			.addDropdown((dd) =>
@@ -321,5 +380,12 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+		addAiDocsButtons(
+			new Setting(containerEl)
+				.setName(t(locale, 'settings.aiDocs.name'))
+				.setDesc(t(locale, 'settings.aiDocs.desc')),
+			locale,
+		);
 	}
 }

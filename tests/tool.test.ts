@@ -116,6 +116,17 @@ R2: 6 sc
 		expect(container.querySelector('.crochet-tool-count')?.textContent).toBe('1 目');
 	});
 
+	it('translates the row list and its aria-label when the readable style is passed', () => {
+		const container = document.createElement('div');
+		const store = new MemoryProgressStore();
+
+		renderCrochetTool('---\nid: readable-tool\ntype: round\n---\nR1: 6 sc in MR\n', container, store, 'zh-TW', 'readable');
+
+		const row = container.querySelector('.crochet-tool-row');
+		expect(row?.querySelector('.crochet-tool-steps')?.textContent).toBe('魔術環(短針6)');
+		expect(row?.getAttribute('aria-label')).toContain('魔術環(短針6)');
+	});
+
 	it('marks completed and current rows from stored progress', () => {
 		const container = document.createElement('div');
 		const store = new MemoryProgressStore();
@@ -229,6 +240,22 @@ describe('stitch counter', () => {
 		expect(store.progress['stitch-reset']).toBeUndefined();
 	});
 
+	it('resets both round progress and the stitch counter via the reset-all button', () => {
+		const container = document.createElement('div');
+		const store = new MemoryProgressStore();
+
+		renderCrochetTool('---\nid: reset-all\n---\nR1: sc\nR2: 3 sc\n', container, store);
+		container.querySelector<HTMLButtonElement>('.crochet-tool-row')?.click();
+		container.querySelector<HTMLButtonElement>('.crochet-tool-stitch-btn.mod-cta')?.click();
+		expect(store.progress['reset-all']).toBe(1);
+		expect(store.stitchProgress['reset-all']).toBe(1);
+
+		container.querySelector<HTMLButtonElement>('.crochet-tool-stitch-reset-all')?.click();
+
+		expect(store.progress['reset-all']).toBe(0);
+		expect(store.stitchProgress['reset-all']).toBe(0);
+	});
+
 	it('resets the stitch counter when previous, complete, reset, or row-click change the current row', () => {
 		const container = document.createElement('div');
 		const store = new MemoryProgressStore();
@@ -252,6 +279,7 @@ describe('chart highlight reporting', () => {
 			container,
 			store,
 			'en',
+			'raw',
 			(target) => targets.push(target),
 		);
 
@@ -268,6 +296,7 @@ describe('chart highlight reporting', () => {
 			container,
 			store,
 			'en',
+			'raw',
 			(target) => targets.push(target),
 		);
 		container.querySelector<HTMLButtonElement>('.crochet-tool-stitch-btn.mod-cta')?.click();
@@ -285,6 +314,7 @@ describe('chart highlight reporting', () => {
 			container,
 			store,
 			'en',
+			'raw',
 			(target) => targets.push(target),
 		);
 		container.querySelector<HTMLButtonElement>('.crochet-tool-stitch-btn.mod-cta')?.click();
@@ -328,5 +358,43 @@ R2: 6 sc
 		renderCrochetPatternText('---\ntype: round\n---\nR1: sc\n', container, 'ja');
 
 		expect(container.querySelector('.crochet-pattern-text-title')?.textContent).toBe('同心円の輪編み');
+	});
+
+	it('keeps raw shorthand by default and only translates when the readable style is requested', () => {
+		const raw = document.createElement('div');
+		renderCrochetPatternText('---\ntype: round\n---\nR1: 6 sc in MR\n', raw, 'zh-TW');
+		expect(raw.querySelector('.crochet-pattern-text-steps')?.textContent).toBe('6 sc in MR');
+
+		const readable = document.createElement('div');
+		renderCrochetPatternText('---\ntype: round\n---\nR1: 6 sc in MR\n', readable, 'zh-TW', 'readable');
+		expect(readable.querySelector('.crochet-pattern-text-steps')?.textContent).toBe('魔術環(短針6)');
+	});
+
+	it('always shows a count in readable style, even for singular units, and falls back to the abbreviation in English', () => {
+		const container = document.createElement('div');
+		renderCrochetPatternText('R1: sc, inc, sc\n', container, 'en', 'readable');
+		expect(container.querySelector('.crochet-pattern-text-steps')?.textContent).toBe(
+			'single crochet1, increase1, single crochet1',
+		);
+	});
+
+	it('translates stitches inside groups and repeats, keeping the surrounding punctuation', () => {
+		const group = document.createElement('div');
+		renderCrochetPatternText('R1: (dc, ch, dc)\n', group, 'zh-TW', 'readable');
+		expect(group.querySelector('.crochet-pattern-text-steps')?.textContent).toBe('(長針1, 鎖針1, 長針1)');
+
+		const repeat = document.createElement('div');
+		renderCrochetPatternText('R1: [sc, inc] x 6\n', repeat, 'zh-TW', 'readable');
+		expect(repeat.querySelector('.crochet-pattern-text-steps')?.textContent).toBe('[短針1, 加針1] × 6');
+	});
+
+	it('shows a localized "change to <color>" phrase for color-change steps in both styles', () => {
+		const raw = document.createElement('div');
+		renderCrochetPatternText('R1: 8 sc, color white, 8 sc\n', raw, 'en');
+		expect(raw.querySelector('.crochet-pattern-text-steps')?.textContent).toBe('8 sc, change to white, 8 sc');
+
+		const zhTW = document.createElement('div');
+		renderCrochetPatternText('R1: 8 sc, color white, 8 sc\n', zhTW, 'zh-TW');
+		expect(zhTW.querySelector('.crochet-pattern-text-steps')?.textContent).toBe('8 sc, 換成 white, 8 sc');
 	});
 });

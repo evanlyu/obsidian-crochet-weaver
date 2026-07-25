@@ -154,6 +154,8 @@ function estimateNode(
 			}
 			return node.count * estimateSteps(node.children, depth + 1, budget);
 		}
+		case 'ColorChangeNode':
+			return 0;
 	}
 }
 

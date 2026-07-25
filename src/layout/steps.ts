@@ -2,19 +2,32 @@ import type { AstNode, GroupNode, RenderItem, RowNode, StitchNode } from '../typ
 
 export type LayoutUnit = StitchNode | GroupNode;
 
-export function unroll(steps: AstNode[]): LayoutUnit[] {
+// Tracks the yarn color a ColorChangeNode set, threaded through one or more
+// unroll() calls. Pass the same object across a chart's rows so a color set
+// in one row still applies to the next, matching how yarn color persists
+// until explicitly changed again.
+export interface ColorState {
+	current?: string;
+}
+
+// ColorChangeNode carries no width of its own: it sets colorState.current
+// and is dropped, tagging every StitchNode/GroupNode unit produced from here
+// on (in this call and, via a shared colorState, later rows) with .color.
+export function unroll(steps: AstNode[], colorState: ColorState = {}): LayoutUnit[] {
 	const result: LayoutUnit[] = [];
 	for (const step of steps) {
-		if (step.type === 'RepeatNode') {
+		if (step.type === 'ColorChangeNode') {
+			colorState.current = step.color;
+		} else if (step.type === 'RepeatNode') {
 			for (let i = 0; i < step.count; i++) {
-				result.push(...unroll(step.children));
+				result.push(...unroll(step.children, colorState));
 			}
 		} else if (step.type === 'StitchNode') {
 			for (let i = 0; i < step.count; i++) {
-				result.push({ ...step, count: 1 });
+				result.push({ ...step, count: 1, color: colorState.current });
 			}
 		} else {
-			result.push(step);
+			result.push({ ...step, color: colorState.current });
 		}
 	}
 	return result;

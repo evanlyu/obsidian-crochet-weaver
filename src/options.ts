@@ -1,4 +1,4 @@
-import type { CrochetAst, LayoutOptions, PanelPosition, RenderOptions, SymbolRotation } from './types';
+import type { CrochetAst, LayoutOptions, PanelPosition, PatternTextStyle, RenderOptions, SymbolRotation } from './types';
 import type { CrochetWeaverSettings } from './settings';
 
 export type ResolvedOptions = RenderOptions & LayoutOptions;
@@ -7,6 +7,7 @@ export interface PanelOptions {
 	showTool: boolean;
 	showText: boolean;
 	position: PanelPosition;
+	textStyle: PatternTextStyle;
 }
 
 export function resolveOptions(
@@ -35,10 +36,12 @@ export function resolvePanelOptions(
 ): PanelOptions {
 	const config = ast.config;
 	const position = config.position?.toLowerCase();
+	const readableOverride = boolOption(config.readable);
 	return {
 		showTool: boolOption(config.tool) ?? settings.showTool,
 		showText: boolOption(config.text) ?? settings.showPatternText,
 		position: isPanelPosition(position) ? position : settings.panelPosition,
+		textStyle: readableOverride === undefined ? settings.patternTextStyle : readableOverride ? 'readable' : 'raw',
 	};
 }
 

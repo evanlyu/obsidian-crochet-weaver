@@ -35,6 +35,9 @@ export default defineConfig(
 		files: ['tests/**/*.ts'],
 		rules: {
 			'obsidianmd/prefer-create-el': 'off',
+			// Tests run under Node/Vitest, not inside Obsidian's mobile-constrained
+			// runtime, so reading fixture files with node:fs is fine here.
+			'obsidianmd/no-nodejs-modules': 'off',
 		},
 	},
 );

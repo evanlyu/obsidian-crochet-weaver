@@ -1,9 +1,9 @@
-import type { AstNode, ChartHighlight, CrochetAst } from './types';
+import type { AstNode, ChartHighlight, CrochetAst, PatternTextStyle, RowNode } from './types';
 import { parseChart } from './parse-chart';
 import { validateChartBudget } from './budget';
 import { roundStitchCount, unitStitchCounts } from './layout';
 import { renderCrochetError } from './errors';
-import { t, type Locale } from './i18n';
+import { stitchName, t, type Locale } from './i18n';
 import { progressIdFromConfig } from './progress-id';
 
 export interface ProgressStore {
@@ -13,7 +13,12 @@ export interface ProgressStore {
 	setStitchProgress(id: string, count: number): Promise<void>;
 }
 
-export function renderCrochetPatternText(source: string, el: HTMLElement, locale: Locale = 'en') {
+export function renderCrochetPatternText(
+	source: string,
+	el: HTMLElement,
+	locale: Locale = 'en',
+	textStyle: PatternTextStyle = 'raw',
+) {
 	let ast: CrochetAst;
 	try {
 		ast = parseChart(source);
@@ -31,7 +36,7 @@ export function renderCrochetPatternText(source: string, el: HTMLElement, locale
 
 	const list = root.createDiv({ cls: 'crochet-pattern-text-list' });
 	ast.rows.forEach((row) => {
-		const stepsText = serializeSteps(row.steps) + anchorText(row.anchor) + loopText(row.loop, locale);
+		const stepsText = rowStepsText(row, locale, textStyle);
 		const stitchCount = roundStitchCount(row);
 		const item = list.createDiv({ cls: 'crochet-pattern-text-row' });
 		item.createSpan({ cls: 'crochet-pattern-text-badge', text: `R${row.num}` });
@@ -48,6 +53,7 @@ export function renderCrochetTool(
 	el: HTMLElement,
 	store: ProgressStore,
 	locale: Locale = 'en',
+	textStyle: PatternTextStyle = 'raw',
 	onHighlightChange?: (target: ChartHighlight | undefined) => void,
 ) {
 	let ast: CrochetAst;
@@ -161,6 +167,15 @@ export function renderCrochetTool(
 				void store.setStitchProgress(id, 0);
 				paint();
 			});
+
+			const resetAll = controlsRow.createEl('button', {
+				cls: 'crochet-tool-stitch-reset-all',
+				text: t(locale, 'tool.resetAll'),
+			});
+			resetAll.type = 'button';
+			resetAll.addEventListener('click', () => {
+				advanceDone(0);
+			});
 		}
 
 		const list = root.createDiv({ cls: 'crochet-tool-list' });
@@ -169,7 +184,7 @@ export function renderCrochetTool(
 			const cls = ['crochet-tool-row'];
 			if (n <= done) cls.push('is-done');
 			else if (n === done + 1) cls.push('is-current');
-			const stepsText = serializeSteps(row.steps) + anchorText(row.anchor) + loopText(row.loop, locale);
+			const stepsText = rowStepsText(row, locale, textStyle);
 			const stitchCount = roundStitchCount(row);
 			const item = list.createEl('button', { cls });
 			item.type = 'button';
@@ -221,18 +236,34 @@ function configId(ast: CrochetAst, source: string): string {
 	return progressIdFromConfig(ast.config.id, source);
 }
 
-function serializeSteps(steps: AstNode[]): string {
-	return steps.map(serializeNode).join(', ');
+function serializeSteps(steps: AstNode[], locale: Locale, style: PatternTextStyle): string {
+	return steps.map((node) => serializeNode(node, locale, style)).join(', ');
 }
 
-function serializeNode(node: AstNode): string {
+function serializeNode(node: AstNode, locale: Locale, style: PatternTextStyle): string {
 	if (node.type === 'StitchNode') {
+		if (style === 'readable') return `${stitchName(locale, node.stitch)}${node.count}`;
 		return node.count > 1 ? `${node.count} ${node.stitch}` : node.stitch;
 	}
 	if (node.type === 'GroupNode') {
-		return `(${serializeSteps(node.children)})`;
+		return `(${serializeSteps(node.children, locale, style)})`;
 	}
-	return `[${serializeSteps(node.children)}] × ${node.count}`;
+	if (node.type === 'ColorChangeNode') {
+		return t(locale, 'tool.colorChange', { color: node.color });
+	}
+	return `[${serializeSteps(node.children, locale, style)}] × ${node.count}`;
+}
+
+// Readable style leads with the anchor and wraps the row's steps in
+// parens — "魔術環(短針5)" — rather than trailing it the way raw shorthand
+// does ("5 sc in MR"), since that reads more naturally once translated.
+function rowStepsText(row: RowNode, locale: Locale, style: PatternTextStyle): string {
+	const steps = serializeSteps(row.steps, locale, style);
+	const loop = loopText(row.loop, locale);
+	if (style === 'readable' && row.anchor) {
+		return `${stitchName(locale, row.anchor)}(${steps})${loop}`;
+	}
+	return steps + anchorText(row.anchor) + loop;
 }
 
 function anchorText(anchor: string | undefined): string {

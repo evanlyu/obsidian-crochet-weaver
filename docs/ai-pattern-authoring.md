@@ -1,5 +1,7 @@
 # Crochet Weaver — AI Pattern Authoring Reference
 
+**[English](ai-pattern-authoring.md) | [繁體中文](ai-pattern-authoring.zh-TW.md) | [简体中文](ai-pattern-authoring.zh-CN.md) | [日本語](ai-pattern-authoring.ja.md)**
+
 This document is written **for an AI assistant** (Claude, ChatGPT, or any other model) that a crocheter has asked to convert a written pattern — or write a new one — into Crochet Weaver syntax: the small text language the Crochet Weaver Obsidian plugin's `crochet` / `crochet-tool` code blocks understand.
 
 Paste this whole file into any AI chat, or point an agent at it, before asking it to convert a pattern.
@@ -133,6 +135,18 @@ There is still no dedicated token for N-into-one **increases** — those are gro
 
 There is no turning-chain concept — omit `ch 1, turn` / `ch 3, turn` type instructions; they don't change the chart.
 
+### Color changes
+
+The keyword `color` (optionally followed by `:`), then a CSS color name or `#hex` code, as its own step anywhere in the row — usually at the start of a row, or dropped in mid-row right where the source says to switch yarn:
+
+```
+R6: 8 sc, color white, 8 sc, color black, 8 sc
+```
+
+It has no width of its own (it doesn't count as a stitch). It applies to every stitch from that point on — through the rest of this row and every later row — and counts as normal, until another `color` step changes it again; there's no "reset to no color" token. The stitch symbols themselves always stay the chart's normal theme color — a literal `black`/`white` value only names the yarn, it isn't painted onto the symbols (that would go illegible in a dark or light theme, and would fight with the progress tool's own current-position highlight). Instead, the first stitch of each new color gets a small hollow ring in that color, so the switch is easy to spot without covering the stitch underneath it. The tool and pattern-text panels also spell it out as "change to `<color>`" right where it happens.
+
+Use the exact color word or hex code the source gives (`white`, `black`, `#ff8800`, …) — don't invent or normalize colors the source doesn't state, and don't add `color` steps at all if the source never specifies yarn color for that piece.
+
 ## Phrase → token cheat sheet
 
 Use this to translate common written-pattern phrasing. When in doubt, prefer `inc`/`dec` (which are chart-meaningful, weighted stitches) over spelling out "2 sc in next st" as two separate `sc`s — that would double-count stitches and throw off every round after it.
@@ -165,6 +179,7 @@ Use this to translate common written-pattern phrasing. When in doubt, prefer `in
 | "5-hdc popcorn" / "5-tr popcorn" | `hdc popcorn` / `tr popcorn` |
 | "picot" / "ch-3 picot" | `picot` |
 | "crab stitch" / "reverse single crochet" | `rsc` |
+| "change to white" / "8 sc BLACK, change to WHITE, …" (yarn color change) | `color white` step where the switch happens |
 
 **Cluster vs. decrease ambiguity**: some patterns write "3tog" to mean an actual decrease (3 stitches become 1 — use `sc3tog`/`hdc3tog`/`dc3tog`) and others use "cluster" language for a *decorative* bundle of stitches worked into the *same* stitch that doesn't reduce the stitch count the same way (use `dc3cl`/`hdc3cl`/etc., or a group like `(dc, dc, dc)` if genuinely just 3 stitches fanned into one spot). Read the surrounding stitch-count annotations — if the row's total drops, it's a decrease token; if the count stays flat, it's a cluster/group.
 
@@ -247,4 +262,5 @@ Before returning your answer:
 6. For any decrease/cluster, picked the token matching the source's stated height and count (`sc2tog` vs `hdc3tog` vs `dc5tog`, etc.) instead of defaulting everything to `dec`.
 7. Asked the user (or picked a sensible default) for `tool: on` vs `text: on` vs neither, if they didn't specify.
 8. Flagged anything you couldn't represent (unsupported stitch, ambiguous instruction) instead of silently guessing.
-9. Returned one fenced ` ```crochet ` block (plus a second ` ```crochet-tool ` block only if they explicitly asked for a separate standalone tracker).
+9. Added a `color <name>` step wherever the source explicitly changes yarn color, using its exact color word/hex — and added none where the source never states a color.
+10. Returned one fenced ` ```crochet ` block (plus a second ` ```crochet-tool ` block only if they explicitly asked for a separate standalone tracker).

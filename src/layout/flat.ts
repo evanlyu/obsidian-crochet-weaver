@@ -1,7 +1,15 @@
-import type { ChartGridGuide, CrochetAst, LayoutOptions, LayoutResult, RenderItem, RowConnector } from '../types';
+import type {
+	ChartGridGuide,
+	ColorMarker,
+	CrochetAst,
+	LayoutOptions,
+	LayoutResult,
+	RenderItem,
+	RowConnector,
+} from '../types';
 import { GROUP_FAN_ANGLE, GROUP_FAN_SPREAD, ROW_HEIGHT, STITCH_WIDTH } from './constants';
 import { normalize } from './normalize';
-import { flattenGroup, tagLoop, unroll } from './steps';
+import { flattenGroup, tagLoop, unroll, type ColorState } from './steps';
 
 export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResult {
 	const items: RenderItem[] = [];
@@ -9,7 +17,11 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 	let direction = 1;
 	let prevRowEndX = 0;
 	let prevRowY = 0;
-	let maxUnitsInRow = 0;
+	let minSlotX = Infinity;
+	let maxSlotX = -Infinity;
+	const colorState: ColorState = {};
+	const colorMarkers: ColorMarker[] = [];
+	let previousColor: string | undefined;
 
 	ast.rows.forEach((row, rowIndex) => {
 		const y = -rowIndex * ROW_HEIGHT;
@@ -18,11 +30,14 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 			rowConnectors.push({ x: prevRowEndX, fromY: prevRowY, toY: y });
 		}
 		const start = items.length;
-		const units = unroll(row.steps);
+		const units = unroll(row.steps, colorState);
 
 		units.forEach((unit, unitIndex) => {
+			minSlotX = Math.min(minSlotX, x);
+			maxSlotX = Math.max(maxSlotX, x);
+			const itemStart = items.length;
 			if (unit.type === 'StitchNode') {
-				items.push({ symbol: unit.stitch, x, y, rotation: 0, rowIndex, unitIndex });
+				items.push({ symbol: unit.stitch, x, y, rotation: 0, rowIndex, unitIndex, color: unit.color });
 			} else {
 				const children = flattenGroup(unit);
 				const mid = (children.length - 1) / 2;
@@ -34,8 +49,14 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 						rotation: (i - mid) * GROUP_FAN_ANGLE,
 						rowIndex,
 						unitIndex,
+						color: unit.color,
 					});
 				});
+			}
+			if (unit.color !== undefined && unit.color !== previousColor) {
+				const first = items[itemStart];
+				if (first) colorMarkers.push({ x: first.x, y: first.y, color: unit.color });
+				previousColor = unit.color;
 			}
 			prevRowEndX = x;
 			x += STITCH_WIDTH * direction;
@@ -44,40 +65,46 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 		tagLoop(items, start, row.loop);
 		direction *= -1;
 		prevRowY = y;
-		maxUnitsInRow = Math.max(maxUnitsInRow, units.length);
 	});
 
 	const gridGuide = options.grid
-		? buildMeshGuide(ast.rows.length, maxUnitsInRow, options.gridCount, options.gridColumns)
+		? buildMeshGuide(ast.rows.length, minSlotX, maxSlotX, options.gridCount, options.gridColumns)
 		: undefined;
-	return normalize(items, rowConnectors, gridGuide);
+	return normalize(items, rowConnectors, gridGuide, colorMarkers);
 }
 
-// A plain row/column mesh over the chart's real extent — a reference frame,
-// not a claim that every individual stitch (past row 0) sits on an
-// intersection, since rows alternate direction and can differ in length.
+// A plain row/column mesh over the chart's real extent. Flat rows alternate
+// direction (boustrophedon), so a row that's wider than the one before it
+// can drift the mesh's left edge past column 0 in either direction — the
+// mesh is anchored to stitches' real min/max x, not assumed to start where
+// row 0 did, or every row past the first would draw outside it.
 function buildMeshGuide(
 	actualRows: number,
-	actualColumns: number,
+	minSlotX: number,
+	maxSlotX: number,
 	gridCount: number | undefined,
 	gridColumns: number | undefined,
 ): ChartGridGuide | undefined {
 	if (actualRows === 0) return undefined;
+
+	const hasStitches = Number.isFinite(minSlotX) && Number.isFinite(maxSlotX);
+	const realMinX = hasStitches ? minSlotX : 0;
+	const actualColumns = hasStitches ? Math.round((maxSlotX - realMinX) / STITCH_WIDTH) + 1 : 0;
 
 	const rows = Math.max(actualRows, gridCount ?? 0);
 	const columns = Math.max(actualColumns, gridColumns ?? 0, 1);
 
 	const yMax = ROW_HEIGHT / 2;
 	const yMin = -(rows - 1) * ROW_HEIGHT - ROW_HEIGHT / 2;
-	const xMin = -STITCH_WIDTH / 2;
-	const xMax = (columns - 1) * STITCH_WIDTH + STITCH_WIDTH / 2;
+	const xMin = realMinX - STITCH_WIDTH / 2;
+	const xMax = xMin + columns * STITCH_WIDTH;
 
 	const horizontal = Array.from({ length: rows + 1 }, (_, i) => {
 		const y = -i * ROW_HEIGHT + ROW_HEIGHT / 2;
 		return { x1: xMin, y1: y, x2: xMax, y2: y };
 	});
 	const vertical = Array.from({ length: columns + 1 }, (_, j) => {
-		const x = j * STITCH_WIDTH - STITCH_WIDTH / 2;
+		const x = xMin + j * STITCH_WIDTH;
 		return { x1: x, y1: yMin, x2: x, y2: yMax };
 	});
 

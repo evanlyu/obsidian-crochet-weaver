@@ -14,10 +14,16 @@ Crochet Weaver 会把文字织图转换成 Obsidian 笔记中的钩针织图。�
 - `crochet-tool` 代码块会渲染成可读的行清单，包含针数统计、进度控制，以及每行的针数计数器。
 - **可以直接把进度工具或只读简码文字嵌入到 `crochet` 织图旁边**（`tool: on` / `text: on`），不用再把同一份织图复制到两个代码块中。
 - **嵌入进度工具时，会在织图上实时标示当前所在圈与目标针**，颜色可自定义。
+- **用 `color <颜色>` 步骤标记换线**，可以在行中间或整圈换色——织图会在每次换色的第一针画一个该颜色的小圆圈（不会把针目本身重新上色），进度工具／文字面板也会直接写出“换成 `<颜色>`”。
+- **织图文字可以切换成完整翻译的易读样式**（`readable: on`），不用看缩写——例如显示“短针6”而不是“6 sc”，支持全部四种语言。
+- **超出笔记宽度的织图可以拖拽／滚动**，不会被强行压缩——用鼠标拖拽，或使用触控／触控板的原生滚动；超出范围时默认居中显示。
+- **可以直接在插件设置页面复制 AI 织图撰写参考文档**，支持四种语言，方便直接粘贴进 AI 对话请它帮忙转换或撰写织图。
 - 所有进度都存储在本机的插件数据文件中。
 - 完整多语言界面：英文、繁体中文、简体中文、日文。
 
 ## 快速开始
+
+[`examples/demo.md`](examples/demo.md) 这份笔记把本文提到的每个功能都实际演示了一遍——三种织图类型、每种针法、行修饰符、行与行的连接线、错误提示、进度工具（含易读文字样式与换线标记）、面板位置，以及一份真实织图转换示例。
 
 在笔记中添加一个 `crochet` 代码块：
 
@@ -345,7 +351,7 @@ npm run lint
 
 ### 使用 AI 协助编写织图
 
-如果你想请 AI 助手帮忙把织图转换成 Crochet Weaver 语法，可以参考 [`docs/ai-pattern-authoring.md`](docs/ai-pattern-authoring.md)——一份专为此用途编写、可独立使用的语法参考文档。也提供现成的 Claude Code skill：[`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/)。
+如果你想请 AI 助手帮忙把织图转换成 Crochet Weaver 语法，可以参考 [`docs/ai-pattern-authoring.zh-CN.md`](docs/ai-pattern-authoring.zh-CN.md)——一份专为此用途编写、可独立使用的语法参考文档，也提供 [English](docs/ai-pattern-authoring.md)、[繁體中文](docs/ai-pattern-authoring.zh-TW.md)、[日本語](docs/ai-pattern-authoring.ja.md) 版本。也可以直接在插件设置页面复制这份文档的内容（设置 →“复制提供给 AI 的说明”）。也提供现成的 Claude Code skill：[`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/)。
 
 ## 手动安装
 

@@ -1,6 +1,6 @@
 # Crochet Weaver — Full Feature Demo
 
-This note exercises every feature of Crochet Weaver in one place: all three chart types, every supported stitch, row modifiers and anchors, the row-to-row connector line, error handling, the progress tool (standalone and embedded), panel positioning, frontmatter overrides, and a real pattern conversion. Open it with the plugin enabled to see every block render.
+This note exercises every feature of Crochet Weaver in one place: all three chart types, every supported stitch, row modifiers and anchors, the row-to-row connector line, error handling, the progress tool (standalone and embedded) — including its readable pattern-text style and yarn color changes — panel positioning, frontmatter overrides, and a real pattern conversion. Open it with the plugin enabled to see every block render.
 
 ## 1. Chart Types
 
@@ -271,6 +271,21 @@ R2: [inc] x 6
 R3: [sc, inc] x 6
 ```
 
+### Readable pattern text style — `readable: on`
+
+By default the tool and text panel show the shorthand you typed (`6 sc in MR`). `readable: on` translates it into full, localized stitch names instead (e.g. `短針6` for Traditional Chinese, `single crochet6` for English) — override the global "Pattern text style" setting for one chart. The anchor leads and wraps the rest: `魔術環(短針6)` rather than trailing it like the raw form does.
+
+```crochet
+---
+type: round
+tool: on
+readable: on
+id: demo-readable-text
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+```
+
 ### Stitch counter and `inc`/`dec` weight
 
 `inc` is one physical stitch worth 2 output stitches, so tapping `+` on an `inc` target advances the counter by 2 in a single tap (the button label shows `+2`) instead of requiring two taps — try it on R2 below.
@@ -471,4 +486,22 @@ R1: 8 sc
 R2: 8 sc
 R3: 8 sc
 R4: 8 sc
+```
+
+## 13. Yarn Color Changes
+
+A `color <name>` step — a CSS color name or `#hex` code — marks where a pattern switches yarn. It has no width of its own (it doesn't count as a stitch) and applies to every stitch from that point on — through the rest of the row and every later row — until another `color` step changes it again; there's no "reset to no color" token.
+
+The stitch symbols themselves stay the chart's normal theme color (painting them the literal yarn color would go illegible in a dark or light theme, and would double up with the progress tool's own current-position highlight below). Instead, the first stitch of each new color gets a small hollow ring in that color, and the tool/text panels spell it out as "change to `<color>`" right where it happens.
+
+```crochet
+---
+type: round
+tool: on
+id: demo-color-change
+---
+R1: color black, 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: 8 sc, color white, 8 sc, color black, 8 sc
 ```

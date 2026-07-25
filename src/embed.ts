@@ -26,11 +26,11 @@ export function renderEmbeddedChart(
 		};
 
 		if (panel.position === 'left') {
-			renderCrochetTool(source, wrapper, store, locale, paintChart);
+			renderCrochetTool(source, wrapper, store, locale, panel.textStyle, paintChart);
 			wrapper.appendChild(chartContainer);
 		} else {
 			wrapper.appendChild(chartContainer);
-			renderCrochetTool(source, wrapper, store, locale, paintChart);
+			renderCrochetTool(source, wrapper, store, locale, panel.textStyle, paintChart);
 		}
 	} else if (panel.showText) {
 		const wrapper = el.createDiv({
@@ -39,11 +39,11 @@ export function renderEmbeddedChart(
 		const chartContainer = createDiv({ cls: 'crochet-weaver-chart-container' });
 
 		if (panel.position === 'left') {
-			renderCrochetPatternText(source, wrapper, locale);
+			renderCrochetPatternText(source, wrapper, locale, panel.textStyle);
 			wrapper.appendChild(chartContainer);
 		} else {
 			wrapper.appendChild(chartContainer);
-			renderCrochetPatternText(source, wrapper, locale);
+			renderCrochetPatternText(source, wrapper, locale, panel.textStyle);
 		}
 		renderSVG(layout, chartContainer, opts, locale);
 	} else {

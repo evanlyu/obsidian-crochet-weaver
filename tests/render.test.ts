@@ -228,6 +228,64 @@ describe('SVG rendering', () => {
 		expect(children.indexOf(guideCircle as Element)).toBeLessThan(children.indexOf(use as Element));
 	});
 
+	it('keeps stitch symbols and their loop markers on the theme default, even when the item carries a yarn color', () => {
+		// Yarn color is only flagged via the color-marker ring (see below) — the
+		// stitch symbols themselves always stay theme-colored, both so text-only
+		// colors like "black" stay legible in a dark theme and so it doesn't
+		// double up with the progress tool's own current-position highlight.
+		const container = document.createElement('div');
+		const layout: LayoutResult = {
+			width: 100,
+			height: 80,
+			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0, loop: 'blo', color: 'white' }],
+		};
+
+		renderSVG(layout, container, OPTIONS);
+
+		const use = container.querySelector('use');
+		const loopMark = container.querySelector('path[d="M -4 9 Q 0 13 4 9"]');
+		expect(use?.getAttribute('style')).toBeNull();
+		expect(loopMark?.getAttribute('style')).toBeNull();
+	});
+
+	it('leaves uncolored items on the theme default (no inline color style)', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('sc'), container, OPTIONS);
+
+		expect(container.querySelector('use')?.getAttribute('style')).toBeNull();
+	});
+
+	it('draws a color-change marker as a hollow ring (not a fill) so it never hides the stitch symbol', () => {
+		const container = document.createElement('div');
+		const layout: LayoutResult = {
+			width: 100,
+			height: 80,
+			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0, color: 'orange' }],
+			colorMarkers: [{ x: 20, y: 20, color: 'orange' }],
+		};
+
+		renderSVG(layout, container, OPTIONS);
+
+		const svg = container.querySelector('svg');
+		const children = Array.from(svg?.children ?? []);
+		const marker = svg?.querySelector('circle.crochet-weaver-color-marker');
+		const use = svg?.querySelector('use');
+
+		expect(marker?.getAttribute('cx')).toBe('20');
+		expect(marker?.getAttribute('fill')).toBe('none');
+		expect(marker?.getAttribute('style')).toContain('stroke: orange');
+		expect(children.indexOf(marker as Element)).toBeLessThan(children.indexOf(use as Element));
+	});
+
+	it('draws no color markers when the layout has none', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('sc'), container, OPTIONS);
+
+		expect(container.querySelector('.crochet-weaver-color-marker')).toBeNull();
+	});
+
 	it('renders no guide elements when the layout has no gridGuide', () => {
 		const container = document.createElement('div');
 

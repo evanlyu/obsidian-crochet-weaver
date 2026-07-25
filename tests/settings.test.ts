@@ -56,6 +56,11 @@ describe('plugin settings', () => {
 		expect(normalizeSettings({}).panelPosition).toBe(DEFAULT_SETTINGS.panelPosition);
 		expect(normalizeSettings({ showGrid: 'on' }).showGrid).toBe(true);
 		expect(normalizeSettings({ showGrid: 'nope' }).showGrid).toBe(DEFAULT_SETTINGS.showGrid);
+		expect(normalizeSettings({ patternTextStyle: 'readable' }).patternTextStyle).toBe('readable');
+		expect(normalizeSettings({ patternTextStyle: 'fancy' }).patternTextStyle).toBe(
+			DEFAULT_SETTINGS.patternTextStyle,
+		);
+		expect(normalizeSettings({}).patternTextStyle).toBe(DEFAULT_SETTINGS.patternTextStyle);
 	});
 
 	it('exposes settings definitions for Obsidian settings search', () => {
@@ -70,6 +75,7 @@ describe('plugin settings', () => {
 			'chartMarkerColor',
 			'showTool',
 			'showPatternText',
+			'patternTextStyle',
 			'panelPosition',
 			'showGrid',
 			'symbolRotation',
@@ -87,13 +93,14 @@ describe('plugin settings', () => {
 		expect(definitions[5]?.name).toBe('チャートの現在位置マーカー色');
 		expect(definitions[6]?.name).toBe('進捗ツールを既定で表示');
 		expect(definitions[7]?.name).toBe('編み図テキストを既定で表示');
-		expect(definitions[8]?.name).toBe('パネルの位置');
-		expect(definitions[9]?.name).toBe('背景の参考グリッドを表示');
-		expect(definitions[10]?.name).toBe('輪編み記号の回転');
-		expect(definitions[11]?.name).toBe('グリッドの既定の形状');
-		expect(definitions[12]?.name).toBe('グリッドの既定の周数');
-		expect(definitions[13]?.name).toBe('グリッドの既定の列数');
-		expect(definitions[14]?.name).toBe('グリッドの既定の行数');
+		expect(definitions[8]?.name).toBe('パターン文字の表示方法');
+		expect(definitions[9]?.name).toBe('パネルの位置');
+		expect(definitions[10]?.name).toBe('背景の参考グリッドを表示');
+		expect(definitions[11]?.name).toBe('輪編み記号の回転');
+		expect(definitions[12]?.name).toBe('グリッドの既定の形状');
+		expect(definitions[13]?.name).toBe('グリッドの既定の周数');
+		expect(definitions[14]?.name).toBe('グリッドの既定の列数');
+		expect(definitions[15]?.name).toBe('グリッドの既定の行数');
 	});
 
 	it('normalizes malformed grid default settings', () => {

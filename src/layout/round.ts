@@ -1,9 +1,9 @@
-import type { CrochetAst, LayoutOptions, LayoutResult, RenderItem } from '../types';
+import type { ColorMarker, CrochetAst, LayoutOptions, LayoutResult, RenderItem } from '../types';
 import { BASE_RADIUS, MIN_ARC } from './constants';
 import { buildRingGuide } from './grid-guide';
 import { normalize } from './normalize';
 import { placeUnitPolar, pushCenterAnchor } from './polar';
-import { isSlSt, outputStitches, tagLoop, unroll } from './steps';
+import { isSlSt, outputStitches, tagLoop, unroll, type ColorState } from './steps';
 
 export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResult {
 	const items: RenderItem[] = [];
@@ -12,9 +12,12 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 	let prevCount = -1;
 	let lastUnitCount = 0;
 	const roundRadii: number[] = [];
+	const colorState: ColorState = {};
+	const colorMarkers: ColorMarker[] = [];
+	let previousColor: string | undefined;
 
 	ast.rows.forEach((row, rowIndex) => {
-		const units = unroll(row.steps);
+		const units = unroll(row.steps, colorState);
 		const join =
 			units.length > 1 && isSlSt(units[units.length - 1])
 				? units.pop()
@@ -26,7 +29,13 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 		const angleStep = 360 / units.length;
 		const start = items.length;
 		units.forEach((unit, i) => {
+			const itemStart = items.length;
 			placeUnitPolar(items, unit, radius, -90 - i * angleStep, options.rotation, rowIndex, i);
+			if (unit.color !== undefined && unit.color !== previousColor) {
+				const first = items[itemStart];
+				if (first) colorMarkers.push({ x: first.x, y: first.y, color: unit.color });
+				previousColor = unit.color;
+			}
 		});
 		if (join) {
 			placeUnitPolar(items, join, radius, -90 + angleStep / 2, options.rotation, rowIndex, undefined);
@@ -43,7 +52,7 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 	const gridGuide = options.grid
 		? buildRingGuide(roundRadii, lastUnitCount, options.ringSpacing, options.gridCount, options.gridColumns)
 		: undefined;
-	return normalize(items, undefined, gridGuide);
+	return normalize(items, undefined, gridGuide, colorMarkers);
 }
 
 // Every round moves outward by at least one ring-spacing step, even a decrease
