@@ -235,6 +235,7 @@ export function getLocalizedSettingDefinitions(locale: Locale): readonly Crochet
 				options: {
 					standard: t(locale, 'settings.roundStyle.standard'),
 					book: t(locale, 'settings.roundStyle.book'),
+					linked: t(locale, 'settings.roundStyle.linked'),
 				},
 			},
 		},
@@ -330,7 +331,7 @@ function parseSymbolRotation(value: unknown): SymbolRotation | undefined {
 }
 
 function parseRoundStyle(value: unknown): RoundStyle | undefined {
-	return value === 'standard' || value === 'book' ? value : undefined;
+	return value === 'standard' || value === 'book' || value === 'linked' ? value : undefined;
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {

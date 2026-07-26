@@ -1,4 +1,12 @@
-import type { ChartGridGuide, ChartLabel, ColorMarker, LayoutResult, RenderItem, RowConnector } from '../types';
+import type {
+	ChartGridGuide,
+	ChartLabel,
+	ColorMarker,
+	LayoutResult,
+	RenderItem,
+	RowConnector,
+	ShapingMark,
+} from '../types';
 import { COLOR_MARKER_RADIUS, LABEL_EXTENT, PADDING, symbolExtent } from './constants';
 
 export function normalize(
@@ -7,6 +15,7 @@ export function normalize(
 	gridGuide?: ChartGridGuide,
 	colorMarkers?: ColorMarker[],
 	labels?: ChartLabel[],
+	shapingMarks?: ShapingMark[],
 ): LayoutResult {
 	if (items.length === 0) {
 		return {
@@ -17,6 +26,7 @@ export function normalize(
 			gridGuide,
 			colorMarkers: emptyToUndefined(colorMarkers),
 			labels: emptyToUndefined(labels),
+			shapingMarks: emptyToUndefined(shapingMarks),
 		};
 	}
 	let minX = Infinity;
@@ -62,6 +72,16 @@ export function normalize(
 		minY = Math.min(minY, label.y - LABEL_EXTENT);
 		maxY = Math.max(maxY, label.y + LABEL_EXTENT);
 	}
+	for (const mark of shapingMarks ?? []) {
+		for (const segment of mark.segments) {
+			for (const point of segment) {
+				minX = Math.min(minX, point.x);
+				maxX = Math.max(maxX, point.x);
+				minY = Math.min(minY, point.y);
+				maxY = Math.max(maxY, point.y);
+			}
+		}
+	}
 	const dx = PADDING - minX;
 	const dy = PADDING - minY;
 	for (const item of items) {
@@ -85,6 +105,12 @@ export function normalize(
 	};
 	const shiftedMarkers = colorMarkers?.map((marker) => ({ ...marker, x: marker.x + dx, y: marker.y + dy }));
 	const shiftedLabels = labels?.map((label) => ({ ...label, x: label.x + dx, y: label.y + dy }));
+	const shiftedShaping = shapingMarks?.map((mark) => ({
+		...mark,
+		x: mark.x + dx,
+		y: mark.y + dy,
+		segments: mark.segments.map((segment) => segment.map((point) => ({ x: point.x + dx, y: point.y + dy }))),
+	}));
 	return {
 		items,
 		width: maxX - minX + PADDING * 2,
@@ -93,6 +119,7 @@ export function normalize(
 		gridGuide: shiftedGuide,
 		colorMarkers: emptyToUndefined(shiftedMarkers),
 		labels: emptyToUndefined(shiftedLabels),
+		shapingMarks: emptyToUndefined(shiftedShaping),
 	};
 }
 

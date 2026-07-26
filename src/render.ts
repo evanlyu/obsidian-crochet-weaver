@@ -1,7 +1,7 @@
 import { t, type Locale } from './i18n';
 import { COLOR_MARKER_RADIUS } from './layout/constants';
 import { wrapScrollable } from './scroll-pan';
-import type { ChartHighlight, LayoutResult, RenderItem, RenderOptions } from './types';
+import type { ChartHighlight, GridPoint, LayoutResult, RenderOptions } from './types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -214,12 +214,9 @@ export function renderSVG(
 		}
 		for (const polyline of layout.gridGuide.polylines ?? []) {
 			if (polyline.length === 0) continue;
-			const d = polyline
-				.map((point, i) => `${i === 0 ? 'M' : 'L'} ${round2(point.x)} ${round2(point.y)}`)
-				.join(' ');
 			const pathEl = doc.createElementNS(SVG_NS, 'path');
 			pathEl.classList.add('crochet-weaver-grid-guide');
-			pathEl.setAttribute('d', d);
+			pathEl.setAttribute('d', polylinePath(polyline));
 			pathEl.setAttribute('fill', 'none');
 			pathEl.setAttribute('stroke', 'currentColor');
 			pathEl.setAttribute('stroke-width', String(options.strokeWidth));
@@ -271,42 +268,57 @@ export function renderSVG(
 		svg.appendChild(line);
 	}
 
+	// Increase/decrease symbols. Each is stretched to its own round's band and
+	// to the angles of the stitches it stands for, so it can't be stamped from
+	// a shared <defs> glyph the way the fixed symbols are.
+	for (const mark of layout.shapingMarks ?? []) {
+		for (const segment of mark.segments) {
+			if (segment.length < 2) continue;
+			const path = doc.createElementNS(SVG_NS, 'path');
+			path.classList.add('crochet-weaver-shaping');
+			path.setAttribute('d', polylinePath(segment));
+			path.setAttribute('fill', 'none');
+			path.setAttribute('stroke', 'currentColor');
+			path.setAttribute('stroke-width', String(options.strokeWidth));
+			path.setAttribute('stroke-linejoin', 'round');
+			path.setAttribute('stroke-linecap', 'round');
+			if (options.highlightIncDec) path.classList.add('crochet-weaver-accent');
+			applyCurrentPositionHighlight(path, mark.rowIndex, mark.unitIndex, highlight, options.chartMarkerColor);
+			svg.appendChild(path);
+		}
+		if (mark.loop) {
+			const loopMark = doc.createElementNS(SVG_NS, 'path');
+			loopMark.setAttribute('d', mark.loop === 'blo' ? BLO_MARK : FLO_MARK);
+			loopMark.setAttribute('transform', `translate(${mark.x} ${mark.y})`);
+			loopMark.setAttribute('stroke', 'currentColor');
+			loopMark.setAttribute('stroke-width', String(options.strokeWidth));
+			loopMark.setAttribute('fill', 'none');
+			loopMark.setAttribute('stroke-linecap', 'round');
+			applyCurrentPositionHighlight(loopMark, mark.rowIndex, mark.unitIndex, highlight, options.chartMarkerColor);
+			svg.appendChild(loopMark);
+		}
+	}
+
 	for (const item of layout.items) {
 		const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation})`;
 
-		let symbolEl: SVGElement;
-		if (item.glyphPoints !== undefined && item.glyphPoints.length > 0) {
-			// Book-style shaping connector: each point is an absolute offset from
-			// the stitch, pointing at the real neighbouring-round stitches, so it
-			// can't come from a shared <defs> glyph — drawn as an inline path at
-			// the item's own position (no rotation; the offsets are absolute).
-			const d = item.glyphPoints
-				.map((p, i) => `${i === 0 ? 'M' : 'L'} ${round2(item.x + p.x)} ${round2(item.y + p.y)}`)
-				.join(' ');
-			const path = doc.createElementNS(SVG_NS, 'path');
-			path.setAttribute('d', d);
-			path.setAttribute('stroke', 'currentColor');
-			path.setAttribute('stroke-width', String(options.strokeWidth));
-			path.setAttribute('fill', 'none');
-			path.setAttribute('stroke-linejoin', 'round');
-			path.setAttribute('stroke-linecap', 'round');
-			symbolEl = path;
-		} else {
-			const use = doc.createElementNS(SVG_NS, 'use');
-			use.setAttribute('href', `#${symbolId(uid, item.symbol)}`);
-			use.setAttribute('transform', transform);
-			symbolEl = use;
-		}
-		if (options.highlightIncDec && ACCENT_STITCHES.has(item.symbol)) {
+		const symbolEl = doc.createElementNS(SVG_NS, 'use');
+		symbolEl.setAttribute('href', `#${symbolId(uid, item.symbol)}`);
+		symbolEl.setAttribute('transform', transform);
+		// A graph-driven increase or decrease renders as the plain stitches it
+		// really makes, and the shaping is carried by the connector between them
+		// — which is what gets accented. Accenting the stitches too would put
+		// half an amigurumi chart in the accent color.
+		if (options.highlightIncDec && item.shaping === undefined && ACCENT_STITCHES.has(item.symbol)) {
 			symbolEl.classList.add('crochet-weaver-accent');
 		}
-		applyCurrentPositionHighlight(symbolEl, item, highlight, options.chartMarkerColor);
+		applyCurrentPositionHighlight(symbolEl, item.rowIndex, item.unitIndex, highlight, options.chartMarkerColor);
 		svg.appendChild(symbolEl);
 		if (item.loop) {
 			const mark = doc.createElementNS(SVG_NS, 'path');
 			mark.setAttribute('d', item.loop === 'blo' ? BLO_MARK : FLO_MARK);
 			mark.setAttribute('transform', transform);
-			applyCurrentPositionHighlight(mark, item, highlight, options.chartMarkerColor);
+			applyCurrentPositionHighlight(mark, item.rowIndex, item.unitIndex, highlight, options.chartMarkerColor);
 			mark.setAttribute('stroke', 'currentColor');
 			mark.setAttribute('stroke-width', String(options.strokeWidth));
 			mark.setAttribute('fill', 'none');
@@ -322,18 +334,24 @@ function symbolId(uid: string, name: string): string {
 	return `${uid}-sym-${name.replace(/\s+/g, '-')}`;
 }
 
-// Groups a stitch symbol with its own blo/flo loop marker under one highlight:
-// both should light up together as "the current position," not just the symbol.
+// Groups everything one pattern step drew — its stitch symbols, its blo/flo
+// loop markers, and the connector of an increase or decrease — under one
+// highlight, so the whole step lights up as "the current position."
 function applyCurrentPositionHighlight(
 	node: SVGElement,
-	item: RenderItem,
+	rowIndex: number | undefined,
+	unitIndex: number | undefined,
 	highlight: ChartHighlight | undefined,
 	chartMarkerColor: string,
 ): void {
-	if (!highlight || item.rowIndex !== highlight.rowIndex) return;
-	const isTarget = highlight.unitIndex !== undefined && item.unitIndex === highlight.unitIndex;
+	if (!highlight || rowIndex !== highlight.rowIndex) return;
+	const isTarget = highlight.unitIndex !== undefined && unitIndex === highlight.unitIndex;
 	node.classList.add(isTarget ? 'crochet-weaver-stitch-highlight' : 'crochet-weaver-row-highlight');
 	node.style.setProperty('color', chartMarkerColor);
+}
+
+function polylinePath(points: readonly GridPoint[]): string {
+	return points.map((point, i) => `${i === 0 ? 'M' : 'L'} ${round2(point.x)} ${round2(point.y)}`).join(' ');
 }
 
 function createArrowMarker(doc: Document, id: string): SVGMarkerElement {

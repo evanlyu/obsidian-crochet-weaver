@@ -6,6 +6,12 @@ export const GROUP_FAN_SPREAD = 7;
 
 export const BASE_RADIUS = 22;
 export const MIN_ARC = STITCH_WIDTH;
+
+// Closest two neighbouring stitches may sit on a round, as arc length in px.
+// Smaller than MIN_ARC (the slot width a round's radius is sized from) so a
+// graph-driven round has room to bunch stitches where the pattern really does —
+// an increase's pair, say — before spacing has to override the correspondence.
+export const MIN_STITCH_GAP = 14;
 export const GROUP_FAN_ARC_DEG = 8;
 export const CH_RING_RADIUS = 12;
 export const CH_RING_COUNT = 6;

@@ -1,4 +1,4 @@
-import type { CrochetAst, GridPoint, RenderItem, SymbolRotation } from '../types';
+import type { CrochetAst, RenderItem, SymbolRotation } from '../types';
 import {
 	CH_RING_COUNT,
 	CH_RING_RADIUS,
@@ -33,10 +33,9 @@ export function placeUnitPolar(
 	rotation: SymbolRotation,
 	rowIndex?: number,
 	unitIndex?: number,
-	glyphPoints?: readonly GridPoint[],
 ) {
 	if (unit.type === 'StitchNode') {
-		items.push(polarItem(unit.stitch, radius, phiDeg, rotation, rowIndex, unitIndex, unit.color, glyphPoints));
+		items.push(polarItem(unit.stitch, radius, phiDeg, rotation, rowIndex, unitIndex, unit.color));
 	} else {
 		const children = flattenGroup(unit);
 		const mid = (children.length - 1) / 2;
@@ -64,24 +63,20 @@ function polarItem(
 	rowIndex?: number,
 	unitIndex?: number,
 	color?: string,
-	glyphPoints?: readonly GridPoint[],
 ): RenderItem {
 	const rad = (phiDeg * Math.PI) / 180;
 	return {
 		symbol,
 		x: radius * Math.cos(rad),
 		y: radius * Math.sin(rad),
-		// glyphPoints are already absolute offsets, so a stretched glyph needs
-		// no rotation of its own.
-		rotation: glyphPoints !== undefined ? 0 : symbolAngle(symbol, phiDeg, rotation),
+		rotation: symbolAngle(symbol, phiDeg, rotation),
 		rowIndex,
 		unitIndex,
 		color,
-		glyphPoints,
 	};
 }
 
-function symbolAngle(
+export function symbolAngle(
 	symbol: string,
 	phiDeg: number,
 	rotation: SymbolRotation,

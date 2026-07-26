@@ -51,24 +51,33 @@ export function buildRingGuide(
 const BAND_SEAM_GAP_DEG = 6;
 const BAND_ARC_SEGMENTS = 120;
 
-export function buildBandGuide(
-	actualRadii: readonly number[],
-	ringSpacing: number,
-	seamAngles: readonly number[],
-): ChartGridGuide | undefined {
+// The radii that divide the rounds into bands: n rounds give n+1 boundaries
+// (the inner edge, each midpoint between neighbouring rounds, the outer edge),
+// so round k occupies the band from boundary k to boundary k+1. Shaping symbols
+// are sized from these too, so their ends land exactly on the drawn lines.
+export function bandBoundaries(actualRadii: readonly number[], ringSpacing: number): number[] {
 	const first = actualRadii[0];
 	const last = actualRadii.at(-1);
-	if (first === undefined || last === undefined) return undefined;
+	if (first === undefined || last === undefined) return [];
 
 	const firstGap = (actualRadii[1] ?? first + ringSpacing) - first;
 	const lastGap = last - (actualRadii[actualRadii.length - 2] ?? last - ringSpacing);
 
-	// n rounds -> n+1 boundary radii (inner edge, each midpoint, outer edge).
 	const radii = [Math.max(first - firstGap / 2, 14)];
 	for (let i = 0; i + 1 < actualRadii.length; i++) {
 		radii.push(((actualRadii[i] ?? 0) + (actualRadii[i + 1] ?? 0)) / 2);
 	}
 	radii.push(last + lastGap / 2);
+	return radii;
+}
+
+export function buildBandGuide(
+	actualRadii: readonly number[],
+	ringSpacing: number,
+	seamAngles: readonly number[],
+): ChartGridGuide | undefined {
+	const radii = bandBoundaries(actualRadii, ringSpacing);
+	if (radii.length === 0) return undefined;
 
 	// Seam angle for each boundary: the inner/outer edges reuse the nearest
 	// round's seam; a between-rounds boundary averages the two it divides.

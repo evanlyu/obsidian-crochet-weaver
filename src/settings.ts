@@ -311,6 +311,7 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 				dd
 					.addOption('standard', t(locale, 'settings.roundStyle.standard'))
 					.addOption('book', t(locale, 'settings.roundStyle.book'))
+					.addOption('linked', t(locale, 'settings.roundStyle.linked'))
 					.setValue(this.plugin.settings.roundChartStyle)
 					.onChange(async (value) => {
 						this.plugin.settings.roundChartStyle = value as RoundStyle;

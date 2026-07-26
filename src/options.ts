@@ -60,7 +60,7 @@ function isSymbolRotation(value: string | undefined): value is SymbolRotation {
 }
 
 function isRoundStyle(value: string | undefined): value is RoundStyle {
-	return value === 'standard' || value === 'book';
+	return value === 'standard' || value === 'book' || value === 'linked';
 }
 
 function isPanelPosition(value: string | undefined): value is PanelPosition {

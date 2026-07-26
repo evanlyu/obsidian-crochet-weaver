@@ -63,13 +63,21 @@ export type PanelPosition = 'left' | 'right' | 'below';
 export type PatternTextStyle = 'raw' | 'readable';
 
 // Drawing style for type: round charts.
-// standard: each round's units spread evenly around the circle (the original
-// behavior). book: Japanese-pattern-book style — separator circles enclose
-// each round in its own band, every stitch sits directly above the
-// previous-round stitch it is worked into (an inc fans its two stitches out
-// from the parent, a dec converges its parents), and each round is numbered
-// at the starting seam.
-export type RoundStyle = 'standard' | 'book';
+//
+// standard: each round's units spread evenly around the circle, with the stock
+// inc/dec glyphs (the original behavior).
+//
+// book and linked share one layout — separator circles enclose each round in
+// its own band, every stitch is placed from the previous-round stitch it is
+// worked into, and each round is numbered at the starting seam — and differ in
+// how shaping is drawn:
+//   book: as Japanese pattern books print it, the V of an increase and the ∧ of
+//     a decrease standing in for the stitches they make, inside their own
+//     round's band, in line with the plain stitches.
+//   linked: every stitch keeps its own symbol, and lines are drawn from an
+//     increase's or decrease's stitches to the stitch below they are worked
+//     into — the correspondence spelled out rather than implied.
+export type RoundStyle = 'standard' | 'book' | 'linked';
 
 // Layout options resolved from global settings and per-chart frontmatter.
 export interface LayoutOptions {
@@ -106,14 +114,40 @@ export interface RenderItem {
 	// step earlier in this row or a previous one. Undefined means "use the
 	// theme's default symbol color," same as before this feature existed.
 	color?: string;
-	// Book-style round charts: an explicit little polyline (offsets from this
-	// item's own x/y, in chart px) drawn in place of the fixed glyph, so an
-	// increase / decrease points at the actual stitches it connects to — its
-	// apex toward the one stitch on the single side, its two arms toward the
-	// two stitches on the split side. Computed per stitch from the real
-	// neighbouring-round geometry (see layout/round.ts), which is why it is
-	// not a symmetric stock symbol. Undefined renders the normal glyph.
-	glyphPoints?: readonly GridPoint[];
+	// Identity of this stitch in the chart's stitch graph, and the
+	// previous-round stitches it is worked into (see layout/graph.ts). Set by
+	// graph-driven layouts (book-style round charts) so the rendered item can
+	// be traced back to its ancestry; undefined elsewhere.
+	stitchId?: string;
+	sourceStitchIds?: readonly string[];
+	// Set on the stitches an increase or decrease produced, so they can be
+	// accented as shaping even though they render as ordinary stitch symbols
+	// (the shaping itself is drawn by the matching ShapingConnector).
+	shaping?: 'increase' | 'decrease';
+}
+
+// The V of an increase or the ∧ of a decrease: a stitch symbol of its own
+// round, drawn in place of the stitches it makes, exactly as printed charts do.
+// It spans its round's band — the pointed end sits on the inner edge, in line
+// with the previous-round stitch it is worked into, and the open end reaches
+// the outer edge at each stitch it produces, where the next round will be
+// worked. Nothing crosses into a neighbouring round's band; the correspondence
+// is shown by where the ends point, which is why this is computed from the
+// round's final angles instead of being a fixed glyph.
+//
+// `segments` holds one or more polylines in chart coordinates. The usual
+// two-on-one shaping is a single three-point polyline; wider shaping (an
+// N-together) adds one two-point leg per extra stitch, meeting the same apex.
+export interface ShapingMark {
+	kind: 'increase' | 'decrease';
+	segments: readonly (readonly GridPoint[])[];
+	// The mark's own anchor on its round, for loop markers.
+	x: number;
+	y: number;
+	loop?: 'blo' | 'flo';
+	// Which pattern step drew this, so it highlights with that step.
+	rowIndex: number;
+	unitIndex: number;
 }
 
 // Which row/unit an embedded progress tool wants highlighted on its paired chart.
@@ -175,6 +209,7 @@ export interface LayoutResult {
 	gridGuide?: ChartGridGuide;
 	colorMarkers?: ColorMarker[];
 	labels?: ChartLabel[];
+	shapingMarks?: ShapingMark[];
 }
 
 // Render options resolved from global settings and per-chart frontmatter.
