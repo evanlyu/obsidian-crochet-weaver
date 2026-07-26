@@ -47,8 +47,7 @@ Optional, delimited by `---` lines, flat `key: value` pairs (no nesting, no list
 | `stroke` | positive number | plugin setting | SVG stroke width. |
 | `spacing` | positive number | plugin setting | Pixel gap between round/spiral rings. |
 | `highlight` | `on`/`off`/`true`/`false`/`yes`/`no`/`1`/`0` | plugin setting | Accent-colors `inc`/`dec` stitches. |
-| `rotation` | `smart` \| `all` \| `none` | plugin setting | Symbol rotation in round/spiral charts. `smart` is almost always right. |
-| `style` | `standard` \| `book` | plugin setting | Round-chart drawing style. `book` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, inc/dec glyphs stretch to connect, rounds are numbered. Only affects `type: round`. |
+| `style` | `standard` \| `book` \| `linked` | plugin setting | Round-chart drawing style. `book` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, an `inc` is a **V** and a `dec` an **∧** drawn in line with the round's own stitches, rounds are numbered. `linked` uses the same layout but draws every stitch's own symbol and links each one to the stitch below it — useful for checking a conversion. Only affects `type: round`. |
 | `tool` | boolean (as above) | plugin setting | Embeds the interactive progress tool next to the chart. See "Embedding a progress panel". |
 | `text` | boolean (as above) | plugin setting | Embeds a read-only shorthand list next to the chart (ignored if `tool` is also on). |
 | `position` | `right` \| `left` \| `below` | plugin setting | Where an embedded `tool`/`text` panel sits relative to the chart. |
@@ -88,18 +87,32 @@ R1: 6 sc in ch ring
 
 Comma-separated (commas are optional but keep them — real patterns read better with them). Each step is one of:
 
-**Stitch**, optionally prefixed with a count:
+**Stitch**, with an optional count on either side of the name — `6 sc`, `sc6` and `sc 6` all mean the same thing, so you can keep whichever form the source uses:
 
 ```
 sc          → one single crochet
 10 ch       → ten chains
+ch2         → two chains
+sc 6        → six single crochets
 ```
 
-**Repeat**, square brackets + `x` + count — use whenever the source pattern repeats a unit a fixed number of times:
+A slip stitch may be written `sl st`, `slst`, `sl-st` or `sl_st` — all four are read as the same stitch.
+
+**Repeat**, square brackets + a count. `x 6`, `x6`, `rep 6` and `rep6` are all the same — use whichever matches the source:
 
 ```
 [sc, inc] x 6      → (sc, inc) repeated 6 times
+[sc, inc] rep 6    → the same thing
 ```
+
+A bare `rep` with no number means "repeat until the round below is used up", which is what "around" / "to end of round" means in a written pattern. The count is worked out from the previous round, so you don't have to do the arithmetic:
+
+```
+R1: mr, ch, sc6, slst
+R2: ch, [2 sc, inc] rep, slst    → 2 repeats: 6 stitches below, 3 worked into per repeat
+```
+
+Only use bare `rep` where the source really does say "around" — if the round below doesn't divide evenly by what one repeat works into, the chart reports an error rather than guessing, and a bare `rep` on row 1 has nothing to work into and is an error too. When the source states the number, write the number.
 
 **Group**, parentheses — multiple stitches worked into *one* stitch/space (shells, clusters, corners); renders as a fan from a single position:
 
@@ -134,7 +147,9 @@ Repeats and groups can nest and contain each other.
 
 There is still no dedicated token for N-into-one **increases** — those are groups, not stitch names (see "Group" below): "2 dc in next st" → `(dc, dc)`, "shell: 5 dc in next st" → `(5 dc)`.
 
-There is no turning-chain concept — omit `ch 1, turn` / `ch 3, turn` type instructions; they don't change the chart.
+The chain a round opens with **is** supported: write it as a plain `ch` step at the start of the row (`R2: ch, [2 sc, inc] rep, slst`). It is drawn at the round's seam, but it is not a stitch of the fabric — it adds nothing to the round's count and the next round does not work into it. The same goes for the `sl st` that closes a round, and for a `mr` written as a step (`R1: mr, ch, sc6, slst`) instead of as an `in MR` anchor.
+
+Write these only where the source does. On a flat chart `turn` has no chart meaning, so `ch 1, turn` can be dropped.
 
 ### Color changes
 
@@ -163,7 +178,9 @@ Use this to translate common written-pattern phrasing. When in doubt, prefer `in
 | "hdc2tog" … "hdc5tog" | `hdc2tog` … `hdc5tog` |
 | "dc2tog" … "dc5tog" | `dc2tog` … `dc5tog` |
 | "sc in each st around" for a round of N known stitches | `N sc` (write the literal count) |
-| "(sc, inc) 6 times" / "repeat 6 times" | `[sc, inc] x 6` |
+| "(sc, inc) 6 times" / "repeat 6 times" | `[sc, inc] x 6` (or `[sc, inc] rep 6`) |
+| "(2 sc, inc) around" / "repeat to end of round" | `[2 sc, inc] rep` |
+| "ch 1" at the start of a round | leading `ch` step on that row |
 | "(dc, ch 1, dc) in next st" (shell/corner) | `(dc, ch, dc)` |
 | "2 dc in next st" (V-stitch increase) | `(dc, dc)` |
 | "5 dc in next st" (shell) | `(5 dc)` |
@@ -217,7 +234,8 @@ Crochet Weaver computes a row's stitch count the same way real patterns annotate
 - Every other stitch name = 1 output stitch — this includes every N-together decrease (`dc3tog` still counts as 1, same as `dec`), every post/crossed stitch, every cluster/puff, and every popcorn, not just the original basic set.
 - A group `(...)` = sum of its children's weights.
 - A repeat `[...] x N` = N × (sum of its children's weights).
-- **A trailing `sl st` at the very end of a row is treated as a join and excluded from the count** — don't count it, and don't be surprised the chart doesn't count it either.
+- **The chain a round opens with, a `mr` written as a step, and the `sl st` that closes the round are all excluded from the count** — they are drawn, but they are instructions rather than stitches of the fabric, and the next round works into neither. `R1: mr, ch, sc6, slst` counts 6.
+- A chain or slip stitch **in the middle** of a row is a real stitch and does count — only the round's opening and its closing join are treated this way.
 
 After converting, add up each row's stitches and compare to the source pattern's own "(N sc)" annotations. A mismatch almost always means an increase/decrease got flattened into plain stitches (or vice versa) somewhere.
 
@@ -258,10 +276,11 @@ Before returning your answer:
 1. Picked one chart `type` and justified it if it's not obvious from the source.
 2. Every row converted with the phrase table above — no invented stitch tokens.
 3. Row-1 anchor set if the source uses a magic ring or chain ring.
-4. Trailing `sl st` added only where the source explicitly joins the round.
-5. Ran the stitch-counting rule against the source's own "(N)" annotations for at least the first few rows.
-6. For any decrease/cluster, picked the token matching the source's stated height and count (`sc2tog` vs `hdc3tog` vs `dc5tog`, etc.) instead of defaulting everything to `dec`.
-7. Asked the user (or picked a sensible default) for `tool: on` vs `text: on` vs neither, if they didn't specify.
-8. Flagged anything you couldn't represent (unsupported stitch, ambiguous instruction) instead of silently guessing.
-9. Added a `color <name>` step wherever the source explicitly changes yarn color, using its exact color word/hex — and added none where the source never states a color.
-10. Returned one fenced ` ```crochet ` block (plus a second ` ```crochet-tool ` block only if they explicitly asked for a separate standalone tracker).
+4. Trailing `sl st`, and a leading `ch`, added only where the source explicitly writes them.
+5. Bare `rep` used only where the source says "around" / "to end of round"; an explicit number written wherever the source gives one.
+6. Ran the stitch-counting rule against the source's own "(N)" annotations for at least the first few rows.
+7. For any decrease/cluster, picked the token matching the source's stated height and count (`sc2tog` vs `hdc3tog` vs `dc5tog`, etc.) instead of defaulting everything to `dec`.
+8. Asked the user (or picked a sensible default) for `tool: on` vs `text: on` vs neither, if they didn't specify.
+9. Flagged anything you couldn't represent (unsupported stitch, ambiguous instruction) instead of silently guessing.
+10. Added a `color <name>` step wherever the source explicitly changes yarn color, using its exact color word/hex — and added none where the source never states a color.
+11. Returned one fenced ` ```crochet ` block (plus a second ` ```crochet-tool ` block only if they explicitly asked for a separate standalone tracker).

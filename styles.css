@@ -26,7 +26,8 @@
 }
 
 .crochet-weaver-accent {
-	color: var(--color-accent); /* Accent color for increase/decrease symbols. */
+	/* Fallback only: the "Increase and decrease color" setting sets `color` inline. */
+	color: var(--color-accent);
 }
 
 .crochet-weaver-row-highlight {

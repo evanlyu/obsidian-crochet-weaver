@@ -12,12 +12,12 @@ describe('renderEmbeddedChart', () => {
 	};
 	const layout: LayoutResult = { width: 100, height: 100, items: [] };
 	const opts: ResolvedOptions = {
-		rotation: 'smart',
 		ringSpacing: 30,
 		grid: false,
 		scale: 1,
 		strokeWidth: 1.5,
 		highlightIncDec: false,
+		highlightColor: '#8b5cf6',
 		chartMarkerColor: '#1971c2',
 	};
 	const store: ProgressStore = {

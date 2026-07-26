@@ -143,16 +143,19 @@ function estimateNode(
 		case 'GroupNode':
 			return estimateSteps(node.children, depth + 1, budget);
 		case 'RepeatNode': {
-			assertPositiveCount(node.count, 'repeat');
-			if (node.count > budget.maxRepeatCount) {
-				const params = { count: node.count, max: budget.maxRepeatCount };
+			// A bare "rep" is resolved before anything reads the chart (see
+			// resolveRepeats); count it as one go if it somehow reaches here.
+			const count = node.count ?? 1;
+			assertPositiveCount(count, 'repeat');
+			if (count > budget.maxRepeatCount) {
+				const params = { count, max: budget.maxRepeatCount };
 				throw new ChartBudgetError(
 					`Repeat count is too high (${params.count}); maximum is ${params.max}.`,
 					'budget.repeatCount',
 					params,
 				);
 			}
-			return node.count * estimateSteps(node.children, depth + 1, budget);
+			return count * estimateSteps(node.children, depth + 1, budget);
 		}
 		case 'ColorChangeNode':
 			return 0;

@@ -23,7 +23,10 @@ export interface GroupNode {
 
 export interface RepeatNode {
 	type: 'RepeatNode';
-	count: number;
+	// null for a bare "rep": how many times it goes depends on the round below,
+	// which the parser cannot see. resolveRepeats() fills it in before anything
+	// else reads the chart.
+	count: number | null;
 	children: AstNode[];
 }
 
@@ -49,10 +52,6 @@ export interface CrochetAst {
 	config: CrochetConfig;
 	rows: RowNode[];
 }
-
-// Symbol rotation strategy for round and spiral charts.
-// smart: tall stitches face outward, short and symmetric symbols stay upright.
-export type SymbolRotation = 'smart' | 'all' | 'none';
 
 // Where an embedded tool/text panel sits relative to its chart.
 export type PanelPosition = 'left' | 'right' | 'below';
@@ -81,7 +80,6 @@ export type RoundStyle = 'standard' | 'book' | 'linked';
 
 // Layout options resolved from global settings and per-chart frontmatter.
 export interface LayoutOptions {
-	rotation: SymbolRotation;
 	ringSpacing: number;
 	// See RoundStyle; undefined behaves as 'standard'. Ignored by flat and
 	// spiral charts.
@@ -141,9 +139,11 @@ export interface RenderItem {
 export interface ShapingMark {
 	kind: 'increase' | 'decrease';
 	segments: readonly (readonly GridPoint[])[];
-	// The mark's own anchor on its round, for loop markers.
+	// The mark's own anchor on its round, and the outward angle there, so a
+	// back-/front-loop marker faces the same way as the stitches around it.
 	x: number;
 	y: number;
+	rotation: number;
 	loop?: 'blo' | 'flo';
 	// Which pattern step drew this, so it highlights with that step.
 	rowIndex: number;
@@ -217,6 +217,8 @@ export interface RenderOptions {
 	scale: number;
 	strokeWidth: number;
 	highlightIncDec: boolean;
+	// Color the increase and decrease symbols take when highlightIncDec is on.
+	highlightColor: string;
 	chartMarkerColor: string;
 }
 

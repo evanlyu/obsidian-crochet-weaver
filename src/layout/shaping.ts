@@ -1,5 +1,8 @@
 import type { GridPoint, ShapingMark } from '../types';
+import { arcToDegrees, shortestAngleDelta } from './angles';
+import { MIN_ARC } from './constants';
 import type { GraphStitch, StitchMappingGroup } from './graph';
+import { symbolAngle } from './polar';
 
 // The band a round occupies: from the guide line it is worked up from to the
 // one the next round is worked up from.
@@ -17,6 +20,17 @@ export interface RoundBand {
 // into one long zigzag across the chart.
 const BAND_INSET_SHARE = 0.16;
 const MIN_BAND_INSET = 1.5;
+
+// How far a mark opens, at most, relative to its own height — and never past
+// this in px whatever the round's size. A decrease has to open far enough to
+// reach across the two stitches it closed over, or it says nothing about which
+// two they were; but left to reach any distance, one merging stitches a whole
+// slot apart on a large round would flatten into two long, nearly straight
+// lines that no longer read as a symbol. Between those, an opening of about
+// twice the mark's height still reads as a V. It never opens wider than the
+// stitches themselves are apart.
+const MARK_ASPECT = 2.4;
+const MAX_MARK_WIDTH = MIN_ARC * 2;
 
 // Builds the V of an increase or the ∧ of a decrease.
 //
@@ -55,8 +69,32 @@ export function buildShapingMark(
 	const apexRadius = kind === 'increase' ? band.inner + inset : band.outer - inset;
 	const openRadius = kind === 'increase' ? band.outer - inset : band.inner + inset;
 
-	const apex = polar(point.layout.angle, apexRadius);
-	const arms = openAngles.map((angle) => polar(angle, openRadius));
+	// Draw the opening no wider than the symbol wants to be, closing it around
+	// the pointed end — which keeps its exact angle, since that is what says
+	// which stitch this is worked into. Each end is measured from that point
+	// along the shortest arc: the two ends of a mark can be on either side of
+	// the round's seam (a round that works past the end of the one below picks
+	// its next stitch up a whole turn later), and there they are neighbours on
+	// the chart however far apart their angles count.
+	const apexAngle = point.layout.angle;
+	const offsets = openAngles.map((angle) => shortestAngleDelta(apexAngle, angle));
+	const height = Math.abs(apexRadius - openRadius);
+	const maxSpan = arcToDegrees(Math.min(height * MARK_ASPECT, MAX_MARK_WIDTH), openRadius);
+	const span = Math.max(...offsets) - Math.min(...offsets);
+	const squeeze = span > maxSpan ? maxSpan / span : 1;
+	// Closing the opening is not enough on its own: where a round cannot follow
+	// its ancestry (it does not work into the round below exactly once each, so
+	// it is spread evenly instead), a mark's ends can sit well off to one side
+	// of its point, and it would be drawn as a long thin spike. Slide the whole
+	// opening back under the point, keeping the ends' separation and order.
+	const scaled = offsets.map((offset) => offset * squeeze);
+	const half = maxSpan / 2;
+	const low = Math.min(...scaled);
+	const high = Math.max(...scaled);
+	const slide = low < -half ? -half - low : high > half ? half - high : 0;
+
+	const apex = polar(apexAngle, apexRadius);
+	const arms = scaled.map((offset) => polar(apexAngle + offset + slide, openRadius));
 	const first = arms[0];
 	const last = arms[arms.length - 1];
 	if (first === undefined || last === undefined) return undefined;
@@ -72,6 +110,7 @@ export function buildShapingMark(
 		kind,
 		segments,
 		...polar(anchorAngle, band.radius),
+		rotation: symbolAngle(anchorAngle),
 		rowIndex: group.roundIndex,
 		unitIndex: group.unitIndex,
 	};

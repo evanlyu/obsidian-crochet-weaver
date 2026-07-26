@@ -54,8 +54,7 @@ Optional, delimited by \`---\` lines, flat \`key: value\` pairs (no nesting, no 
 | \`stroke\` | positive number | plugin setting | SVG stroke width. |
 | \`spacing\` | positive number | plugin setting | Pixel gap between round/spiral rings. |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | plugin setting | Accent-colors \`inc\`/\`dec\` stitches. |
-| \`rotation\` | \`smart\` \\| \`all\` \\| \`none\` | plugin setting | Symbol rotation in round/spiral charts. \`smart\` is almost always right. |
-| \`style\` | \`standard\` \\| \`book\` | plugin setting | Round-chart drawing style. \`book\` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, inc/dec glyphs stretch to connect, rounds are numbered. Only affects \`type: round\`. |
+| \`style\` | \`standard\` \\| \`book\` \\| \`linked\` | plugin setting | Round-chart drawing style. \`book\` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, an \`inc\` is a **V** and a \`dec\` an **∧** drawn in line with the round's own stitches, rounds are numbered. \`linked\` uses the same layout but draws every stitch's own symbol and links each one to the stitch below it — useful for checking a conversion. Only affects \`type: round\`. |
 | \`tool\` | boolean (as above) | plugin setting | Embeds the interactive progress tool next to the chart. See "Embedding a progress panel". |
 | \`text\` | boolean (as above) | plugin setting | Embeds a read-only shorthand list next to the chart (ignored if \`tool\` is also on). |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | plugin setting | Where an embedded \`tool\`/\`text\` panel sits relative to the chart. |
@@ -95,18 +94,32 @@ R1: 6 sc in ch ring
 
 Comma-separated (commas are optional but keep them — real patterns read better with them). Each step is one of:
 
-**Stitch**, optionally prefixed with a count:
+**Stitch**, with an optional count on either side of the name — \`6 sc\`, \`sc6\` and \`sc 6\` all mean the same thing, so you can keep whichever form the source uses:
 
 \`\`\`
 sc          → one single crochet
 10 ch       → ten chains
+ch2         → two chains
+sc 6        → six single crochets
 \`\`\`
 
-**Repeat**, square brackets + \`x\` + count — use whenever the source pattern repeats a unit a fixed number of times:
+A slip stitch may be written \`sl st\`, \`slst\`, \`sl-st\` or \`sl_st\` — all four are read as the same stitch.
+
+**Repeat**, square brackets + a count. \`x 6\`, \`x6\`, \`rep 6\` and \`rep6\` are all the same — use whichever matches the source:
 
 \`\`\`
 [sc, inc] x 6      → (sc, inc) repeated 6 times
+[sc, inc] rep 6    → the same thing
 \`\`\`
+
+A bare \`rep\` with no number means "repeat until the round below is used up", which is what "around" / "to end of round" means in a written pattern. The count is worked out from the previous round, so you don't have to do the arithmetic:
+
+\`\`\`
+R1: mr, ch, sc6, slst
+R2: ch, [2 sc, inc] rep, slst    → 2 repeats: 6 stitches below, 3 worked into per repeat
+\`\`\`
+
+Only use bare \`rep\` where the source really does say "around" — if the round below doesn't divide evenly by what one repeat works into, the chart reports an error rather than guessing, and a bare \`rep\` on row 1 has nothing to work into and is an error too. When the source states the number, write the number.
 
 **Group**, parentheses — multiple stitches worked into *one* stitch/space (shells, clusters, corners); renders as a fan from a single position:
 
@@ -141,7 +154,9 @@ Repeats and groups can nest and contain each other.
 
 There is still no dedicated token for N-into-one **increases** — those are groups, not stitch names (see "Group" below): "2 dc in next st" → \`(dc, dc)\`, "shell: 5 dc in next st" → \`(5 dc)\`.
 
-There is no turning-chain concept — omit \`ch 1, turn\` / \`ch 3, turn\` type instructions; they don't change the chart.
+The chain a round opens with **is** supported: write it as a plain \`ch\` step at the start of the row (\`R2: ch, [2 sc, inc] rep, slst\`). It is drawn at the round's seam, but it is not a stitch of the fabric — it adds nothing to the round's count and the next round does not work into it. The same goes for the \`sl st\` that closes a round, and for a \`mr\` written as a step (\`R1: mr, ch, sc6, slst\`) instead of as an \`in MR\` anchor.
+
+Write these only where the source does. On a flat chart \`turn\` has no chart meaning, so \`ch 1, turn\` can be dropped.
 
 ### Color changes
 
@@ -170,7 +185,9 @@ Use this to translate common written-pattern phrasing. When in doubt, prefer \`i
 | "hdc2tog" … "hdc5tog" | \`hdc2tog\` … \`hdc5tog\` |
 | "dc2tog" … "dc5tog" | \`dc2tog\` … \`dc5tog\` |
 | "sc in each st around" for a round of N known stitches | \`N sc\` (write the literal count) |
-| "(sc, inc) 6 times" / "repeat 6 times" | \`[sc, inc] x 6\` |
+| "(sc, inc) 6 times" / "repeat 6 times" | \`[sc, inc] x 6\` (or \`[sc, inc] rep 6\`) |
+| "(2 sc, inc) around" / "repeat to end of round" | \`[2 sc, inc] rep\` |
+| "ch 1" at the start of a round | leading \`ch\` step on that row |
 | "(dc, ch 1, dc) in next st" (shell/corner) | \`(dc, ch, dc)\` |
 | "2 dc in next st" (V-stitch increase) | \`(dc, dc)\` |
 | "5 dc in next st" (shell) | \`(5 dc)\` |
@@ -224,7 +241,8 @@ Crochet Weaver computes a row's stitch count the same way real patterns annotate
 - Every other stitch name = 1 output stitch — this includes every N-together decrease (\`dc3tog\` still counts as 1, same as \`dec\`), every post/crossed stitch, every cluster/puff, and every popcorn, not just the original basic set.
 - A group \`(...)\` = sum of its children's weights.
 - A repeat \`[...] x N\` = N × (sum of its children's weights).
-- **A trailing \`sl st\` at the very end of a row is treated as a join and excluded from the count** — don't count it, and don't be surprised the chart doesn't count it either.
+- **The chain a round opens with, a \`mr\` written as a step, and the \`sl st\` that closes the round are all excluded from the count** — they are drawn, but they are instructions rather than stitches of the fabric, and the next round works into neither. \`R1: mr, ch, sc6, slst\` counts 6.
+- A chain or slip stitch **in the middle** of a row is a real stitch and does count — only the round's opening and its closing join are treated this way.
 
 After converting, add up each row's stitches and compare to the source pattern's own "(N sc)" annotations. A mismatch almost always means an increase/decrease got flattened into plain stitches (or vice versa) somewhere.
 
@@ -265,13 +283,14 @@ Before returning your answer:
 1. Picked one chart \`type\` and justified it if it's not obvious from the source.
 2. Every row converted with the phrase table above — no invented stitch tokens.
 3. Row-1 anchor set if the source uses a magic ring or chain ring.
-4. Trailing \`sl st\` added only where the source explicitly joins the round.
-5. Ran the stitch-counting rule against the source's own "(N)" annotations for at least the first few rows.
-6. For any decrease/cluster, picked the token matching the source's stated height and count (\`sc2tog\` vs \`hdc3tog\` vs \`dc5tog\`, etc.) instead of defaulting everything to \`dec\`.
-7. Asked the user (or picked a sensible default) for \`tool: on\` vs \`text: on\` vs neither, if they didn't specify.
-8. Flagged anything you couldn't represent (unsupported stitch, ambiguous instruction) instead of silently guessing.
-9. Added a \`color <name>\` step wherever the source explicitly changes yarn color, using its exact color word/hex — and added none where the source never states a color.
-10. Returned one fenced \` \`\`\`crochet \` block (plus a second \` \`\`\`crochet-tool \` block only if they explicitly asked for a separate standalone tracker).
+4. Trailing \`sl st\`, and a leading \`ch\`, added only where the source explicitly writes them.
+5. Bare \`rep\` used only where the source says "around" / "to end of round"; an explicit number written wherever the source gives one.
+6. Ran the stitch-counting rule against the source's own "(N)" annotations for at least the first few rows.
+7. For any decrease/cluster, picked the token matching the source's stated height and count (\`sc2tog\` vs \`hdc3tog\` vs \`dc5tog\`, etc.) instead of defaulting everything to \`dec\`.
+8. Asked the user (or picked a sensible default) for \`tool: on\` vs \`text: on\` vs neither, if they didn't specify.
+9. Flagged anything you couldn't represent (unsupported stitch, ambiguous instruction) instead of silently guessing.
+10. Added a \`color <name>\` step wherever the source explicitly changes yarn color, using its exact color word/hex — and added none where the source never states a color.
+11. Returned one fenced \` \`\`\`crochet \` block (plus a second \` \`\`\`crochet-tool \` block only if they explicitly asked for a separate standalone tracker).
 `,
 	'zh-TW': `# Crochet Weaver — AI 織圖撰寫參考文件
 
@@ -322,8 +341,7 @@ R2: <步驟>
 | \`stroke\` | 正數 | 外掛設定值 | SVG 線條粗細。 |
 | \`spacing\` | 正數 | 外掛設定值 | 圈與圈（round/spiral）之間的像素間距。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | 外掛設定值 | 將 \`inc\`/\`dec\` 針目標示為強調色。 |
-| \`rotation\` | \`smart\` \\| \`all\` \\| \`none\` | 外掛設定值 | 圓編／螺旋織圖中符號的旋轉方式。多數情況下用 \`smart\` 就對了。 |
-| \`style\` | \`standard\` \\| \`book\` | 外掛設定值 | 環織織圖的繪製樣式。\`book\` 為日本鉤織書風格：一條連續螺旋線繞過每一圈、針目對齊上一圈鉤入的針目、加減針符號拉寬連接、並標示圈數。只影響 \`type: round\`。 |
+| \`style\` | \`standard\` \\| \`book\` \\| \`linked\` | 外掛設定值 | 環織織圖的繪製樣式。\`book\` 為日本鉤織書風格：一條連續螺旋線繞過每一圈、針目對齊上一圈鉤入的針目、加針畫成 **V**、減針畫成 **∧** 並與該圈其他針目並排、並標示圈數。\`linked\` 使用同樣的排版，但每一針都畫出自己的符號，並連線到它所鉤入的下方針目──適合用來檢查轉換結果。只影響 \`type: round\`。 |
 | \`tool\` | 布林值（同上） | 外掛設定值 | 在織圖旁內嵌互動式進度工具。見「內嵌進度面板」。 |
 | \`text\` | 布林值（同上） | 外掛設定值 | 在織圖旁內嵌唯讀的縮寫清單（若 \`tool\` 也開啟則會被忽略）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | 外掛設定值 | 內嵌的 \`tool\`／\`text\` 面板相對於織圖要放在哪個位置。 |
@@ -363,18 +381,32 @@ R1: 6 sc in ch ring
 
 以逗號分隔（逗號可省略，但保留逗號會讓真實織圖更好讀）。每個步驟是下列其中一種：
 
-**針目**，前面可選擇加上數量：
+**針目**，數量可以寫在名稱前面或後面──\`6 sc\`、\`sc6\`、\`sc 6\` 意思完全相同，原文怎麼寫就怎麼寫：
 
 \`\`\`
 sc          → 一針短針
 10 ch       → 十針鎖針
+ch2         → 兩針鎖針
+sc 6        → 六針短針
 \`\`\`
 
-**重複**，用方括號 + \`x\` + 次數──當原始織圖把某個單元重複固定次數時使用：
+引拔針可以寫成 \`sl st\`、\`slst\`、\`sl-st\` 或 \`sl_st\`，四種都會被讀成同一個針法。
+
+**重複**，用方括號 + 次數。\`x 6\`、\`x6\`、\`rep 6\`、\`rep6\` 都一樣，原文怎麼寫就用哪一種：
 
 \`\`\`
 [sc, inc] x 6      → (sc, inc) 重複 6 次
+[sc, inc] rep 6    → 同上
 \`\`\`
+
+沒有數字的 \`rep\` 表示「重複到上一圈的針目用完為止」，也就是文字織圖裡的「繞一圈」／「重複到該圈結束」。次數會由上一圈算出來，你不必自己算：
+
+\`\`\`
+R1: mr, ch, sc6, slst
+R2: ch, [2 sc, inc] rep, slst    → 2 次：下面有 6 針，每一次鉤入 3 針
+\`\`\`
+
+只有在原文真的寫「繞一圈」時才用單獨的 \`rep\`──若上一圈的針數無法被一次重複所鉤入的針數整除，織圖會直接報錯而不是自行猜測；第 1 行的 \`rep\` 沒有可鉤入的圈，同樣是錯誤。原文有寫次數時，就把數字寫出來。
 
 **群組**，用括號──多個針目織進「同一個」針目或空間裡（貝殼針、玉針、轉角常見）；渲染時會從同一個位置呈扇形展開：
 
@@ -409,7 +441,9 @@ sc          → 一針短針
 
 目前還沒有專門代表「N 針織進 1 針」**加針**的代號──那些要用群組表示，不是針法名稱（見下方「群組」）：「在下一針織 2 長針」→ \`(dc, dc)\`，「貝殼針：在下一針織 5 長針」→ \`(5 dc)\`。
 
-沒有「立針鎖針」的概念──直接省略「鎖 1 針，翻面」／「鎖 3 針，翻面」這類指示，它們不會影響織圖。
+每圈開頭的起立鎖針**是**支援的：直接在該行開頭寫一個 \`ch\` 步驟（\`R2: ch, [2 sc, inc] rep, slst\`）。它會畫在該圈的接縫處，但不是織物的針目──不計入該圈針數，上一圈也不會鉤入它。結尾接合的 \`sl st\`，以及寫成步驟（而非 \`in MR\` 起針）的 \`mr\`（\`R1: mr, ch, sc6, slst\`）也一樣。
+
+這些只有在原文有寫時才寫。平面織圖的「翻面」對織圖沒有意義，因此「鎖 1 針，翻面」可以省略。
 
 ### 換色
 
@@ -438,7 +472,9 @@ R6: 8 sc, color white, 8 sc, color black, 8 sc
 | 「hdc2tog」…「hdc5tog」 | \`hdc2tog\` … \`hdc5tog\` |
 | 「dc2tog」…「dc5tog」 | \`dc2tog\` … \`dc5tog\` |
 | 「每針織短針，繞一圈」，針數已知為 N | \`N sc\`（直接寫出實際針數） |
-| 「(短針、加針) 重複 6 次」／「重複 6 次」 | \`[sc, inc] x 6\` |
+| 「(短針、加針) 重複 6 次」／「重複 6 次」 | \`[sc, inc] x 6\`（或 \`[sc, inc] rep 6\`） |
+| 「(短針 2 針、加針) 繞一圈」／「重複到該圈結束」 | \`[2 sc, inc] rep\` |
+| 一圈開頭的「鎖 1 針」 | 該行開頭加上 \`ch\` 步驟 |
 | 「(長針、鎖 1、長針) 織進下一針」（貝殼針／轉角） | \`(dc, ch, dc)\` |
 | 「下一針織 2 長針」（V 形加針） | \`(dc, dc)\` |
 | 「下一針織 5 長針」（貝殼針） | \`(5 dc)\` |
@@ -492,7 +528,8 @@ Crochet Weaver 計算一行針數的方式，跟真實織圖標註「(N sc)」�
 - 其他所有針法名稱 = 產出 1 針──包含每一種 N 併 1 減針（\`dc3tog\` 仍然算 1 針，跟 \`dec\` 一樣）、每一種前引／後引針、每一種交叉針、每一種玉針／泡泡針、每一種爆米花針，不只是最初的基本針法。
 - 一個群組 \`(...)\` = 其內部所有子項權重的總和。
 - 一個重複 \`[...] x N\` = N × （其內部所有子項權重的總和）。
-- **一行最尾端的 \`sl st\` 會被視為接合，不計入針數**──不要把它算進去，也不用意外織圖沒有把它算進去。
+- **每圈開頭的鎖針、寫成步驟的 \`mr\`，以及結尾接合的 \`sl st\`，都不計入針數**──它們會被畫出來，但屬於指示而不是織物的針目，上一圈也不會鉤入它們。\`R1: mr, ch, sc6, slst\` 算 6 針。
+- 寫在**一行中間**的鎖針或引拔針則是真正的針目，要計入──只有一圈的開頭與結尾接合會被這樣處理。
 
 轉換完成後，把每一行的針數加總，跟原始織圖自己標註的「(N sc)」比對。如果對不上，幾乎都是某個地方的加針或減針被誤植成一般針目（或反過來）。
 
@@ -533,13 +570,14 @@ R2: [inc] x 6
 1. 已選定一種織圖 \`type\`，若不是顯而易見的選擇，說明理由。
 2. 每一行都用上方對照表轉換過──沒有自創的針法代號。
 3. 若原文使用魔術環或鎖針環，第 1 行已設定起針方式。
-4. 只有在原文明確寫出接合時，才加上結尾的 \`sl st\`。
-5. 至少對前幾行套用了針數計數規則，跟原文自己的「(N)」註記做過驗算。
-6. 每個減針／玉針都選對了符合原文所述高度與併針數量的代號（例如 \`sc2tog\` vs \`hdc3tog\` vs \`dc5tog\` 等），而不是全部都用 \`dec\` 打發。
-7. 如果使用者沒有特別指定，已詢問（或自行挑選合理預設值）要用 \`tool: on\`、\`text: on\`，還是都不用。
-8. 標出任何你無法呈現的地方（不支援的針法、模糊不清的指示），而不是悄悄用猜的。
-9. 在原文明確換線的地方加上 \`color <顏色>\` 步驟，使用原文寫的確切顏色字或色碼；原文沒提到顏色的地方就不要加。
-10. 回覆一個圍籬 \` \`\`\`crochet \` 區塊（只有在對方明確要求獨立追蹤器時，才額外附上第二個 \` \`\`\`crochet-tool \` 區塊）。
+4. 只有在原文明確寫出開頭的鎖針或結尾的接合時，才加上開頭的 \`ch\` 與結尾的 \`sl st\`。
+5. 只有在原文寫「繞一圈」／「重複到該圈結束」時才用單獨的 \`rep\`；原文有給次數就把數字寫出來。
+6. 至少對前幾行套用了針數計數規則，跟原文自己的「(N)」註記做過驗算。
+7. 每個減針／玉針都選對了符合原文所述高度與併針數量的代號（例如 \`sc2tog\` vs \`hdc3tog\` vs \`dc5tog\` 等），而不是全部都用 \`dec\` 打發。
+8. 如果使用者沒有特別指定，已詢問（或自行挑選合理預設值）要用 \`tool: on\`、\`text: on\`，還是都不用。
+9. 標出任何你無法呈現的地方（不支援的針法、模糊不清的指示），而不是悄悄用猜的。
+10. 在原文明確換線的地方加上 \`color <顏色>\` 步驟，使用原文寫的確切顏色字或色碼；原文沒提到顏色的地方就不要加。
+11. 回覆一個圍籬 \` \`\`\`crochet \` 區塊（只有在對方明確要求獨立追蹤器時，才額外附上第二個 \` \`\`\`crochet-tool \` 區塊）。
 `,
 	'zh-CN': `# Crochet Weaver — AI 织图撰写参考文档
 
@@ -590,8 +628,7 @@ R2: <步骤>
 | \`stroke\` | 正数 | 插件设置值 | SVG 线条粗细。 |
 | \`spacing\` | 正数 | 插件设置值 | 圈与圈（round/spiral）之间的像素间距。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | 插件设置值 | 把 \`inc\`/\`dec\` 针目标记为强调色。 |
-| \`rotation\` | \`smart\` \\| \`all\` \\| \`none\` | 插件设置值 | 圆编／螺旋织图中符号的旋转方式。大多数情况下用 \`smart\` 就对了。 |
-| \`style\` | \`standard\` \\| \`book\` | 插件设置值 | 环织织图的绘制样式。\`book\` 为日本钩织书风格：一条连续螺旋线绕过每一圈、针目对齐上一圈钩入的针目、加减针符号拉宽连接、并标注圈数。只影响 \`type: round\`。 |
+| \`style\` | \`standard\` \\| \`book\` \\| \`linked\` | 插件设置值 | 环织织图的绘制样式。\`book\` 为日本钩织书风格：一条连续螺旋线绕过每一圈、针目对齐上一圈钩入的针目、加针画成 **V**、减针画成 **∧** 并与该圈其他针目并排、并标注圈数。\`linked\` 使用同样的排版，但每一针都画出自己的符号，并连线到它所钩入的下方针目——适合用来检查转换结果。只影响 \`type: round\`。 |
 | \`tool\` | 布尔值（同上） | 插件设置值 | 在织图旁内嵌交互式进度工具。见“内嵌进度面板”。 |
 | \`text\` | 布尔值（同上） | 插件设置值 | 在织图旁内嵌只读的缩写列表（如果 \`tool\` 也开启则会被忽略）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | 插件设置值 | 内嵌的 \`tool\`／\`text\` 面板相对于织图放在哪个位置。 |
@@ -631,18 +668,32 @@ R1: 6 sc in ch ring
 
 用逗号分隔（逗号可以省略，但保留逗号会让真实织图更易读）。每个步骤是下列其中一种：
 
-**针目**，前面可以选择加上数量：
+**针目**，数量可以写在名称前面或后面——\`6 sc\`、\`sc6\`、\`sc 6\` 意思完全相同，原文怎么写就怎么写：
 
 \`\`\`
 sc          → 一针短针
 10 ch       → 十针锁针
+ch2         → 两针锁针
+sc 6        → 六针短针
 \`\`\`
 
-**重复**，用方括号 + \`x\` + 次数——当原始织图把某个单元重复固定次数时使用：
+引拔针可以写成 \`sl st\`、\`slst\`、\`sl-st\` 或 \`sl_st\`，四种都会被读成同一个针法。
+
+**重复**，用方括号 + 次数。\`x 6\`、\`x6\`、\`rep 6\`、\`rep6\` 都一样，原文怎么写就用哪一种：
 
 \`\`\`
 [sc, inc] x 6      → (sc, inc) 重复 6 次
+[sc, inc] rep 6    → 同上
 \`\`\`
+
+没有数字的 \`rep\` 表示“重复到上一圈的针目用完为止”，也就是文字织图里的“绕一圈”／“重复到该圈结束”。次数会由上一圈算出来，你不必自己算：
+
+\`\`\`
+R1: mr, ch, sc6, slst
+R2: ch, [2 sc, inc] rep, slst    → 2 次：下面有 6 针，每一次钩入 3 针
+\`\`\`
+
+只有在原文真的写“绕一圈”时才用单独的 \`rep\`——若上一圈的针数无法被一次重复所钩入的针数整除，织图会直接报错而不是自行猜测；第 1 行的 \`rep\` 没有可钩入的圈，同样是错误。原文有写次数时，就把数字写出来。
 
 **分组**，用圆括号——多个针目织入“同一个”针目或空间里（贝壳针、枣针、转角常见）；渲染时会从同一个位置呈扇形展开：
 
@@ -677,7 +728,9 @@ sc          → 一针短针
 
 目前还没有专门表示“N 针织入 1 针”**加针**的代号——那些要用分组表示，不是针法名称（见下方“分组”）：“在下一针织 2 长针”→ \`(dc, dc)\`，“贝壳针：在下一针织 5 长针”→ \`(5 dc)\`。
 
-没有“起立针”的概念——直接省略“锁 1 针，翻面”／“锁 3 针，翻面”这类指示，它们不会影响织图。
+每圈开头的起立锁针**是**支持的：直接在该行开头写一个 \`ch\` 步骤（\`R2: ch, [2 sc, inc] rep, slst\`）。它会画在该圈的接缝处，但不是织物的针目——不计入该圈针数，上一圈也不会钩入它。结尾接合的 \`sl st\`，以及写成步骤（而不是 \`in MR\` 起针）的 \`mr\`（\`R1: mr, ch, sc6, slst\`）也一样。
+
+这些只有在原文有写时才写。平面织图的“翻面”对织图没有意义，因此“锁 1 针，翻面”可以省略。
 
 ### 换色
 
@@ -706,7 +759,9 @@ R6: 8 sc, color white, 8 sc, color black, 8 sc
 | “hdc2tog”…“hdc5tog” | \`hdc2tog\` … \`hdc5tog\` |
 | “dc2tog”…“dc5tog” | \`dc2tog\` … \`dc5tog\` |
 | “每针织短针，绕一圈”，针数已知为 N | \`N sc\`（直接写出实际针数） |
-| “(短针、加针) 重复 6 次”／“重复 6 次” | \`[sc, inc] x 6\` |
+| “(短针、加针) 重复 6 次”／“重复 6 次” | \`[sc, inc] x 6\`（或 \`[sc, inc] rep 6\`） |
+| “(短针 2 针、加针) 绕一圈”／“重复到该圈结束” | \`[2 sc, inc] rep\` |
+| 一圈开头的“锁 1 针” | 该行开头加上 \`ch\` 步骤 |
 | “(长针、锁 1、长针) 织入下一针”（贝壳针／转角） | \`(dc, ch, dc)\` |
 | “下一针织 2 长针”（V 形加针） | \`(dc, dc)\` |
 | “下一针织 5 长针”（贝壳针） | \`(5 dc)\` |
@@ -760,7 +815,8 @@ Crochet Weaver 计算一行针数的方式，跟真实织图标注“(N sc)”�
 - 其他所有针法名称 = 产出 1 针——包括每一种 N 并 1 减针（\`dc3tog\` 仍然算 1 针，跟 \`dec\` 一样）、每一种前引／后引针、每一种交叉针、每一种枣针／泡芙针、每一种爆米花针，不只是最初的基础针法。
 - 一个分组 \`(...)\` = 其内部所有子项权重的总和。
 - 一个重复 \`[...] x N\` = N × （其内部所有子项权重的总和）。
-- **一行最末尾的 \`sl st\` 会被视为接合，不计入针数**——不要把它算进去，也不必意外织图没有把它算进去。
+- **每圈开头的锁针、写成步骤的 \`mr\`，以及结尾接合的 \`sl st\`，都不计入针数**——它们会被画出来，但属于指示而不是织物的针目，上一圈也不会钩入它们。\`R1: mr, ch, sc6, slst\` 算 6 针。
+- 写在**一行中间**的锁针或引拔针则是真正的针目，要计入——只有一圈的开头与结尾接合会被这样处理。
 
 转换完成后，把每一行的针数加总，跟原始织图自己标注的“(N sc)”比对。如果对不上，几乎都是某处的加针或减针被误写成普通针目（或者反过来）。
 
@@ -801,13 +857,14 @@ R2: [inc] x 6
 1. 已选定一种织图 \`type\`，如果不是显而易见的选择，说明理由。
 2. 每一行都用上方对照表转换过——没有自创的针法代号。
 3. 如果原文使用魔术环或锁针环，第 1 行已设置起针方式。
-4. 只有在原文明确写出接合时，才加上结尾的 \`sl st\`。
-5. 至少对前几行套用了针数计数规则，跟原文自己的“(N)”标注做过验算。
-6. 每个减针／枣针都选对了符合原文所述高度与并针数量的代号（比如 \`sc2tog\` vs \`hdc3tog\` vs \`dc5tog\` 等），而不是全部都用 \`dec\` 应付。
-7. 如果用户没有特别指定，已询问（或自行选择合理默认值）要用 \`tool: on\`、\`text: on\`，还是都不用。
-8. 标出任何你无法呈现的地方（不支持的针法、含糊不清的指示），而不是悄悄用猜的。
-9. 在原文明确换线的地方加上 \`color <颜色>\` 步骤，使用原文写的确切颜色词或色码；原文没提到颜色的地方就不要加。
-10. 回复一个围栏 \` \`\`\`crochet \` 代码块（只有在对方明确要求独立追踪器时，才额外附上第二个 \` \`\`\`crochet-tool \` 代码块）。
+4. 只有在原文明确写出开头的锁针或结尾的接合时，才加上开头的 \`ch\` 与结尾的 \`sl st\`。
+5. 只有在原文写“绕一圈”／“重复到该圈结束”时才用单独的 \`rep\`；原文有给次数就把数字写出来。
+6. 至少对前几行套用了针数计数规则，跟原文自己的“(N)”标注做过验算。
+7. 每个减针／枣针都选对了符合原文所述高度与并针数量的代号（比如 \`sc2tog\` vs \`hdc3tog\` vs \`dc5tog\` 等），而不是全部都用 \`dec\` 应付。
+8. 如果用户没有特别指定，已询问（或自行选择合理默认值）要用 \`tool: on\`、\`text: on\`，还是都不用。
+9. 标出任何你无法呈现的地方（不支持的针法、含糊不清的指示），而不是悄悄用猜的。
+10. 在原文明确换线的地方加上 \`color <颜色>\` 步骤，使用原文写的确切颜色词或色码；原文没提到颜色的地方就不要加。
+11. 回复一个围栏 \` \`\`\`crochet \` 代码块（只有在对方明确要求独立追踪器时，才额外附上第二个 \` \`\`\`crochet-tool \` 代码块）。
 `,
 	ja: `# Crochet Weaver — AI 向け編み図作成リファレンス
 
@@ -858,8 +915,7 @@ R2: <ステップ>
 | \`stroke\` | 正の数値 | プラグイン設定 | SVG の線の太さ。 |
 | \`spacing\` | 正の数値 | プラグイン設定 | 輪編み／スパイラルの段と段の間隔（ピクセル）。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | プラグイン設定 | \`inc\`/\`dec\` の目をアクセントカラーで強調表示します。 |
-| \`rotation\` | \`smart\` \\| \`all\` \\| \`none\` | プラグイン設定 | 輪編み／スパイラルでの記号の回転方法。ほとんどの場合 \`smart\` で問題ありません。 |
-| \`style\` | \`standard\` \\| \`book\` | プラグイン設定 | 輪編みチャートの描画スタイル。\`book\` は日本の編み物本風：連続したらせん線が各段を巡り、針目が前段の編み入れ先の真上に並び、増減記号が伸びてつながり、段数が表示されます。\`type: round\` にのみ影響します。 |
+| \`style\` | \`standard\` \\| \`book\` \\| \`linked\` | プラグイン設定 | 輪編みチャートの描画スタイル。\`book\` は日本の編み物本風：連続したらせん線が各段を巡り、針目が前段の編み入れ先の真上に並び、増し目は **V**、減らし目は **∧** としてその段の針目と同じ列に描かれ、段数が表示されます。\`linked\` は同じ配置のまま、各針目の記号をそれぞれ描いて編み入れ先の目と線でつなぎます（変換の確認に便利です）。\`type: round\` にのみ影響します。 |
 | \`tool\` | 真偽値（上記と同様） | プラグイン設定 | 編み図の横にインタラクティブな進捗ツールを埋め込みます。「進捗パネルを埋め込む」を参照。 |
 | \`text\` | 真偽値（上記と同様） | プラグイン設定 | 編み図の横に読み取り専用の略記リストを埋め込みます（\`tool\` が有効な場合は無視されます）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | プラグイン設定 | 埋め込んだ \`tool\`／\`text\` パネルを編み図に対してどこに配置するか。 |
@@ -899,18 +955,32 @@ R1: 6 sc in ch ring
 
 カンマ区切りで書きます（カンマは省略可能ですが、付けておくと実際の編み図として読みやすくなります）。各ステップは次のいずれかです。
 
-**針目**。数を前に付けることができます。
+**針目**。数は名前の前でも後ろでも構いません──\`6 sc\`、\`sc6\`、\`sc 6\` はすべて同じ意味なので、原文の書き方をそのまま使えます。
 
 \`\`\`
 sc          → 細編み 1 目
 10 ch       → 鎖編み 10 目
+ch2         → 鎖編み 2 目
+sc 6        → 細編み 6 目
 \`\`\`
 
-**繰り返し**。角括弧＋\`x\`＋回数で表し、原文が同じ単位を決まった回数繰り返す場合に使います。
+引き抜き編みは \`sl st\`、\`slst\`、\`sl-st\`、\`sl_st\` のいずれでも書け、4 つとも同じ針目として読まれます。
+
+**繰り返し**。角括弧＋回数で表します。\`x 6\`、\`x6\`、\`rep 6\`、\`rep6\` はすべて同じなので、原文に合う書き方を選んでください。
 
 \`\`\`
 [sc, inc] x 6      → (sc, inc) を 6 回繰り返す
+[sc, inc] rep 6    → 同じ意味
 \`\`\`
+
+数字のない \`rep\` は「下の段の目がなくなるまで繰り返す」という意味で、文章の編み図でいう「くるりと 1 周」「段の終わりまで繰り返す」に当たります。回数は前段から計算されるので、自分で計算する必要はありません。
+
+\`\`\`
+R1: mr, ch, sc6, slst
+R2: ch, [2 sc, inc] rep, slst    → 2 回：下に 6 目あり、1 回で 3 目に編み入れる
+\`\`\`
+
+数字なしの \`rep\` は、原文が本当に「1 周」と言っている場合にのみ使ってください──前段の目数が 1 回分の編み入れ目数で割り切れない場合、勝手に決めずにエラーとして知らせます。1 段目の \`rep\` は編み入れる前段がないので、これもエラーです。原文に回数が書かれている場合は、その数字を書いてください。
 
 **グループ**。丸括弧で表し、複数の針目を「同じ 1 目（または空間）」に編み入れる場合に使います（貝殻編み、玉編み、角編みなどでよく使う）。描画時には同じ位置から扇形に展開されます。
 
@@ -945,7 +1015,9 @@ sc          → 細編み 1 目
 
 「N 目を 1 目に編み入れる」**増し目**専用のトークンはまだありません──それらはグループとして表現します（下記「グループ」を参照）。「次の目に長編み 2 目」→ \`(dc, dc)\`、「貝殻編み：次の目に長編み 5 目」→ \`(5 dc)\`。
 
-「立ち上がりの鎖編み」という概念はありません──「鎖 1 目、編み地を返す」「鎖 3 目、編み地を返す」といった指示はそのまま省略してください。編み図には影響しません。
+段の最初の立ち上がりの鎖編みは**対応しています**。その段の先頭にそのまま \`ch\` ステップとして書いてください（\`R2: ch, [2 sc, inc] rep, slst\`）。段の継ぎ目に描かれますが、編み地の目ではないので、その段の目数には入らず、次の段もそこには編み入れません。段を閉じる \`sl st\` や、\`in MR\` の起点指定ではなくステップとして書いた \`mr\`（\`R1: mr, ch, sc6, slst\`）も同じ扱いです。
+
+これらは原文にある場合にのみ書いてください。平編みの「編み地を返す」は編み図上の意味を持たないので、「鎖 1 目、編み地を返す」は省略できます。
 
 ### 配色の変更
 
@@ -974,7 +1046,9 @@ R6: 8 sc, color white, 8 sc, color black, 8 sc
 | 「hdc2tog」…「hdc5tog」 | \`hdc2tog\` … \`hdc5tog\` |
 | 「dc2tog」…「dc5tog」 | \`dc2tog\` … \`dc5tog\` |
 | 目数が N と分かっている場合の「くるりと 1 周、細編み」 | \`N sc\`（実際の目数をそのまま書く） |
-| 「(細編み、増し目) を 6 回」／「6 回繰り返す」 | \`[sc, inc] x 6\` |
+| 「(細編み、増し目) を 6 回」／「6 回繰り返す」 | \`[sc, inc] x 6\`（または \`[sc, inc] rep 6\`） |
+| 「(細編み 2 目、増し目) をくるりと 1 周」／「段の終わりまで繰り返す」 | \`[2 sc, inc] rep\` |
+| 段の最初の「鎖 1 目」 | その段の先頭に \`ch\` ステップを追加 |
 | 「次の目に (長編み、鎖 1、長編み)」（貝殻編み／角） | \`(dc, ch, dc)\` |
 | 「次の目に長編み 2 目」（V字の増し目） | \`(dc, dc)\` |
 | 「次の目に長編み 5 目」（貝殻編み） | \`(5 dc)\` |
@@ -1028,7 +1102,8 @@ Crochet Weaver は、実際の編み図が「(N sc)」と注記するのと同�
 - それ以外のすべての針目名 = 1 目を出力──あらゆる N目一度の減目（\`dc3tog\` も \`dec\` と同じく 1 目扱い）、あらゆる表引き／裏引き編み、あらゆる交差編み、あらゆる玉編み／パフステッチ、あらゆるポップコーン編みも含み、最初からある基本の針目だけではありません。
 - グループ \`(...)\` = 内部の子要素の重みの合計。
 - 繰り返し \`[...] x N\` = N × （内部の子要素の重みの合計）。
-- **段の一番最後にある \`sl st\` はつなぎ目として扱われ、目数には含まれません**──数に入れないでください。編み図もそれを数えていないので、驚かないでください。
+- **段の最初の鎖編み、ステップとして書いた \`mr\`、段を閉じる \`sl st\` は、いずれも目数に含まれません**──描画はされますが、編み地の目ではなく指示であり、次の段もそこには編み入れません。\`R1: mr, ch, sc6, slst\` は 6 目です。
+- **段の途中**にある鎖編みや引き抜き編みは本物の針目なので数に入ります──この扱いになるのは、段の最初の立ち上がりと最後のつなぎ目だけです。
 
 変換が終わったら、各段の目数を合計して、原文自身の「(N sc)」という注記と比較してください。数が合わない場合は、ほぼ必ずどこかで増し目や減目が普通の針目として平坦化されてしまっている（またはその逆）ことが原因です。
 
@@ -1069,12 +1144,13 @@ R2: [inc] x 6
 1. 編み図の \`type\` を 1 つ選び、それが自明でない場合は理由を説明した。
 2. すべての段を上記の対応表に沿って変換した──独自に考えた針目トークンを使っていない。
 3. 原文が魔法の輪または鎖の輪を使っている場合、1 段目に起点指定を設定した。
-4. 原文が明確に輪をつなぐと書いている場合にのみ、末尾に \`sl st\` を追加した。
-5. 少なくとも最初の数段について、目数計算ルールを原文自身の「(N)」という注記と照合して検算した。
-6. すべての減目／玉編みについて、原文に記載された高さと併せる目数に一致するトークン（\`sc2tog\` vs \`hdc3tog\` vs \`dc5tog\` など）を選び、すべてを \`dec\` で済ませていない。
-7. ユーザーが指定していない場合、\`tool: on\`、\`text: on\`、どちらも使わないかについて確認した（または適切な既定値を選んだ）。
-8. 表現できなかった箇所（対応していない針目、あいまいな指示など）を、黙って推測するのではなく明示的に指摘した。
-9. 原文が明確に糸の色を変えている箇所には、原文どおりの色の単語やカラーコードで \`color <色>\` ステップを追加した。原文が色を指定していない箇所には追加していない。
-10. フェンス付きの \` \`\`\`crochet \` ブロックを 1 つ返した（相手が明示的に独立したトラッカーを求めた場合のみ、\` \`\`\`crochet-tool \` ブロックを追加で返す）。
+4. 原文が明確に書いている場合にのみ、先頭の \`ch\` と末尾の \`sl st\` を追加した。
+5. 数字なしの \`rep\` は原文が「1 周」「段の終わりまで」と書いている場合にのみ使い、回数が書かれている場合はその数字を書いた。
+6. 少なくとも最初の数段について、目数計算ルールを原文自身の「(N)」という注記と照合して検算した。
+7. すべての減目／玉編みについて、原文に記載された高さと併せる目数に一致するトークン（\`sc2tog\` vs \`hdc3tog\` vs \`dc5tog\` など）を選び、すべてを \`dec\` で済ませていない。
+8. ユーザーが指定していない場合、\`tool: on\`、\`text: on\`、どちらも使わないかについて確認した（または適切な既定値を選んだ）。
+9. 表現できなかった箇所（対応していない針目、あいまいな指示など）を、黙って推測するのではなく明示的に指摘した。
+10. 原文が明確に糸の色を変えている箇所には、原文どおりの色の単語やカラーコードで \`color <色>\` ステップを追加した。原文が色を指定していない箇所には追加していない。
+11. フェンス付きの \` \`\`\`crochet \` ブロックを 1 つ返した（相手が明示的に独立したトラッカーを求めた場合のみ、\` \`\`\`crochet-tool \` ブロックを追加で返す）。
 `,
 };

@@ -5,7 +5,6 @@ import type {
 	PatternTextStyle,
 	RenderOptions,
 	RoundStyle,
-	SymbolRotation,
 } from './types';
 import type { CrochetWeaverSettings } from './settings';
 
@@ -23,16 +22,15 @@ export function resolveOptions(
 	settings: CrochetWeaverSettings,
 ): ResolvedOptions {
 	const config = ast.config;
-	const rotation = config.rotation?.toLowerCase();
 	const style = config.style?.toLowerCase();
 	const gridCountKey = config.type === 'flat' ? config.rows : config.rounds;
 	return {
-		rotation: isSymbolRotation(rotation) ? rotation : settings.symbolRotation,
 		roundStyle: isRoundStyle(style) ? style : settings.roundChartStyle,
 		ringSpacing: positiveFloat(config.spacing) ?? settings.ringSpacing,
 		scale: positiveFloat(config.scale) ?? settings.scale,
 		strokeWidth: positiveFloat(config.stroke) ?? settings.strokeWidth,
 		highlightIncDec: boolOption(config.highlight) ?? settings.highlightIncDec,
+		highlightColor: settings.highlightColor,
 		chartMarkerColor: settings.chartMarkerColor,
 		grid: boolOption(config.grid) ?? settings.showGrid,
 		gridCount: positiveInt(gridCountKey),
@@ -53,10 +51,6 @@ export function resolvePanelOptions(
 		position: isPanelPosition(position) ? position : settings.panelPosition,
 		textStyle: readableOverride === undefined ? settings.patternTextStyle : readableOverride ? 'readable' : 'raw',
 	};
-}
-
-function isSymbolRotation(value: string | undefined): value is SymbolRotation {
-	return value === 'smart' || value === 'all' || value === 'none';
 }
 
 function isRoundStyle(value: string | undefined): value is RoundStyle {

@@ -1,14 +1,9 @@
-import type { CrochetAst, RenderItem, SymbolRotation } from '../types';
-import {
-	CH_RING_COUNT,
-	CH_RING_RADIUS,
-	GROUP_FAN_ARC_DEG,
-	hasFixedOrientation,
-} from './constants';
+import type { CrochetAst, RenderItem } from '../types';
+import { CH_RING_COUNT, CH_RING_RADIUS, GROUP_FAN_ARC_DEG } from './constants';
 import { flattenGroup, type LayoutUnit } from './steps';
 
 export function pushCenterAnchor(ast: CrochetAst, items: RenderItem[]) {
-	const anchor = ast.rows[0]?.anchor;
+	const anchor = ast.rows[0]?.anchor ?? writtenAnchor(ast);
 	if (anchor === 'MR') {
 		items.push({ symbol: 'MR', x: 0, y: 0, rotation: 0 });
 	} else if (anchor === 'ch ring') {
@@ -30,26 +25,17 @@ export function placeUnitPolar(
 	unit: LayoutUnit,
 	radius: number,
 	phiDeg: number,
-	rotation: SymbolRotation,
 	rowIndex?: number,
 	unitIndex?: number,
 ) {
 	if (unit.type === 'StitchNode') {
-		items.push(polarItem(unit.stitch, radius, phiDeg, rotation, rowIndex, unitIndex, unit.color));
+		items.push(polarItem(unit.stitch, radius, phiDeg, rowIndex, unitIndex, unit.color));
 	} else {
 		const children = flattenGroup(unit);
 		const mid = (children.length - 1) / 2;
 		children.forEach((stitch, i) => {
 			items.push(
-				polarItem(
-					stitch,
-					radius,
-					phiDeg - (i - mid) * GROUP_FAN_ARC_DEG,
-					rotation,
-					rowIndex,
-					unitIndex,
-					unit.color,
-				),
+				polarItem(stitch, radius, phiDeg - (i - mid) * GROUP_FAN_ARC_DEG, rowIndex, unitIndex, unit.color),
 			);
 		});
 	}
@@ -59,7 +45,6 @@ function polarItem(
 	symbol: string,
 	radius: number,
 	phiDeg: number,
-	rotation: SymbolRotation,
 	rowIndex?: number,
 	unitIndex?: number,
 	color?: string,
@@ -69,20 +54,24 @@ function polarItem(
 		symbol,
 		x: radius * Math.cos(rad),
 		y: radius * Math.sin(rad),
-		rotation: symbolAngle(symbol, phiDeg, rotation),
+		rotation: symbolAngle(phiDeg),
 		rowIndex,
 		unitIndex,
 		color,
 	};
 }
 
-export function symbolAngle(
-	symbol: string,
-	phiDeg: number,
-	rotation: SymbolRotation,
-): number {
-	const outward = phiDeg + 90;
-	if (rotation === 'none') return 0;
-	if (rotation === 'all') return outward;
-	return hasFixedOrientation(symbol) ? 0 : outward;
+// Every symbol on a round or spiral chart faces outward, so its base sits
+// against the round below and its top faces the round above — which is how the
+// stitch is really worked, and what makes a back- or front-loop marker point at
+// the loop it means instead of at the bottom of the page.
+export // A first round may name its centre as a step ("R1: mr, ch, sc6, slst")
+// instead of as an anchor ("R1: 6 sc in MR"); both mean the same ring.
+function writtenAnchor(ast: CrochetAst): 'MR' | undefined {
+	const opens = ast.rows[0]?.steps[0];
+	return opens?.type === 'StitchNode' && opens.stitch === 'MR' ? 'MR' : undefined;
+}
+
+export function symbolAngle(phiDeg: number): number {
+	return phiDeg + 90;
 }

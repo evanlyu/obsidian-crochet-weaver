@@ -169,7 +169,7 @@ describe('stitch graph', () => {
 		const graph = graphOf('R1: 6 sc in MR\nR2: 6 sc, sl st\n');
 
 		expect(graph.rounds[1]?.stitches).toHaveLength(6);
-		expect(graph.rounds[1]?.join).toMatchObject({ stitch: 'sl st' });
+		expect(graph.rounds[1]?.end).toMatchObject([{ stitch: 'sl st' }]);
 	});
 
 	it('carries yarn color onto every stitch a step produced', () => {
@@ -267,7 +267,7 @@ describe('circular angle math', () => {
 	});
 
 	it('separates crowded stitches without reordering them', () => {
-		const placed = enforceOrderAndGap([0, -1, -2, -30], 10);
+		const placed = enforceOrderAndGap([0, -1, -2, -30], [10, 10, 10, 10]);
 
 		expect(placed).toHaveLength(4);
 		for (let i = 1; i < placed.length; i++) {
@@ -278,13 +278,13 @@ describe('circular angle math', () => {
 	});
 
 	it('leaves stitches that are already far enough apart exactly where they are', () => {
-		const placed = enforceOrderAndGap([0, -20, -40], 10);
+		const placed = enforceOrderAndGap([0, -20, -40], [10, 10, 10]);
 
 		[0, -20, -40].forEach((expected, i) => expect(placed[i]).toBeCloseTo(expected));
 	});
 
 	it('keeps the wrap-around gap when a round spans too much of the turn', () => {
-		const fitted = fitTurn([0, -120, -240, -358], 20);
+		const fitted = fitTurn([0, -120, -240, -358], [20, 20, 20, 20]);
 
 		expect((fitted[0] ?? 0) - (fitted[3] ?? 0)).toBeLessThanOrEqual(360 - 20 + 1e-9);
 		for (let i = 1; i < fitted.length; i++) {

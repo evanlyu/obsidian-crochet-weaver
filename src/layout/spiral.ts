@@ -25,7 +25,7 @@ export function layoutSpiral(ast: CrochetAst, options: LayoutOptions): LayoutRes
 		units.forEach((unit, unitIndex) => {
 			radius = BASE_RADIUS + (swept / 360) * options.ringSpacing;
 			const itemStart = items.length;
-			placeUnitPolar(items, unit, radius, phi, options.rotation, rowIndex, unitIndex);
+			placeUnitPolar(items, unit, radius, phi, rowIndex, unitIndex);
 			if (unit.color !== undefined && unit.color !== previousColor) {
 				const first = items[itemStart];
 				if (first) colorMarkers.push({ x: first.x, y: first.y, color: unit.color });

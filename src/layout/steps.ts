@@ -19,7 +19,8 @@ export function unroll(steps: AstNode[], colorState: ColorState = {}): LayoutUni
 		if (step.type === 'ColorChangeNode') {
 			colorState.current = step.color;
 		} else if (step.type === 'RepeatNode') {
-			for (let i = 0; i < step.count; i++) {
+			// count is filled in by resolveRepeats before the chart is read.
+			for (let i = 0; i < (step.count ?? 1); i++) {
 				result.push(...unroll(step.children, colorState));
 			}
 		} else if (step.type === 'StitchNode') {
@@ -55,6 +56,7 @@ export function outputStitches(unit: LayoutUnit): number {
 // else is worked into a single stitch.
 export function consumedStitches(unit: LayoutUnit): number {
 	if (unit.type === 'GroupNode') return 1;
+	if (NO_FABRIC_STITCH.has(unit.stitch)) return 0;
 	if (unit.stitch === 'dec') return 2;
 	const together = /(\d)tog$/.exec(unit.stitch);
 	return together ? Number(together[1]) : 1;
@@ -72,10 +74,44 @@ export function unitStitchCounts(row: RowNode): number[] {
 	return poppedUnits(row).map(outputStitches);
 }
 
+// What a round is made of, split into the three things a chart draws in order.
+//
+// A round usually opens with a turning chain and closes with a slip stitch
+// joining it back to its own start. Neither is a stitch of the fabric: nothing
+// is worked into them, they add nothing to the round's count, and the round
+// above does not work into them — but they are part of the pattern and have to
+// be drawn. Everything between them is the round's real stitches.
+//
+// Only the leading chain and the closing join are treated this way. A chain in
+// the middle of a round is a real stitch (it is what a shell or a lace mesh is
+// made of), and so is a slip stitch worked mid-round.
+export interface RoundInstructions {
+	start: LayoutUnit[];
+	stitches: LayoutUnit[];
+	end: LayoutUnit[];
+}
+
+export function roundInstructions(units: readonly LayoutUnit[]): RoundInstructions {
+	let first = 0;
+	while (first < units.length && opensRound(units[first])) first++;
+	let last = units.length;
+	while (last > first && isSlSt(units[last - 1])) last--;
+	return {
+		start: units.slice(0, first),
+		stitches: units.slice(first, last),
+		end: units.slice(last),
+	};
+}
+
+// The chain that starts a round, and the magic ring a first round is worked
+// into when it is written as a step ("R1: mr, ch, sc6, slst") rather than as
+// an anchor ("R1: 6 sc in MR").
+function opensRound(unit: LayoutUnit | undefined): boolean {
+	return unit?.type === 'StitchNode' && (unit.stitch === 'ch' || unit.stitch === 'MR');
+}
+
 function poppedUnits(row: RowNode): LayoutUnit[] {
-	const units = unroll(row.steps);
-	if (units.length > 1 && isSlSt(units[units.length - 1])) units.pop();
-	return units;
+	return roundInstructions(unroll(row.steps)).stitches;
 }
 
 export function isSlSt(unit: LayoutUnit | undefined): boolean {
@@ -87,6 +123,13 @@ export function tagLoop(items: RenderItem[], start: number, loop?: 'blo' | 'flo'
 	for (const item of items.slice(start)) item.loop = loop;
 }
 
+// Stitches of the fabric per written stitch. An increase makes two; a chain,
+// a slip stitch and the magic ring make none — they are worked, and drawn, but
+// nothing is worked into them and they add nothing for the next round to work
+// into.
+const NO_FABRIC_STITCH = new Set(['ch', 'sl st', 'MR']);
+
 function stitchWeight(stitch: string): number {
-	return stitch === 'inc' ? 2 : 1;
+	if (stitch === 'inc') return 2;
+	return NO_FABRIC_STITCH.has(stitch) ? 0 : 1;
 }

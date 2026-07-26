@@ -7,6 +7,7 @@ const OPTIONS: RenderOptions = {
 	scale: 1,
 	strokeWidth: 1.5,
 	highlightIncDec: true,
+	highlightColor: '#8b5cf6',
 	chartMarkerColor: '#1971c2',
 };
 
@@ -30,6 +31,7 @@ function shapedLayout(): LayoutResult {
 				kind: 'increase',
 				x: 20,
 				y: 15,
+				rotation: 0,
 				rowIndex: 1,
 				unitIndex: 0,
 				segments: [[{ x: 10, y: 10 }, { x: 20, y: 30 }, { x: 30, y: 10 }]],
@@ -353,6 +355,16 @@ describe('SVG rendering', () => {
 		expect(container.querySelector('use[href*="sym-inc"]')).toBeNull();
 	});
 
+	it('draws increases and decreases in the configured highlight color', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('dc2tog'), container, { ...OPTIONS, highlightColor: '#ff8800' });
+
+		const symbol = container.querySelector('use');
+		expect(symbol?.classList.contains('crochet-weaver-accent')).toBe(true);
+		expect(symbol?.getAttribute('style')).toContain('#ff8800');
+	});
+
 	it('accents shaping symbols only when increase/decrease highlighting is on', () => {
 		const highlighted = document.createElement('div');
 		renderSVG(shapedLayout(), highlighted, OPTIONS);
@@ -375,7 +387,8 @@ describe('SVG rendering', () => {
 		renderSVG(layout, container, OPTIONS);
 
 		const loopMark = container.querySelector('path[d="M -4 9 Q 0 13 4 9"]');
-		expect(loopMark?.getAttribute('transform')).toBe('translate(20 15)');
+		// Rotated with the mark, so the loop it means faces the round below.
+		expect(loopMark?.getAttribute('transform')).toBe('translate(20 15) rotate(0)');
 	});
 
 	it('highlights a shaping symbol together with the step that made it', () => {

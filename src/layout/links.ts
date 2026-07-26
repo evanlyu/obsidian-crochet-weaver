@@ -1,5 +1,6 @@
 import type { GridPoint, ShapingMark } from '../types';
 import { symbolExtent } from './constants';
+import { symbolAngle } from './polar';
 import type { GraphStitch, StitchMappingGroup } from './graph';
 
 // Connection points on a stitch symbol. Links start and end here rather than at
@@ -69,6 +70,7 @@ export function buildStitchLink(
 		// The link belongs to the stitches on the split side; its anchor is the
 		// middle of them, on their own round.
 		...midpoint(arms),
+		rotation: symbolAngle(splitLayout.angle),
 		rowIndex: group.roundIndex,
 		unitIndex: group.unitIndex,
 	};

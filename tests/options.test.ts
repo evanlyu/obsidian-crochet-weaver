@@ -6,12 +6,12 @@ import type { CrochetWeaverSettings } from '../src/settings';
 
 const SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
-	symbolRotation: 'smart',
 	roundChartStyle: 'standard',
 	scale: 1,
 	strokeWidth: 1.5,
 	ringSpacing: 30,
 	highlightIncDec: false,
+	highlightColor: '#8b5cf6',
 	chartMarkerColor: '#1971c2',
 	showTool: false,
 	showPatternText: false,
@@ -35,13 +35,13 @@ describe('chart option resolution', () => {
 		const options = resolveOptions(parseChart('R1: sc\n'), SETTINGS);
 
 		expect(options).toEqual({
-			rotation: 'smart',
 			roundStyle: 'standard',
 			ringSpacing: 30,
 			grid: false,
 			scale: 1,
 			strokeWidth: 1.5,
 			highlightIncDec: false,
+			highlightColor: '#8b5cf6',
 			chartMarkerColor: '#1971c2',
 		});
 	});
@@ -61,13 +61,13 @@ R1: sc
 		);
 
 		expect(options).toEqual({
-			rotation: 'all',
 			roundStyle: 'standard',
 			ringSpacing: 40,
 			grid: false,
 			scale: 1.25,
 			strokeWidth: 2,
 			highlightIncDec: true,
+			highlightColor: '#8b5cf6',
 			chartMarkerColor: '#1971c2',
 		});
 	});
@@ -87,13 +87,13 @@ R1: sc
 		);
 
 		expect(options).toEqual({
-			rotation: 'smart',
 			roundStyle: 'standard',
 			ringSpacing: 30,
 			grid: false,
 			scale: 1,
 			strokeWidth: 1.5,
 			highlightIncDec: false,
+			highlightColor: '#8b5cf6',
 			chartMarkerColor: '#1971c2',
 		});
 	});

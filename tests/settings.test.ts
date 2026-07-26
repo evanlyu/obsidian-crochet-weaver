@@ -77,13 +77,13 @@ describe('plugin settings', () => {
 			'strokeWidth',
 			'ringSpacing',
 			'highlightIncDec',
+			'highlightColor',
 			'chartMarkerColor',
 			'showTool',
 			'showPatternText',
 			'patternTextStyle',
 			'panelPosition',
 			'showGrid',
-			'symbolRotation',
 			'roundChartStyle',
 			'gridDefaultShape',
 			'gridDefaultRounds',
@@ -96,13 +96,13 @@ describe('plugin settings', () => {
 		const definitions = getLocalizedSettingDefinitions('ja');
 
 		expect(definitions[0]?.name).toBe('言語');
-		expect(definitions[5]?.name).toBe('チャートの現在位置マーカー色');
-		expect(definitions[6]?.name).toBe('進捗ツールを既定で表示');
-		expect(definitions[7]?.name).toBe('編み図テキストを既定で表示');
-		expect(definitions[8]?.name).toBe('パターン文字の表示方法');
-		expect(definitions[9]?.name).toBe('パネルの位置');
-		expect(definitions[10]?.name).toBe('背景の参考グリッドを表示');
-		expect(definitions[11]?.name).toBe('輪編み記号の回転');
+		expect(definitions[5]?.name).toBe('増し目・減らし目の色');
+		expect(definitions[6]?.name).toBe('チャートの現在位置マーカー色');
+		expect(definitions[7]?.name).toBe('進捗ツールを既定で表示');
+		expect(definitions[8]?.name).toBe('編み図テキストを既定で表示');
+		expect(definitions[9]?.name).toBe('パターン文字の表示方法');
+		expect(definitions[10]?.name).toBe('パネルの位置');
+		expect(definitions[11]?.name).toBe('背景の参考グリッドを表示');
 		expect(definitions[12]?.name).toBe('輪編みチャートのスタイル');
 		expect(definitions[13]?.name).toBe('グリッドの既定の形状');
 		expect(definitions[14]?.name).toBe('グリッドの既定の周数');

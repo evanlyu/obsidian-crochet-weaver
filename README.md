@@ -92,7 +92,6 @@ scale: 1.5
 stroke: 2
 spacing: 40
 highlight: on
-rotation: smart | all | none
 style: standard | book | linked
 tool: on | off
 text: on | off
@@ -163,11 +162,25 @@ Quantity prefixes are supported:
 R1: 10 ch, 6 sc
 ```
 
-Repeats use square brackets:
+Repeats use square brackets, written `x 6` or `rep 6` — both mean the same:
 
 ```crochet
 R2: [sc, inc] x 6
+R2: [sc, inc] rep 6
 ```
+
+A bare `rep` repeats the group until the round below is used up, so you don't have to count:
+
+```crochet
+R1: mr, ch, sc6, slst
+R2: ch, [2 sc, inc] rep, slst
+```
+
+Each go at `[2 sc, inc]` works into three stitches and R1 has six, so that is two goes. If the round below doesn't divide evenly the chart says so rather than guessing.
+
+A stitch's count can go either side of its name — `6 sc`, `sc6` and `sc 6` are the same — and a slip stitch may be written `sl st`, `slst`, `sl-st` or `sl_st`.
+
+The chain a round opens with and the slip stitch that closes it are drawn at the round's seam, but neither counts as a stitch of the round: the round above works into the stitches between them.
 
 Groups use parentheses and render as a fan from one stitch position — this is also how N-into-one increases and shells are written (there are no dedicated `2dc-in-1` names; `(dc, dc)` or `(5 dc)` draws exactly that chart symbol):
 
@@ -214,11 +227,13 @@ R2: [sc, inc] x 6, sl st
 
 `style: book` switches a round chart to Japanese-pattern-book styling: a continuous spiral guide winds through the rounds (as crochet-in-the-round really is one spiralling line), stepping out to the next round at each starting seam, with each round numbered in red at that seam.
 
-Shaping is drawn the way the books do it: as a symbol of its own round, in line with the plain stitches. An `inc` is a **V** whose point sits on the round's inner edge, in line with the stitch it is worked into, and whose two arms open out to the round's outer edge — one per stitch it makes, where the next round will be worked. A `dec` (or an `scNtog`) is the **∧**: its feet on each stitch it closed over, its point standing above them. Nothing floats in the gap between two rounds, and nothing is a fixed glyph — each mark is stretched to its round's band and to the real angles of the stitches it stands for, so it stays right at any zoom and leans or opens as the spacing requires.
+Shaping is drawn the way the books do it: as a symbol of its own round, in line with the plain stitches. An `inc` is a **V** whose point sits on the round's inner edge, in line with the stitch it is worked into, and whose two arms open out to the round's outer edge — one per stitch it makes, where the next round will be worked. A `dec` (or an `scNtog`) is the **∧**: its feet on each stitch it closed over, its point standing above them. Nothing floats in the gap between two rounds, and nothing is a fixed glyph: each mark is sized to its round's band and leans toward the stitches it belongs to. It opens far enough to reach across the stitches it belongs to, but never so far that it stops reading as a V: a decrease merging two stitches a long way apart on a big round still reaches toward both instead of stretching into two long lines.
 
 Underneath, every stitch is placed from the previous-round stitch it is worked into, and records it: an increase's two stitches share one source, a decrease's stitch has two. Stitches never change working order, never overlap, and share out whatever room the shaping leaves.
 
 `style: linked` uses that same layout and spells the correspondence out instead of printing it: every stitch keeps its own symbol — including **both** stitches an increase makes — and lines are drawn from them to the stitch below they are worked into. Useful for checking a pattern, or for reading a chart when you don't already know the book symbols.
+
+In both, nothing is grouped or packed: every stitch simply follows the stitch below it. A round written as a repeat — `[2 sc, inc] x 6` — still reads as six wedges, because its six increases sit above the six stitches they are worked into. A round that neither writes repeats nor shapes — the straight sides of a basket, `R9: 40 sc` — copies the round below exactly, so a run of plain rounds stacks into straight radial columns above whatever the shaping under it left.
 
 The default `style: standard` keeps the original evenly spread layout with the stock `inc`/`dec` glyphs; the global **Round chart style** setting changes the default for all charts.
 
@@ -315,19 +330,19 @@ Open the plugin settings tab to configure global defaults:
 - **Symbol stroke width**: SVG stroke width.
 - **Round spacing**: spacing between round or spiral rings.
 - **Highlight increases and decreases**: accent `inc` and `dec` stitches.
+- **Increase and decrease color**: the color those symbols are drawn in when the highlight above is on.
 - **Chart tool current-position color**: color used to highlight the current row/stitch on a chart with an embedded progress tool.
 - **Show progress tool by default**: embed the progress tool on every `crochet` chart unless overridden per chart with `tool: on/off`.
 - **Show pattern text by default**: embed the read-only pattern text on every `crochet` chart unless overridden per chart with `text: on/off`.
 - **Panel position**: default position (right / left / below) for an embedded tool or text panel, overridable per chart with `position:`.
 - **Show background grid guide**: draw the round/row reference guide behind every `crochet` chart by default, overridable per chart with `grid: on/off`.
-- **Round symbol rotation**: `smart`, `all`, or `none` rotation for round and spiral symbols.
 - **Round chart style**: `standard` (evenly spread stitches), `book` (round separators, parent-placed stitches, printed V/∧ shaping, and round numbers), or `linked` (same layout, every stitch drawn and joined by lines to the round below).
 - **Grid default shape**: `polar` or `rect` default for new `crochet-grid` blocks.
 - **Grid default rounds**: default ring count for a `polar` grid.
 - **Grid default columns**: default column/spoke count for a grid block.
 - **Grid default rows**: default row count for a `rect` grid.
 
-Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `rotation`, `style`, `tool`, `text`, `position`, `grid`). `chartMarkerColor` is global-only. `crochet-grid` blocks use their own config keys (`shape`, `rounds`, `columns`, `rows`, plus `scale`/`stroke`/`spacing`); the `grid` guide overlay on a real `crochet` chart adds `rounds`/`rows`/`columns` on top of that chart's own frontmatter, always as an extension of its real extent.
+Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `style`, `tool`, `text`, `position`, `grid`). `chartMarkerColor` is global-only. `crochet-grid` blocks use their own config keys (`shape`, `rounds`, `columns`, `rows`, plus `scale`/`stroke`/`spacing`); the `grid` guide overlay on a real `crochet` chart adds `rounds`/`rows`/`columns` on top of that chart's own frontmatter, always as an extension of its real extent.
 
 ## Safety Limits
 

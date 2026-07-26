@@ -1,41 +1,4 @@
-# crochet-pattern-syntax Specification
-
-## Purpose
-TBD - created by archiving change document-current-crochet-behavior. Update Purpose after archive.
-## Requirements
-### Requirement: Parse crochet code block documents
-The system SHALL parse a crochet pattern document into a `CrochetChart` AST with optional flat frontmatter configuration and one or more rows.
-
-#### Scenario: Pattern without frontmatter
-- **WHEN** a crochet document contains only valid row lines
-- **THEN** the parser SHALL return a chart AST whose config defaults to `type: flat`
-
-#### Scenario: Pattern with frontmatter
-- **WHEN** a crochet document starts with `---`, contains flat `key: value` lines, and closes with `---`
-- **THEN** the parser SHALL include those key/value pairs in the chart config while preserving `type: flat` when no explicit type is provided
-
-### Requirement: Accept row labels and row modifiers
-The system SHALL accept row labels written as `R<number>:` or `Row <number>:` and SHALL attach supported row-level modifiers to the row AST.
-
-#### Scenario: Short row label
-- **WHEN** a row starts with `R1:` followed by valid steps
-- **THEN** the parser SHALL create a row with `num` equal to `1`
-
-#### Scenario: Long row label
-- **WHEN** a row starts with `Row 12:` followed by valid steps
-- **THEN** the parser SHALL create a row with `num` equal to `12`
-
-#### Scenario: Loop modifier
-- **WHEN** a row includes `blo` or `flo` immediately after the row label
-- **THEN** the parser SHALL set the row loop modifier to `blo` or `flo`
-
-#### Scenario: Round anchor
-- **WHEN** a row ends with `in MR` or `in ch ring`
-- **THEN** the parser SHALL set the row anchor to `MR` or `ch ring`
-
-#### Scenario: Steps after the round anchor
-- **WHEN** a row contains additional steps after `in MR` or `in ch ring` (for example, a join written as `R1: 6 sc in MR, sl st`)
-- **THEN** the parser SHALL set the row anchor to `MR` or `ch ring` and SHALL append the steps written after the anchor to the row's step list
+## MODIFIED Requirements
 
 ### Requirement: Parse supported stitch instructions
 The system SHALL parse supported stitch names, quantities written on either side of the stitch name, repeat blocks with any supported count form, and grouped stitches into the AST.
@@ -91,24 +54,7 @@ The system SHALL reject malformed crochet syntax and surface a parse error to th
 - **WHEN** the first round of a pattern contains a bare `rep`
 - **THEN** the system SHALL raise a localized error stating that `rep` needs a round before it to work into
 
-### Requirement: Parse yarn color-change steps
-The system SHALL parse a `color` step — the keyword `color` (optionally followed by `:`), then a CSS color name or `#hex` code — as a step that sets the active yarn color for every following stitch, without itself producing a stitch node.
-
-#### Scenario: Named color
-- **WHEN** a step is written as `color white`
-- **THEN** the parser SHALL create a color-change node with color `white` and no width (it does not count as a stitch)
-
-#### Scenario: Hex color with optional colon
-- **WHEN** a step is written as `color: #ff8800`
-- **THEN** the parser SHALL create a color-change node with color `#ff8800`
-
-#### Scenario: Mid-row color change
-- **WHEN** a row is written as `8 sc, color white, 8 sc, color black, 8 sc`
-- **THEN** the parser SHALL create stitch nodes for each `sc` run and color-change nodes at the two color-switch points, preserving step order
-
-#### Scenario: Color word boundary
-- **WHEN** the input contains `colorwhite` with no separating space or colon
-- **THEN** the parser SHALL fail to parse it as a color-change step
+## ADDED Requirements
 
 ### Requirement: Infer a bare repeat count from the previous round
 The system SHALL accept a repeat block written with a bare `rep` (no count) — how a written pattern says "around" / "to end of round" — and SHALL resolve its count after parsing from the number of stitches the previous round leaves to work into, without modifying the pattern as written.
@@ -143,4 +89,3 @@ The system SHALL treat the chain a round opens with, a magic ring written as a s
 #### Scenario: Mid-round chain is a real stitch
 - **WHEN** a chain or slip stitch appears between other stitches of a round rather than at its start or end
 - **THEN** that stitch SHALL count toward the round's stitch total like any other stitch
-

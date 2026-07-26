@@ -86,11 +86,19 @@ ColorValue
 	= '#' hex:$([0-9a-fA-F]+) { return '#' + hex; }
 	/ $([a-zA-Z]+)
 
-// Repeat block: [sc, inc] x 6.
+// Repeat block: [sc, inc] x 6, or the same written "rep 6" / "rep6".
+// A bare "rep" repeats the group as many times as the previous round has
+// stitches to work into; count is null until that round is known (see
+// resolveRepeats), because the parser cannot see the round before this one.
 Repeat
-	= '[' _ inner:Steps _ ']' _ 'x'i _ count:Integer {
+	= '[' _ inner:Steps _ ']' _ count:RepeatCount {
 			return { type: 'RepeatNode', count: count, children: inner };
 		}
+
+RepeatCount
+	= 'x'i _ count:Integer { return count; }
+	/ 'rep'i _ count:Integer { return count; }
+	/ 'rep'i ![a-zA-Z0-9_] { return null; }
 
 // Group: multiple stitches worked into the same stitch, e.g. (dc, ch, dc).
 Group
@@ -98,11 +106,14 @@ Group
 			return { type: 'GroupNode', children: inner };
 		}
 
-// Basic stitch, optionally prefixed with a quantity: 10 ch.
-// The trailing negative lookahead is a word boundary so "chain" is not parsed as ch + ain.
+// Basic stitch with a quantity either side of the name: "10 ch", "ch10",
+// "ch 10" — pattern books write it all three ways. The trailing negative
+// lookahead is a word boundary so "chain" is not parsed as ch + ain; the
+// stitch names that contain digits ("dc2tog", "tr5cl") are matched by
+// StitchName first, so a suffix count can never eat part of one.
 Stitch
-	= count:Integer? _ name:StitchName ![a-zA-Z0-9_] {
-			return makeStitch(name, count);
+	= before:Integer? _ name:StitchName after:(_ n:Integer { return n; })? ![a-zA-Z0-9_] {
+			return makeStitch(name, after ?? before);
 		}
 
 // Ordered longest-first within each shared prefix: PEG never backtracks into a
@@ -110,8 +121,10 @@ Stitch
 // word-boundary lookahead fails the whole step with no retry. Compound names
 // ('hdc popcorn') and digit-containing names ('dc2tog', 'tr5cl') must all be
 // listed before the plain name they start with.
+// "sl st", "slst", "sl-st" and "sl_st" are the same stitch, normalized to the
+// one spelling the symbol library and the rest of the plugin use.
 StitchName
-	= 'sl' _ 'st' { return 'sl st'; }
+	= 'sl' [ \t_-]* 'st' { return 'sl st'; }
 	/ 'hdc' _ 'popcorn' { return 'hdc popcorn'; }
 	/ 'tr' _ 'popcorn' { return 'tr popcorn'; }
 	/ 'hdc2tog'

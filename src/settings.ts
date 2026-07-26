@@ -2,7 +2,7 @@ import { PluginSettingTab, Setting, type App, type ButtonComponent, type Setting
 import { AI_PATTERN_AUTHORING_DOCS } from './ai-doc-content';
 import { t, type Locale, type LanguagePreference, type TranslationKey } from './i18n';
 import type CrochetWeaverPlugin from './main';
-import type { GridShape, PanelPosition, PatternTextStyle, RoundStyle, SymbolRotation } from './types';
+import type { GridShape, PanelPosition, PatternTextStyle, RoundStyle } from './types';
 import {
 	getLocalizedSettingDefinitions,
 	GRID_COLUMNS_OPTIONS,
@@ -213,6 +213,18 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName(t(locale, 'settings.highlightColor.name'))
+			.setDesc(t(locale, 'settings.highlightColor.desc'))
+			.addColorPicker((picker) =>
+				picker
+					.setValue(this.plugin.settings.highlightColor)
+					.onChange(async (value) => {
+						this.plugin.settings.highlightColor = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
 			.setName(t(locale, 'settings.chartMarkerColor.name'))
 			.setDesc(t(locale, 'settings.chartMarkerColor.desc'))
 			.addColorPicker((picker) =>
@@ -285,21 +297,6 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.showGrid)
 					.onChange(async (value) => {
 						this.plugin.settings.showGrid = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.rotation.name'))
-			.setDesc(t(locale, 'settings.rotation.desc'))
-			.addDropdown((dd) =>
-				dd
-					.addOption('smart', t(locale, 'settings.rotation.smart'))
-					.addOption('all', t(locale, 'settings.rotation.all'))
-					.addOption('none', t(locale, 'settings.rotation.none'))
-					.setValue(this.plugin.settings.symbolRotation)
-					.onChange(async (value) => {
-						this.plugin.settings.symbolRotation = value as SymbolRotation;
 						await this.plugin.saveSettings();
 					}),
 			);

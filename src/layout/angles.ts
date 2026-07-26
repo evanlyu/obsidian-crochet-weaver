@@ -42,12 +42,21 @@ export function arcToDegrees(arcPx: number, radius: number): number {
 // movement away from the ancestry targets (its lowest-priority "displacement"
 // term). Targets are continuous degrees decreasing with stitch order; so is the
 // result, so a stitch can never overtake its neighbour.
-export function enforceOrderAndGap(targets: readonly number[], minGap: number): number[] {
-	// Flip to increasing coordinates and fold the required gap out of them
-	// (v_k = -angle_k - k * minGap). "Ordered and at least minGap apart" becomes
-	// plain "non-decreasing", which isotonic regression solves exactly.
-	const shifted = targets.map((target, k) => -target - k * minGap);
-	return isotonicFit(shifted).map((value, k) => -(value + k * minGap));
+export function enforceOrderAndGap(targets: readonly number[], minGaps: readonly number[]): number[] {
+	// Flip to increasing coordinates and fold the required gaps out of them
+	// (v_k = -angle_k - the gaps owed before k). "Ordered and at least that far
+	// apart" becomes plain "non-decreasing", which isotonic regression solves
+	// exactly.
+	const owed = cumulative(minGaps, targets.length);
+	const shifted = targets.map((target, k) => -target - (owed[k] ?? 0));
+	return isotonicFit(shifted).map((value, k) => -(value + (owed[k] ?? 0)));
+}
+
+// Running total of the gaps owed before each stitch.
+function cumulative(minGaps: readonly number[], count: number): number[] {
+	const owed = [0];
+	for (let k = 1; k < count; k++) owed.push((owed[k - 1] ?? 0) + (minGaps[k - 1] ?? 0));
+	return owed;
 }
 
 // Least-squares non-decreasing fit (pool adjacent violators).
@@ -75,47 +84,52 @@ function isotonicFit(values: readonly number[]): number[] {
 // stitch and the first must also be at least `minGap`. Any excess is squeezed
 // out of the roomiest gaps first (each gap keeps its minimum), so crowding is
 // shared rather than dumped on one pair of stitches.
-export function fitTurn(angles: readonly number[], minGap: number): number[] {
+export function fitTurn(angles: readonly number[], minGaps: readonly number[]): number[] {
 	const first = angles[0];
 	const last = angles[angles.length - 1];
 	if (first === undefined || last === undefined || angles.length < 2) return [...angles];
 
-	const maxSpan = 360 - minGap;
+	// The wrap-around gap is the one after the last stitch.
+	const maxSpan = 360 - (minGaps[angles.length - 1] ?? 0);
 	const span = first - last;
 	if (span <= maxSpan) return [...angles];
 
-	const gaps = angles.length - 1;
-	const slack = span - gaps * minGap;
-	const allowed = Math.max(0, maxSpan - gaps * minGap);
+	let owed = 0;
+	for (let k = 0; k + 1 < angles.length; k++) owed += minGaps[k] ?? 0;
+	const slack = span - owed;
+	const allowed = Math.max(0, maxSpan - owed);
 	const scale = slack > 0 ? allowed / slack : 0;
 
 	const fitted = [first];
 	for (let k = 1; k < angles.length; k++) {
 		const gap = (angles[k - 1] ?? 0) - (angles[k] ?? 0);
-		const kept = minGap + Math.max(0, gap - minGap) * scale;
-		fitted.push((fitted[k - 1] ?? 0) - kept);
+		const floor = minGaps[k - 1] ?? 0;
+		fitted.push((fitted[k - 1] ?? 0) - (floor + Math.max(0, gap - floor) * scale));
 	}
 	return fitted;
 }
 
-// How strongly one relaxation pass pulls a stitch toward the midpoint of its
-// neighbours. Deliberately gentle: even spacing is the lowest-priority goal.
+// How strongly one pass pulls a stitch toward the midpoint of its neighbours.
 const RELAX_WEIGHT = 0.4;
 
-// Final, bounded whole-round relaxation (the layout spec's last stage): plain
-// stitches drift toward the midpoint of their neighbours so the slack an
-// increase or decrease creates is shared across the stitches after it instead
-// of leaving one visible hole. Shaping stitches stay pinned — their position
-// carries meaning — and every stitch is clamped to `maxDrift` from its ancestry
-// target, so the round can never even itself out at the cost of the
-// previous-round correspondence. Order and spacing are re-imposed afterwards.
+// Spreads the round back out after its ancestry has placed it.
+//
+// Ancestry alone only ever makes a round less even: a stitch sits on the one it
+// is worked into, so wherever an increase squeezes a new pair in, that crowding
+// is inherited by every round above while the untouched gaps grow with the
+// radius — and the round ends up bunched on one side. Real fabric redistributes
+// instead. So plain stitches drift toward the midpoint of their neighbours,
+// while the stitches of an increase or decrease stay pinned (their position is
+// what says which stitch they belong to), and every stitch is held within
+// `maxDrift` of where its ancestry put it, so evening out can never cost the
+// correspondence. Order and spacing are re-imposed afterwards.
 export function relaxSpacing(
 	angles: readonly number[],
 	targets: readonly number[],
 	movable: readonly boolean[],
 	maxDrift: number,
-	minGap: number,
-	passes = 2,
+	minGaps: readonly number[],
+	passes = 3,
 ): number[] {
 	const count = angles.length;
 	if (count < 3 || maxDrift <= 0) return [...angles];
@@ -132,7 +146,7 @@ export function relaxSpacing(
 			const target = targets[k] ?? angle;
 			return Math.max(target - maxDrift, Math.min(target + maxDrift, moved));
 		});
-		current = fitTurn(enforceOrderAndGap(pulled, minGap), minGap);
+		current = fitTurn(enforceOrderAndGap(pulled, minGaps), minGaps);
 	}
 	return current;
 }

@@ -9,6 +9,7 @@ const RENDER_OPTIONS: RenderOptions = {
 	scale: 1,
 	strokeWidth: 1.5,
 	highlightIncDec: false,
+	highlightColor: '#8b5cf6',
 	chartMarkerColor: '#1971c2',
 };
 

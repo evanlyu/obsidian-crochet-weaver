@@ -1,5 +1,5 @@
 import type { CrochetAst } from '../types';
-import { consumedStitches, flattenGroup, isSlSt, unroll, type ColorState, type LayoutUnit } from './steps';
+import { consumedStitches, flattenGroup, roundInstructions, unroll, type ColorState, type LayoutUnit } from './steps';
 
 // The stitch graph: which previous-round stitch(es) every stitch of this round
 // is worked into.
@@ -79,8 +79,11 @@ export interface StitchRound {
 	num: number;
 	stitches: GraphStitch[];
 	groups: StitchMappingGroup[];
-	// Trailing "sl st" that closes the round: a join, not a stitch of its own.
-	join?: LayoutUnit;
+	// The chain that opens the round and the slip stitch that closes it:
+	// instructions of the round, drawn at its seam, but not stitches of the
+	// fabric (see roundInstructions).
+	start: LayoutUnit[];
+	end: LayoutUnit[];
 	loop?: 'blo' | 'flo';
 	// How many previous-round stitches this round works into in total. Equal to
 	// the previous round's stitch count in a well-formed pattern.
@@ -102,9 +105,7 @@ export function buildStitchGraph(ast: CrochetAst): StitchGraph {
 	let previous: GraphStitch[] = [];
 
 	ast.rows.forEach((row, roundIndex) => {
-		const units = unroll(row.steps, colorState);
-		const join = units.length > 1 && isSlSt(units[units.length - 1]) ? units.pop() : undefined;
-
+		const { start, stitches: units, end } = roundInstructions(unroll(row.steps, colorState));
 		const stitches: GraphStitch[] = [];
 		const groups: StitchMappingGroup[] = [];
 		// Counts previous-round stitches consumed so far. It is allowed to run
@@ -165,7 +166,8 @@ export function buildStitchGraph(ast: CrochetAst): StitchGraph {
 			num: row.num,
 			stitches,
 			groups,
-			join,
+			start,
+			end,
 			loop: row.loop,
 			consumed: slot,
 		});

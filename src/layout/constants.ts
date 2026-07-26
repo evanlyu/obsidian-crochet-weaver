@@ -27,8 +27,6 @@ export const COLOR_MARKER_RADIUS = 8;
 // bounding-box purposes.
 export const LABEL_EXTENT = 6;
 
-const FIXED_ORIENTATION = new Set(['sc', 'ch', 'sl st', 'MR', 'rsc']);
-
 const SYMBOL_EXTENT: Record<string, number> = {
 	'sl st': 3,
 	sc: 6,
@@ -77,10 +75,6 @@ const SYMBOL_EXTENT: Record<string, number> = {
 	'tr popcorn': 12,
 	dtr: 13,
 };
-
-export function hasFixedOrientation(symbol: string): boolean {
-	return FIXED_ORIENTATION.has(symbol);
-}
 
 export function symbolExtent(symbol: string): number {
 	return SYMBOL_EXTENT[symbol] ?? 8;

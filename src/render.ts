@@ -282,14 +282,14 @@ export function renderSVG(
 			path.setAttribute('stroke-width', String(options.strokeWidth));
 			path.setAttribute('stroke-linejoin', 'round');
 			path.setAttribute('stroke-linecap', 'round');
-			if (options.highlightIncDec) path.classList.add('crochet-weaver-accent');
+			if (options.highlightIncDec) accent(path, options.highlightColor);
 			applyCurrentPositionHighlight(path, mark.rowIndex, mark.unitIndex, highlight, options.chartMarkerColor);
 			svg.appendChild(path);
 		}
 		if (mark.loop) {
 			const loopMark = doc.createElementNS(SVG_NS, 'path');
 			loopMark.setAttribute('d', mark.loop === 'blo' ? BLO_MARK : FLO_MARK);
-			loopMark.setAttribute('transform', `translate(${mark.x} ${mark.y})`);
+			loopMark.setAttribute('transform', `translate(${mark.x} ${mark.y}) rotate(${mark.rotation})`);
 			loopMark.setAttribute('stroke', 'currentColor');
 			loopMark.setAttribute('stroke-width', String(options.strokeWidth));
 			loopMark.setAttribute('fill', 'none');
@@ -310,7 +310,7 @@ export function renderSVG(
 		// — which is what gets accented. Accenting the stitches too would put
 		// half an amigurumi chart in the accent color.
 		if (options.highlightIncDec && item.shaping === undefined && ACCENT_STITCHES.has(item.symbol)) {
-			symbolEl.classList.add('crochet-weaver-accent');
+			accent(symbolEl, options.highlightColor);
 		}
 		applyCurrentPositionHighlight(symbolEl, item.rowIndex, item.unitIndex, highlight, options.chartMarkerColor);
 		svg.appendChild(symbolEl);
@@ -348,6 +348,14 @@ function applyCurrentPositionHighlight(
 	const isTarget = highlight.unitIndex !== undefined && unitIndex === highlight.unitIndex;
 	node.classList.add(isTarget ? 'crochet-weaver-stitch-highlight' : 'crochet-weaver-row-highlight');
 	node.style.setProperty('color', chartMarkerColor);
+}
+
+// Increases and decreases in the configured highlight color. The class stays
+// on for anything styling them, with the color set inline so a chart follows
+// the setting rather than the theme's accent.
+function accent(node: SVGElement, color: string): void {
+	node.classList.add('crochet-weaver-accent');
+	node.style.setProperty('color', color);
 }
 
 function polylinePath(points: readonly GridPoint[]): string {

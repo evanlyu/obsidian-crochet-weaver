@@ -10,12 +10,12 @@ import type { ResolvedGridOptions } from '../src/types';
 
 const SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
-	symbolRotation: 'smart',
 	roundChartStyle: 'standard',
 	scale: 1,
 	strokeWidth: 1.5,
 	ringSpacing: 30,
 	highlightIncDec: false,
+	highlightColor: '#8b5cf6',
 	chartMarkerColor: '#1971c2',
 	showTool: false,
 	showPatternText: false,
