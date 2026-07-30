@@ -21,6 +21,7 @@ import { bandBoundaries, buildBandGuide } from './grid-guide';
 import { buildStitchLink } from './links';
 import { normalize } from './normalize';
 import { placeUnitPolar, pushCenterAnchor, symbolAngle } from './polar';
+import { placeSeam, seamGapDegrees, type SeamRegion } from './seam';
 import { tagLoop } from './steps';
 
 // Round charts laid out from the chart's stitch graph, in either of the two
@@ -51,18 +52,15 @@ const INCREASE_SPREAD_SHARE = 0.85;
 // on-screen distance keeps every V about as open as every other one.
 const MAX_INCREASE_SPREAD = 22;
 
-// How far the redistribution pass may move a plain stitch from where its
-// ancestry put it, as a share of the round's average stitch pitch.
+// How far the redistribution pass may move a plain stitch from where the round
+// was placed, as a share of the round's average stitch pitch. Small, because it
+// is spent again on every round: crowding closes up over the rounds above it,
+// which is how real fabric takes it up, rather than in one jump.
 const MAX_DRIFT_SHARE = 0.2;
 
 // Breathing room left between two neighbouring symbols, on top of the space
 // they actually occupy, in px.
 const SYMBOL_CLEARANCE = 2;
-
-// How much of a stitch's worth of the seam gap each instruction drawn there
-// takes. Under 1 so a chain and a join sit inside the gap the round already
-// leaves at its seam, rather than pushing the round's stitches apart.
-const SEAM_INSTRUCTION_SHARE = 0.55;
 
 // How far apart the two stitches of an increase sit, in px: the opening of the
 // V drawn across them, and no more — the pair is one symbol, so it takes one
@@ -113,13 +111,11 @@ export function layoutRoundGraph(
 		// A round is drawn as it is worked: the chain that opens it, then its
 		// stitches, then the slip stitch that closes it. The chain and the join
 		// sit at the seam — nothing is worked into them, so they take no place
-		// in the ring of stitches.
+		// in the ring of stitches, only a slot of the seam's own gap.
 		const start = items.length;
-		const seamAngle = seamOf(angles);
-		const seamStep = 360 / (round.stitches.length + round.start.length + round.end.length);
+		const seam = seamOf(round, angles, radius);
 		round.start.forEach((unit, index) => {
-			const at = seamAngle - (round.start.length - index) * seamStep * SEAM_INSTRUCTION_SHARE;
-			placeUnitPolar(items, unit, radius, at, round.roundIndex, undefined);
+			placeUnitPolar(items, unit, radius, seam.start[index] ?? seam.step, round.roundIndex, undefined);
 		});
 
 		for (const stitch of round.stitches) {
@@ -136,24 +132,23 @@ export function layoutRoundGraph(
 		}
 
 		round.end.forEach((unit, index) => {
-			const at = seamAngle + (index + 1) * seamStep * SEAM_INSTRUCTION_SHARE;
-			placeUnitPolar(items, unit, radius, at, round.roundIndex, undefined);
+			placeUnitPolar(items, unit, radius, seam.end[index] ?? seam.step, round.roundIndex, undefined);
 		});
 
 		tagLoop(items, start, round.loop);
 
-		// Round number in the seam gap, nudged inward when a join dot already
-		// occupies the gap at the ring radius itself.
-		const labelRadians = (seamAngle * Math.PI) / 180;
-		const labelRadius = round.end.length > 0 ? radius - options.ringSpacing * 0.35 : radius;
+		// Round number in its own slot of the seam gap, on the side the round
+		// opens — so it reads as numbering the round that starts at that step,
+		// with nothing drawn across it.
+		const labelRadians = (seam.label * Math.PI) / 180;
 		labels.push({
-			x: labelRadius * Math.cos(labelRadians),
-			y: labelRadius * Math.sin(labelRadians),
+			x: radius * Math.cos(labelRadians),
+			y: radius * Math.sin(labelRadians),
 			text: String(round.num),
 		});
 
 		roundRadii.push(radius);
-		seamAngles.push(seamAngle);
+		seamAngles.push(seam.step);
 		placed.push(round);
 		previousCount = round.stitches.length;
 		previousRound = round;
@@ -219,34 +214,56 @@ function placeRound(
 	const count = round.stitches.length;
 	const step = 360 / count;
 	const minGaps = minStitchGaps(round, radius, style).map((gap) => Math.min(step, gap));
+	// The gap after the last stitch is the seam, which has its own contents to
+	// hold (layout/seam.ts) and so is asked for by arc rather than by symbol.
+	minGaps[count - 1] = Math.max(
+		minGaps[count - 1] ?? 0,
+		seamGapDegrees(radius, round.start.length, round.end.length, step),
+	);
 	const parentAngles = previous?.stitches.map((stitch) => stitch.layout?.angle ?? 0) ?? [];
 
 	const targets =
 		parentAngles.length === 0 || !consumesPreviousRoundExactly(graph, round.roundIndex)
 			? evenTargets(round, parentAngles, step, count)
 			: ancestryTargets(round, parentAngles, step, radius);
-
-	// A round that only works one stitch into each of the round below has
-	// nothing to share out and nothing to group: every stitch belongs directly
-	// over the one it is worked into, and that is where it goes. Spreading such
-	// a round at all is what breaks the columns through the plain rounds of a
-	// piece — the straight sides of a basket, the body of a toy.
-	if (!shapesAnywhere(round)) return fitTurn(enforceOrderAndGap(targets, minGaps), minGaps);
-
-	// A round that shapes has to share out the room its new stitches took, or
-	// the crowding they cause is inherited by every round above and the piece
-	// ends up bunched on one side. Only the plain stitches move, and none of
-	// them by more than MAX_DRIFT_SHARE of a stitch.
 	const placed = fitTurn(enforceOrderAndGap(targets, minGaps), minGaps);
-	const movable = round.stitches.map((stitch) => stitch.shaping === 'normal');
-	return relaxSpacing(placed, targets, movable, step * MAX_DRIFT_SHARE, minGaps);
+
+	// An increase's two stitches sit closer together than the round's pitch —
+	// they are one symbol worked into one place — so the room they gave up shows
+	// up as a wider gap on either side of them, and ancestry alone hands that
+	// gap on to every round above unchanged. So a round evens out what it
+	// inherited: its stitches drift toward the midpoint of their neighbours, by
+	// no more than MAX_DRIFT_SHARE of a stitch each round, which closes the gap
+	// after an increase gradually over the rounds above it rather than all at
+	// once under it.
+	//
+	// A stitch is held where its ancestry put it when its position is what
+	// carries the correspondence: one an increase or decrease of this round
+	// produced, and one the next round works shaping into — the V or ∧ drawn
+	// there is aimed at where the stitch sits.
+	const pinned = pinnedByNextRound(graph, round.roundIndex);
+	const movable = round.stitches.map(
+		(stitch) => stitch.shaping === 'normal' && !pinned.has(stitch.id),
+	);
+	if (!movable.includes(true)) return placed;
+	return relaxSpacing(placed, movable, step * MAX_DRIFT_SHARE, minGaps);
 }
 
-// Does this round change the stitch count anywhere — an increase, a decrease,
-// stitches worked into one stitch? A round that does not is a plain copy of the
-// round below.
-function shapesAnywhere(round: StitchRound): boolean {
-	return round.stitches.some((stitch) => stitch.shaping !== 'normal');
+// The stitches of a round that the next round works something across: an
+// increase splitting one of them in two, or a decrease closing over two of them.
+// Whatever else the layout does, those keep the angle their ancestry gave them.
+function pinnedByNextRound(graph: StitchGraph, roundIndex: number): ReadonlySet<string> {
+	const pinned = new Set<string>();
+	for (let index = roundIndex + 1; index < graph.rounds.length; index++) {
+		const next = graph.rounds[index];
+		if (next === undefined || next.stitches.length === 0) continue;
+		for (const group of next.groups) {
+			if (group.sourceIds.length <= 1 && group.targetIds.length <= 1) continue;
+			for (const id of group.sourceIds) pinned.add(id);
+		}
+		break;
+	}
+	return pinned;
 }
 
 // How close each pair of neighbouring stitches may be drawn, one per gap
@@ -343,11 +360,13 @@ function parentAnglesOf(stitch: GraphStitch | undefined, parentAngles: readonly 
 	});
 }
 
-// Middle of the round's wrap-around gap: where the round ends and the next one
-// begins, which is where the round number and the guide's step out are drawn.
-function seamOf(angles: readonly number[]): number {
+// The round's wrap-around gap, laid out: where the round ends and the next one
+// begins, and where each thing drawn there goes (layout/seam.ts).
+function seamOf(round: StitchRound, angles: readonly number[], radius: number): SeamRegion {
 	const first = angles[0];
 	const last = angles[angles.length - 1];
-	if (first === undefined || last === undefined) return -90;
-	return (first + last - 360) / 2;
+	if (first === undefined || last === undefined) {
+		return { step: -90, label: -90, start: [], end: [] };
+	}
+	return placeSeam(last, first - 360, radius, round.start.length, round.end.length);
 }

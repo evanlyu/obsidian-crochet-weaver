@@ -71,6 +71,10 @@ The system SHALL lay out `type: round` charts as concentric rounds, and SHALL of
 - **WHEN** a round chart is drawn in `book` style
 - **THEN** one continuous guide SHALL wind through the rounds, stepping outward at each starting seam, with each round numbered at that seam
 
+#### Scenario: Round-change step stays near radial
+- **WHEN** the guide steps from one round's band out to the next
+- **THEN** both ends of that step SHALL be anchored on the seam of the round it steps into, separated by a gap measured as a length of arc rather than as an angle, so the step reads as a near-radial jog at every radius instead of flattening into a slant on the outer rounds
+
 ### Requirement: Support spiral chart layout
 The system SHALL lay out `type: spiral` charts as a continuous spiral path across all rows.
 
@@ -278,9 +282,13 @@ The system SHALL build a stitch graph from the pattern's own operations in which
 ### Requirement: Place round stitches from their ancestry
 The system SHALL position each stitch of a round from the stitch or stitches it is worked into rather than by spreading the round evenly, SHALL never reorder a round's stitches, and SHALL keep a minimum gap between neighboring symbols sized from what is actually drawn at that radius.
 
-#### Scenario: Plain round inherits its parents exactly
+#### Scenario: Plain round follows its parents, closing up what they left
 - **WHEN** a round has no shaping anywhere in it
-- **THEN** each of its stitches SHALL sit at the angle of the stitch it is worked into, so consecutive plain rounds stack into straight radial columns
+- **THEN** each of its stitches SHALL sit at the angle of the stitch it is worked into, give or take the fraction of a stitch it may drift to even out crowding inherited from shaping below, so consecutive plain rounds stack into columns that lean toward even spacing rather than carrying that crowding outward unchanged
+
+#### Scenario: A stitch the next round shapes across keeps its angle
+- **WHEN** the next round works an increase or a decrease into a stitch of this round
+- **THEN** that stitch SHALL keep the angle its ancestry gave it and SHALL not be moved by any evening-out pass, since the V or ∧ drawn there is aimed at where it sits
 
 #### Scenario: Shaping stitches sit with the stitches they belong to
 - **WHEN** a round contains increases or decreases
@@ -297,6 +305,12 @@ The system SHALL position each stitch of a round from the stitch or stitches it 
 #### Scenario: Round that cannot inherit an alignment
 - **WHEN** a round does not work into the round below exactly once for each of its stitches
 - **THEN** that round SHALL fall back to even spacing while still recording its real mapping
+
+#### Scenario: The seam keeps room of its own
+- **WHEN** a round of a graph-driven round chart is spaced
+- **THEN** the gap between its last stitch and its first SHALL be at least as wide as what is drawn at the seam needs — a slot each for the round's closing join, the step out to the next round, the round number, and the round's opening chain — so no stitch is drawn over any of them
+- **AND** those SHALL be laid out in that order from the closing side of the round to the opening side, putting the round number between the step and the round's first stitch
+- **AND** where the round leaves more room than the seam asked for, the extra SHALL sit either side of the seam's contents rather than to one side of them
 
 ### Requirement: Draw shaping as a symbol of its own round
 In `book` style the system SHALL draw an increase and a decrease as a mark belonging to its own round, in line with that round's plain stitches and inside that round's band, never as a mark floating in the gap between two rounds.

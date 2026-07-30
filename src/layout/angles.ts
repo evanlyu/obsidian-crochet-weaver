@@ -121,11 +121,21 @@ const RELAX_WEIGHT = 0.4;
 // instead. So plain stitches drift toward the midpoint of their neighbours,
 // while the stitches of an increase or decrease stay pinned (their position is
 // what says which stitch they belong to), and every stitch is held within
-// `maxDrift` of where its ancestry put it, so evening out can never cost the
+// `maxDrift` of where it started, so evening out can never cost the
 // correspondence. Order and spacing are re-imposed afterwards.
+//
+// `angles` is where the round was placed once order and spacing were imposed,
+// which is also what the drift is measured from — not the raw ancestry targets.
+// Those can ask for more of the ring than a turn holds, and holding a stitch
+// near an angle the round could not give it would only undo the fitting.
+//
+// The round is relaxed as an open run from its first stitch to its last, not as
+// a closed ring: the gap between those two is the seam (layout/seam.ts), which
+// is reserved room rather than spacing to even out. Pulling its neighbours
+// across it would drag them into the room kept for the round number and leave a
+// hole behind them.
 export function relaxSpacing(
 	angles: readonly number[],
-	targets: readonly number[],
 	movable: readonly boolean[],
 	maxDrift: number,
 	minGaps: readonly number[],
@@ -137,14 +147,15 @@ export function relaxSpacing(
 	let current = [...angles];
 	for (let pass = 0; pass < passes; pass++) {
 		const pulled = current.map((angle, k) => {
-			if (movable[k] !== true) return angle;
-			// Neighbours are cyclic: the stitch before the first one is the last
-			// stitch of the round, one lap up.
-			const before = k === 0 ? (current[count - 1] ?? angle) + 360 : (current[k - 1] ?? angle);
-			const after = k === count - 1 ? (current[0] ?? angle) - 360 : (current[k + 1] ?? angle);
+			// The first and last stitch have only the seam on their outer side, so
+			// they stay where their ancestry put them and the round evens out
+			// between them.
+			if (movable[k] !== true || k === 0 || k === count - 1) return angle;
+			const before = current[k - 1] ?? angle;
+			const after = current[k + 1] ?? angle;
 			const moved = angle + RELAX_WEIGHT * ((before + after) / 2 - angle);
-			const target = targets[k] ?? angle;
-			return Math.max(target - maxDrift, Math.min(target + maxDrift, moved));
+			const from = angles[k] ?? angle;
+			return Math.max(from - maxDrift, Math.min(from + maxDrift, moved));
 		});
 		current = fitTurn(enforceOrderAndGap(pulled, minGaps), minGaps);
 	}

@@ -586,10 +586,31 @@ describe('book-style round layout', () => {
 			);
 		}
 
-		// A round that only works one stitch into each of the round below has
-		// nothing to share out: every stitch belongs directly over the one it is
-		// worked into, and nothing may move it off that.
-		it('puts every stitch of a plain round directly over the one below it', () => {
+		// The gaps between neighbouring stitches, in px of arc, leaving out the
+		// seam — that gap is reserved room rather than spacing (see layout/seam.ts).
+		function pitchesOf(layout: LayoutResult, rowIndex: number): number[] {
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const radius = roundRadius(layout, center, rowIndex);
+			return gapsOf(layout, rowIndex)
+				.slice(0, -1)
+				.map((gap) => (gap * Math.PI * radius) / 180);
+		}
+
+		// How unevenly a round is spaced: the widest gap between neighbouring
+		// stitches over the narrowest.
+		function unevenness(layout: LayoutResult, rowIndex: number): number {
+			const pitches = pitchesOf(layout, rowIndex);
+			return Math.max(...pitches) / Math.min(...pitches);
+		}
+
+		// A plain round works one stitch into each of the round below, so every
+		// stitch belongs over the one it is worked into — but it also inherits that
+		// round's crowding, and an increase always leaves some: its two stitches
+		// take less room than two spread ones would, so the gaps beside them are
+		// wider. So a plain round evens out as it goes, by a fraction of a stitch
+		// each round, and never by enough to leave a stitch off its own.
+		it('evens out the crowding a plain round inherits without leaving its columns', () => {
 			const layout = calculateLayout(
 				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: 18 sc\n'),
 				LINKED,
@@ -597,30 +618,44 @@ describe('book-style round layout', () => {
 			const center = layout.items[0];
 			if (!center) throw new Error('expected MR center');
 			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+			const radius = roundRadius(layout, center, 3);
+			const pitch = (2 * Math.PI * radius) / round(layout, 3).length;
 
+			expect(unevenness(layout, 3)).toBeLessThan(unevenness(layout, 2));
 			for (const stitch of round(layout, 3)) {
 				const parent = byId.get(stitch.sourceStitchIds?.[0]);
 				if (!parent) throw new Error('expected the stitch below');
-				expect(angleDiff(angleOf(center, stitch), angleOf(center, parent))).toBeLessThan(0.01);
+				const drift = angleDiff(angleOf(center, stitch), angleOf(center, parent));
+				// MAX_DRIFT_SHARE: a fifth of a stitch, at most, per round.
+				expect((drift * Math.PI * radius) / 180).toBeLessThanOrEqual(pitch * 0.2);
 			}
 		});
 
-		it('keeps a whole run of plain rounds in the same columns', () => {
+		it('keeps a whole run of plain rounds in the same columns, closing up as it goes', () => {
 			let source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\n';
 			for (let round = 4; round <= 8; round++) source += `R${round}: 18 sc\n`;
 			const layout = calculateLayout(parseChart(source), LINKED);
 			const center = layout.items[0];
 			if (!center) throw new Error('expected MR center');
+			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
 
-			// However many plain rounds follow the shaping, they all keep the
-			// angles it left: the columns run straight out to the edge.
-			const angles = (rowIndex: number) => round(layout, rowIndex).map((item) => angleOf(center, item));
-			const shaped = angles(2);
+			// Every plain round is at least as even as the one below it, and none of
+			// them reorders or leaves the column it inherited: each stitch stays
+			// within a fraction of a stitch of the one it is worked into, so the
+			// columns lean in over the rounds rather than jumping.
 			for (let rowIndex = 3; rowIndex <= 7; rowIndex++) {
-				angles(rowIndex).forEach((angle, i) => {
-					expect(angleDiff(angle, shaped[i] ?? 0)).toBeLessThan(0.01);
-				});
+				expect(unevenness(layout, rowIndex)).toBeLessThanOrEqual(unevenness(layout, rowIndex - 1) + 1e-9);
+				const radius = roundRadius(layout, center, rowIndex);
+				const pitch = (2 * Math.PI * radius) / round(layout, rowIndex).length;
+				for (const stitch of round(layout, rowIndex)) {
+					const parent = byId.get(stitch.sourceStitchIds?.[0]);
+					if (!parent) throw new Error('expected the stitch below');
+					const drift = angleDiff(angleOf(center, stitch), angleOf(center, parent));
+					expect((drift * Math.PI * radius) / 180).toBeLessThanOrEqual(pitch * 0.2);
+				}
 			}
+			// And they do close up: by the last one the round is nearly even.
+			expect(unevenness(layout, 7)).toBeLessThan(unevenness(layout, 2) * 0.9);
 		});
 
 		// Closing the repeats up must not cost the correspondence: a stitch still
@@ -683,15 +718,21 @@ describe('book-style round layout', () => {
 			}
 		});
 
+		// Evenly, that is, around the part of the ring the stitches have: the seam
+		// keeps room of its own for the round number and the step out to the next
+		// round, so it is the one gap that is wider than a stitch's worth.
 		it('spreads a round evenly when it is all one group', () => {
 			const layout = calculateLayout(
 				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: 6 sc\n'),
 				LINKED,
 			);
 
-			for (const gaps of [gapsOf(layout, 0), gapsOf(layout, 1)]) {
+			for (const rowIndex of [0, 1]) {
+				const gaps = gapsOf(layout, rowIndex);
 				expect(gaps).toHaveLength(6);
-				for (const gap of gaps) expect(gap).toBeCloseTo(60);
+				const seam = gaps[gaps.length - 1] ?? 0;
+				for (const gap of gaps.slice(0, -1)) expect(gap).toBeCloseTo(gaps[0] ?? 0);
+				expect(seam).toBeGreaterThan(gaps[0] ?? 0);
 			}
 		});
 
@@ -705,7 +746,8 @@ describe('book-style round layout', () => {
 			const gaps = gapsOf(layout, 1);
 
 			expect(gaps).toHaveLength(12);
-			for (const gap of gaps) expect(gap).toBeCloseTo(30);
+			for (const gap of gaps.slice(0, -1)) expect(gap).toBeCloseTo(gaps[0] ?? 0);
+			expect(gaps[gaps.length - 1] ?? 0).toBeGreaterThan(gaps[0] ?? 0);
 		});
 	});
 
@@ -937,15 +979,18 @@ describe('book-style round layout', () => {
 		// R2's six increases each split one R1 parent into two children (the
 		// increases render as one V each, so their children only surface as
 		// R3's twelve plain sc). Each R3 pair 2i / 2i+1 descends from R1 stitch
-		// i and must straddle it symmetrically — the parent sits at the pair's
-		// midpoint.
+		// i and must straddle it — the parent sits at the pair's midpoint, give or
+		// take the fraction of a stitch R3 evens itself out by.
 		expect(round3).toHaveLength(12);
+		const radius = roundRadius(layout, center, 2);
+		const pitch = (2 * Math.PI * radius) / round3.length;
 		round1.forEach((parent, i) => {
 			const left = round3[2 * i];
 			const right = round3[2 * i + 1];
 			if (!left || !right) throw new Error('expected two grandchildren');
 			const mid = midAngle(angleOf(center, left), angleOf(center, right));
-			expect(angleDiff(angleOf(center, parent), mid)).toBeLessThan(0.01);
+			const off = (angleDiff(angleOf(center, parent), mid) * Math.PI * radius) / 180;
+			expect(off).toBeLessThanOrEqual(pitch * 0.2);
 		});
 	});
 
@@ -1077,6 +1122,97 @@ describe('book-style round layout', () => {
 			const layout = calculateLayout(parseChart('---\ntype: round\n---\nR1: 6 sc in MR\n'), LINKED);
 
 			expect(layout.shapingMarks).toBeUndefined();
+		});
+	});
+
+	// The seam is room of its own, not just wherever a round happened to end: the
+	// round's stitches leave it free, and what is drawn there is laid out inside
+	// it in the order the round is worked (see layout/seam.ts).
+	describe('the seam', () => {
+		const SOURCE =
+			'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: [2 sc, inc] x 6\nR5: 24 sc\n';
+		const ROUNDS = [0, 1, 2, 3, 4];
+
+		// Where the guide steps from one band out to the next: the points where its
+		// one continuous polyline jumps radius, in round order.
+		function guideSteps(layout: LayoutResult, center: GridPoint): { from: GridPoint; to: GridPoint }[] {
+			const polyline = layout.gridGuide?.polylines?.[0] ?? [];
+			const steps: { from: GridPoint; to: GridPoint }[] = [];
+			for (let i = 1; i < polyline.length; i++) {
+				const from = polyline[i - 1];
+				const to = polyline[i];
+				if (!from || !to) continue;
+				if (Math.abs(radiusOf(center, to) - radiusOf(center, from)) > 1) steps.push({ from, to });
+			}
+			return steps;
+		}
+
+		it('keeps room of its own at every round, with no stitch in it', () => {
+			// Linked style draws every stitch, so the gap the round really left at
+			// its seam can be read straight off the chart.
+			const layout = calculateLayout(parseChart(SOURCE), { ...OPTIONS, roundStyle: 'linked' });
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			for (const rowIndex of ROUNDS) {
+				const label = layout.labels?.[rowIndex];
+				if (!label) throw new Error(`expected round ${rowIndex} to be numbered`);
+				const stitches = round(layout, rowIndex);
+				const radius = roundRadius(layout, center, rowIndex);
+				const arc = (deg: number) => (deg * Math.PI * radius) / 180;
+				const gaps = stitches.map((stitch, i) =>
+					arc(clockwiseDelta(angleOf(center, stitch), angleOf(center, stitches[(i + 1) % stitches.length] ?? stitch))),
+				);
+				const seam = gaps[gaps.length - 1] ?? 0;
+
+				// Room for the round number and the step out, and so wider than any
+				// gap the round leaves between two stitches.
+				expect(seam).toBeGreaterThan(24);
+				expect(seam).toBeGreaterThan(Math.max(...gaps.slice(0, -1)));
+				// Half a round number plus half a stitch symbol: enough that the two
+				// cannot touch, whichever digits the number has.
+				const nearest = Math.min(
+					...stitches.map((stitch) => arc(angleDiff(angleOf(center, stitch), angleOf(center, label)))),
+				);
+				expect(nearest).toBeGreaterThan(10);
+			}
+		});
+
+		it("numbers each round between the round-change step and the round's first stitch", () => {
+			const layout = calculateLayout(parseChart(SOURCE), BOOK);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const steps = guideSteps(layout, center);
+			expect(steps).toHaveLength(ROUNDS.length);
+
+			for (const rowIndex of ROUNDS) {
+				const label = layout.labels?.[rowIndex];
+				const step = steps[rowIndex];
+				const first = roundSteps(layout, rowIndex)[0];
+				if (!label || !step || !first) throw new Error(`expected round ${rowIndex} to be complete`);
+
+				// Working order runs clockwise here, so from the step the round number
+				// comes first and the round's own stitches only after it.
+				const toLabel = clockwiseDelta(angleOf(center, step.to), angleOf(center, label));
+				const toFirst = clockwiseDelta(angleOf(center, step.to), angleOf(center, first));
+				expect(toLabel).toBeGreaterThan(0);
+				expect(toLabel).toBeLessThan(toFirst);
+			}
+		});
+
+		it('steps out to the next round near radially, however large the round', () => {
+			const layout = calculateLayout(parseChart(SOURCE), BOOK);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			for (const { from, to } of guideSteps(layout, center)) {
+				const radial = radiusOf(center, to) - radiusOf(center, from);
+				const mean = (radiusOf(center, to) + radiusOf(center, from)) / 2;
+				const across =
+					(((angleOf(center, to) - angleOf(center, from) + 540) % 360) - 180) * (Math.PI / 180) * mean;
+				const fromRing = (Math.atan2(Math.abs(radial), Math.abs(across)) * 180) / Math.PI;
+				expect(fromRing).toBeGreaterThan(70);
+			}
 		});
 	});
 
