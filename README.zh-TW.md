@@ -15,7 +15,7 @@ Crochet Weaver 會把文字織圖轉換成 Obsidian 筆記中的鉤針織圖。�
 - **可直接把進度工具或唯讀簡碼文字嵌入 `crochet` 織圖旁邊**（`tool: on` / `text: on`），不用再把同一份織圖複製貼上到兩個程式碼區塊。
 - **嵌入進度工具時，會在織圖上即時標示目前所在圈與目標針**，顏色可自訂。
 - **用 `color <顏色>` 步驟標記換線**，可在行中或整圈換色──織圖會在每次換色的第一針畫一個該顏色的小圓圈（不會把針目本身重新上色），工具／文字面板也會直接寫出「換成 `<顏色>`」。
-- **織圖文字可切換成完整翻譯的易讀樣式**（`readable: on`），不用看縮寫──例如顯示「短針6」而不是「6 sc」，支援所有四種語言。
+- **織圖文字可切換成完整翻譯的易讀樣式**（`readable: on`），不用看縮寫──例如顯示「短針6」而不是「6 sc」，介面支援的八種語言都可以。
 - **超出筆記寬度的織圖可以拖曳／捲動**，不會被硬擠小──用滑鼠拖曳，或用觸控／觸控板的原生捲動；超出範圍時預設會置中顯示。
 - **可以直接在外掛設定頁面複製 AI 織圖撰寫參考文件**，支援四種語言，方便直接貼進 AI 對話請它幫忙轉換或撰寫織圖。
 - 所有進度都儲存在本機的外掛資料檔中。
@@ -77,6 +77,47 @@ R3: [2 sc, inc] x 6, sl st
 ```
 
 想讓進度在修改織圖文字後仍然保留，請設定明確的 `id`。若省略 `id`，Crochet Weaver 會用區塊內容產生本機雜湊值，因此修改區塊內容可能會重設進度。
+
+## 讓 AI 幫你寫織圖
+
+你不需要學語法也能用這個外掛。把 **crochet-weaver-pattern skill** 交給 AI 助理一次，之後給它任何文字織圖──書上的、PDF、賣場說明，或你自己的速記──再把它回覆的內容貼回筆記就好。
+
+1. **複製 skill。** 設定 → Crochet Weaver → **複製織圖 skill**，按下你要的語言（English、繁體中文、简体中文、日本語）。
+2. **開一個對話**（Claude、ChatGPT，你慣用的都可以），把 skill 當成第一則訊息貼進去。它自成一體，不用另外安裝或下載任何東西。
+3. **貼上你的織圖**並說明你要什麼。例如：
+
+    > 這是一隻兔子頭部的織圖，請幫我轉成一個 Crochet Weaver 的 `crochet` 區塊，`type: round`，並打開進度工具。
+    >
+    > R1: 魔術環起 6 短針（6）
+    > R2: 每針加針（12）
+    > R3:（1 短針、加針）重複一圈（18）
+    > R4–R6: 一圈短針（18）
+    > R7:（1 短針、減針）重複一圈（12）
+
+4. **把它回覆的區塊貼進筆記**，切到閱讀或即時預覽模式：
+
+    ````markdown
+    ```crochet
+    ---
+    type: round
+    tool: on
+    id: bunny-head
+    ---
+    R1: 6 sc in MR
+    R2: [inc] x 6
+    R3: [sc, inc] x 6
+    R4: 18 sc
+    R5: 18 sc
+    R6: 18 sc
+    R7: [sc, dec] x 6
+    ```
+    ````
+
+5. **動手鉤之前先核對。** 圖表和行列表都是照 AI 寫的內容產生的，所以請用進度面板上的針數對一次原文自己標的 `(N)`。哪一行不對就直接在對話裡說──skill 已經告訴 AI 針數怎麼算，通常講一句「R7 結束應該是 12 針」就會修好。
+
+**用 Claude Code？** 把 [`skills/crochet-weaver-pattern/`](skills/crochet-weaver-pattern/) 放進專案或家目錄的 `.claude/skills/`，之後貼上鉤織織圖時它會自己載入。
+
+**遇到轉不出來的東西**，skill 要求 AI 直接說出來而不是硬猜──例如不支援的針法，或本來就沒有圖面意義的指示。這些提醒值得看：一張「看起來正常」卻少了一針的圖，比一句「我沒辦法轉」更麻煩。
 
 ## 織圖語法
 
@@ -325,7 +366,7 @@ R4: [2 sc, inc] x 6, sl st
 
 開啟外掛設定頁可以調整以下全域預設值：
 
-- **語言**：跟隨 Obsidian，或選擇英文、繁體中文、簡體中文、日文。
+- **語言**：跟隨 Obsidian，或從八種語言中選擇──英文、繁體中文、簡體中文、日文、韓文、德文、法文、西班牙文。針法名稱與所有訊息在八種語言都有翻譯；AI 織圖撰寫參考文件目前為前四種語言。
 - **整體大小**：織圖的顯示倍數。
 - **符號線條粗細**：SVG 線條寬度。
 - **環織圈距**：同心圓環織／螺旋每圈之間的間距。
@@ -395,11 +436,11 @@ npm run build
 npm run lint
 ```
 
-解析器是由 `src/grammar.peggy` 產生至 `src/parser.ts`。請勿手動編輯 `src/parser.ts`。
+解析器是由 `src/pattern/grammar.peggy` 產生至 `src/pattern/parser.ts`。請勿手動編輯產生出來的檔案。
 
 ### 使用 AI 協助撰寫織圖
 
-如果你想請 AI 助理幫忙把織圖轉換成 Crochet Weaver 語法，可以參考 [`docs/ai-pattern-authoring.zh-TW.md`](docs/ai-pattern-authoring.zh-TW.md)——一份專為此用途撰寫、可獨立使用的語法參考文件，也提供 [English](docs/ai-pattern-authoring.md)、[简体中文](docs/ai-pattern-authoring.zh-CN.md)、[日本語](docs/ai-pattern-authoring.ja.md) 版本。也可以直接在外掛設定頁面複製這份文件的內容（設定 →「複製提供給 AI 的說明」）。也提供現成的 Claude Code skill：[`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/)。
+AI 助理需要的知識放在 [`skills/crochet-weaver-pattern/`](skills/crochet-weaver-pattern/)──`SKILL.md` 以及 `.zh-TW`、`.zh-CN`、`.ja` 版本。使用流程請見〈讓 AI 幫你寫織圖〉。修改 SKILL 檔之後請執行 `npm run generate-skill`，讓外掛內嵌的那份（`src/skill-content.ts`）跟著更新；build、測試與 lint 都會先跑一次，並有測試逐位元比對兩者。
 
 ## 手動安裝
 

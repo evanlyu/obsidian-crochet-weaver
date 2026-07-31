@@ -1,4 +1,4 @@
-import { isLocalizedError, t, type Locale } from './i18n';
+import { isLocalizedError, t, type Locale } from '../i18n';
 
 interface ParseErrorLocation {
 	readonly location?: {

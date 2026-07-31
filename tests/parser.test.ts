@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '../src/parser';
+import { parse } from '../src/pattern/parser';
 import type { AstNode, CrochetAst, GroupNode, RepeatNode } from '../src/types';
 
 function parseChart(source: string): CrochetAst {

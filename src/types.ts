@@ -172,6 +172,19 @@ export interface GridPoint {
 	y: number;
 }
 
+export interface GridCircle {
+	cx: number;
+	cy: number;
+	r: number;
+}
+
+export interface GridLine {
+	x1: number;
+	y1: number;
+	x2: number;
+	y2: number;
+}
+
 // A background reference layer drawn behind a chart's real stitches: round
 // guide rings/spokes for round and spiral charts, or a row/column mesh for
 // flat charts. Shares its shape with the standalone crochet-grid block's
@@ -222,46 +235,4 @@ export interface RenderOptions {
 	// Color the increase and decrease symbols take when highlightIncDec is on.
 	highlightColor: string;
 	chartMarkerColor: string;
-}
-
-// --- Blank drafting grid (crochet-grid block) ---
-// A grid has no stitches; it is pure guide geometry sized by counts, not
-// parsed pattern rows, so it uses its own small config/options/layout shapes
-// instead of CrochetAst/LayoutOptions/LayoutResult.
-
-export type GridShape = 'polar' | 'rect';
-
-// Flat key:value config parsed from a crochet-grid block, mirroring how
-// CrochetConfig's frontmatter values are always raw strings until resolved.
-export type GridConfig = Record<string, string>;
-
-// Grid options resolved from global settings and per-block config.
-export interface ResolvedGridOptions {
-	shape: GridShape;
-	rounds: number;
-	columns: number;
-	rows: number;
-	scale: number;
-	strokeWidth: number;
-	ringSpacing: number;
-}
-
-export interface GridCircle {
-	cx: number;
-	cy: number;
-	r: number;
-}
-
-export interface GridLine {
-	x1: number;
-	y1: number;
-	x2: number;
-	y2: number;
-}
-
-export interface GridLayoutResult {
-	width: number;
-	height: number;
-	circles: readonly GridCircle[];
-	lines: readonly GridLine[];
 }

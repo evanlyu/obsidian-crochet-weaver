@@ -4,9 +4,9 @@ import type {
 	PanelPosition,
 	PatternTextStyle,
 	RenderOptions,
-} from './types';
-import { parseRoundStyle } from './settings-data';
-import type { CrochetWeaverSettings } from './settings';
+} from '../types';
+import { parseRoundStyle } from '../settings/data';
+import type { CrochetWeaverSettings } from '../settings/tab';
 
 export type ResolvedOptions = RenderOptions & LayoutOptions;
 

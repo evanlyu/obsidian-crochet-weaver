@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { GRID_GUIDE_BUDGET, validateChartBudget, validateGridGuideBudget } from '../src/budget';
+import { GRID_GUIDE_BUDGET, validateChartBudget, validateGridGuideBudget } from '../src/pattern/budget';
 import { calculateLayout } from '../src/layout';
-import { parse } from '../src/parser';
-import { renderCrochetTool } from '../src/tool';
+import { parse } from '../src/pattern/parser';
+import { renderCrochetTool } from '../src/panel/tool';
 import type { CrochetAst } from '../src/types';
 
 const OPTIONS = {

@@ -14,7 +14,7 @@ import {
 	validateStitchGraph,
 	type StitchGraph,
 } from '../src/layout/graph';
-import { parse } from '../src/parser';
+import { parse } from '../src/pattern/parser';
 import type { CrochetAst } from '../src/types';
 
 function graphOf(source: string): StitchGraph {

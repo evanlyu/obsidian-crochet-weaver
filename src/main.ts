@@ -1,10 +1,10 @@
 import { getLanguage, Plugin, type Editor } from 'obsidian';
-import { parseChart } from './parse-chart';
+import { parseChart } from './pattern/parse-chart';
 import type { PatternTextStyle } from './types';
-import { validateChartBudget, validateGridGuideBudget } from './budget';
+import { validateChartBudget, validateGridGuideBudget } from './pattern/budget';
 import { calculateLayout } from './layout';
-import { renderCrochetTool } from './tool';
-import { renderCrochetError } from './errors';
+import { renderCrochetTool } from './panel/tool';
+import { renderCrochetError } from './pattern/errors';
 import { renderGridError } from './grid/errors';
 import { parseGridConfig } from './grid/parse';
 import { resolveGridOptions } from './grid/options';
@@ -12,14 +12,14 @@ import { validateGridBudget } from './grid/budget';
 import { calculateGridLayout } from './grid/layout';
 import { renderGrid } from './grid/render';
 import { resolveLocale, t, type Locale } from './i18n';
-import { resolveOptions, resolvePanelOptions } from './options';
-import { isSafeProgressId } from './progress-id';
-import { renderEmbeddedChart } from './embed';
+import { resolveOptions, resolvePanelOptions } from './settings/options';
+import { isSafeProgressId } from './panel/progress-id';
+import { renderEmbeddedChart } from './panel/embed';
 import {
 	CrochetWeaverSettingTab,
 	normalizeSettings,
 	type CrochetWeaverSettings,
-} from './settings';
+} from './settings/tab';
 
 export default class CrochetWeaverPlugin extends Plugin {
 	settings!: CrochetWeaverSettings;

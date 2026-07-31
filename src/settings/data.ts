@@ -3,9 +3,10 @@ import {
 	t,
 	type LanguagePreference,
 	type Locale,
-} from './i18n';
-import { isSafeProgressId } from './progress-id';
-import type { GridShape, PanelPosition, PatternTextStyle, RoundStyle } from './types';
+} from '../i18n';
+import { isSafeProgressId } from '../panel/progress-id';
+import type { PanelPosition, PatternTextStyle, RoundStyle } from '../types';
+import type { GridShape } from '../grid/types';
 
 export interface CrochetWeaverSettings {
 	languagePreference: LanguagePreference;
@@ -367,6 +368,10 @@ function languageOptions(locale: Locale): Record<LanguagePreference, string> {
 		'zh-TW': t(locale, 'settings.language.zhTW'),
 		'zh-CN': t(locale, 'settings.language.zhCN'),
 		ja: t(locale, 'settings.language.ja'),
+		ko: t(locale, 'settings.language.ko'),
+		de: t(locale, 'settings.language.de'),
+		fr: t(locale, 'settings.language.fr'),
+		es: t(locale, 'settings.language.es'),
 	};
 }
 

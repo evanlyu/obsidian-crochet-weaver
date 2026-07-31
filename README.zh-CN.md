@@ -15,7 +15,7 @@ Crochet Weaver 会把文字织图转换成 Obsidian 笔记中的钩针织图。�
 - **可以直接把进度工具或只读简码文字嵌入到 `crochet` 织图旁边**（`tool: on` / `text: on`），不用再把同一份织图复制到两个代码块中。
 - **嵌入进度工具时，会在织图上实时标示当前所在圈与目标针**，颜色可自定义。
 - **用 `color <颜色>` 步骤标记换线**，可以在行中间或整圈换色——织图会在每次换色的第一针画一个该颜色的小圆圈（不会把针目本身重新上色），进度工具／文字面板也会直接写出“换成 `<颜色>`”。
-- **织图文字可以切换成完整翻译的易读样式**（`readable: on`），不用看缩写——例如显示“短针6”而不是“6 sc”，支持全部四种语言。
+- **织图文字可以切换成完整翻译的易读样式**（`readable: on`），不用看缩写——例如显示“短针6”而不是“6 sc”，界面支持的八种语言都可以。
 - **超出笔记宽度的织图可以拖拽／滚动**，不会被强行压缩——用鼠标拖拽，或使用触控／触控板的原生滚动；超出范围时默认居中显示。
 - **可以直接在插件设置页面复制 AI 织图撰写参考文档**，支持四种语言，方便直接粘贴进 AI 对话请它帮忙转换或撰写织图。
 - 所有进度都存储在本机的插件数据文件中。
@@ -77,6 +77,47 @@ R3: [2 sc, inc] x 6, sl st
 ```
 
 想让进度在修改织图文字后依然保留，请设置明确的 `id`。若省略 `id`，Crochet Weaver 会用代码块内容生成本机哈希值，因此修改代码块内容可能会重置进度。
+
+## 让 AI 帮你写织图
+
+你不需要学语法也能用这个插件。把 **crochet-weaver-pattern skill** 交给 AI 助手一次，之后给它任何文字织图——书上的、PDF、商品说明，或者你自己的速记——再把它回复的内容贴回笔记就好。
+
+1. **复制 skill。** 设置 → Crochet Weaver → **复制织图 skill**，按下你要的语言（English、繁體中文、简体中文、日本語）。
+2. **开一个对话**（Claude、ChatGPT，你习惯用的都可以），把 skill 当作第一条消息粘贴进去。它自成一体，不用另外安装或下载任何东西。
+3. **贴上你的织图**并说明你要什么。例如：
+
+    > 这是一只兔子头部的织图，请帮我转成一个 Crochet Weaver 的 `crochet` 代码块，`type: round`，并打开进度工具。
+    >
+    > R1: 魔术环起 6 短针（6）
+    > R2: 每针加针（12）
+    > R3:（1 短针、加针）重复一圈（18）
+    > R4–R6: 一圈短针（18）
+    > R7:（1 短针、减针）重复一圈（12）
+
+4. **把它回复的代码块贴进笔记**，切到阅读或实时预览模式：
+
+    ````markdown
+    ```crochet
+    ---
+    type: round
+    tool: on
+    id: bunny-head
+    ---
+    R1: 6 sc in MR
+    R2: [inc] x 6
+    R3: [sc, inc] x 6
+    R4: 18 sc
+    R5: 18 sc
+    R6: 18 sc
+    R7: [sc, dec] x 6
+    ```
+    ````
+
+5. **动手钩之前先核对。** 图表和行列表都是照 AI 写的内容生成的，所以请用进度面板上的针数对一次原文自己标的 `(N)`。哪一行不对就直接在对话里说——skill 已经告诉 AI 针数怎么算，通常一句“R7 结束应该是 12 针”就会修好。
+
+**用 Claude Code？** 把 [`skills/crochet-weaver-pattern/`](skills/crochet-weaver-pattern/) 放进项目或用户目录的 `.claude/skills/`，之后贴上钩织织图时它会自己加载。
+
+**遇到转不出来的内容**，skill 要求 AI 直接说出来而不是硬猜——例如不支持的针法，或本来就没有图面意义的指示。这些提醒值得看：一张“看起来正常”却少了一针的图，比一句“我没法转”更麻烦。
 
 ## 织图语法
 
@@ -315,7 +356,7 @@ R4: [2 sc, inc] x 6, sl st
 
 打开插件设置页可以调整以下全局默认值：
 
-- **语言**：跟随 Obsidian，或选择英文、繁体中文、简体中文、日文。
+- **语言**：跟随 Obsidian，或从八种语言中选择——英文、繁体中文、简体中文、日文、韩文、德文、法文、西班牙文。针法名称与所有消息在八种语言都有翻译；AI 织图撰写参考文档目前为前四种语言。
 - **整体大小**：织图的显示倍数。
 - **符号线条粗细**：SVG 线条宽度。
 - **环织圈距**：同心圆环织／螺旋每圈之间的间距。
@@ -385,11 +426,11 @@ npm run build
 npm run lint
 ```
 
-解析器由 `src/grammar.peggy` 生成至 `src/parser.ts`。请勿手动编辑 `src/parser.ts`。
+解析器由 `src/pattern/grammar.peggy` 生成至 `src/pattern/parser.ts`。请勿手动编辑生成出来的文件。
 
 ### 使用 AI 协助编写织图
 
-如果你想请 AI 助手帮忙把织图转换成 Crochet Weaver 语法，可以参考 [`docs/ai-pattern-authoring.zh-CN.md`](docs/ai-pattern-authoring.zh-CN.md)——一份专为此用途编写、可独立使用的语法参考文档，也提供 [English](docs/ai-pattern-authoring.md)、[繁體中文](docs/ai-pattern-authoring.zh-TW.md)、[日本語](docs/ai-pattern-authoring.ja.md) 版本。也可以直接在插件设置页面复制这份文档的内容（设置 →“复制提供给 AI 的说明”）。也提供现成的 Claude Code skill：[`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/)。
+AI 助手需要的知识放在 [`skills/crochet-weaver-pattern/`](skills/crochet-weaver-pattern/)——`SKILL.md` 以及 `.zh-TW`、`.zh-CN`、`.ja` 版本。使用流程请见《让 AI 帮你写织图》。修改 SKILL 文件之后请执行 `npm run generate-skill`，让插件内嵌的那份（`src/skill-content.ts`）跟着更新；build、测试与 lint 都会先跑一次，并有测试逐字节比对两者。
 
 ## 手动安装
 

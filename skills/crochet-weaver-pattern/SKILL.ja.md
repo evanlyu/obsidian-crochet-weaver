@@ -1,10 +1,28 @@
-# Crochet Weaver — AI 向け編み図作成リファレンス
+---
+name: crochet-weaver-pattern
+description: 本・PDF・ウェブサイト・メモの文章編み図を、Obsidian プラグイン Crochet Weaver の `crochet` / `crochet-tool` Markdown 記法に変換します。説明から新しい編み図を書き起こすこともできます。編み図を貼ってチャートを求められたとき、Crochet Weaver 記法への変換を頼まれたとき、対応する編み図の作成を頼まれたときに使います。
+license: MIT
+---
 
-**[English](ai-pattern-authoring.md) | [繁體中文](ai-pattern-authoring.zh-TW.md) | [简体中文](ai-pattern-authoring.zh-CN.md) | [日本語](ai-pattern-authoring.ja.md)**
+# Crochet Weaver 編み図スキル
 
-このドキュメントは、かぎ針編みをする人から「文章の編み図を Crochet Weaver 記法に変換してほしい」「説明から新しい編み図を書いてほしい」と頼まれた **AI アシスタント**（Claude、ChatGPT、その他のモデル）向けに書かれています。Crochet Weaver 記法とは、Crochet Weaver Obsidian プラグインの `crochet` / `crochet-tool` コードブロックが理解できる、ごく小さなテキスト言語です。
+**[English](SKILL.md) | [繁體中文](SKILL.zh-TW.md) | [简体中文](SKILL.zh-CN.md) | [日本語](SKILL.ja.md)**
 
-編み図の変換を頼む前に、このファイル全体を AI とのチャットに貼り付けるか、エージェントにこのファイルを参照させてください。
+このスキルは AI アシスタント向けに書かれており、単体で完結しています。ファイル全体をチャットに貼り付けるか、エージェントに参照させれば、編み図を Crochet Weaver 記法——Crochet Weaver Obsidian プラグインの `crochet` / `crochet-tool` コードブロックが理解する、ごく小さなテキスト言語——に変換・作成できます。
+
+## 使うとき
+
+- 文章の編み図を貼られ、チャートを求められたとき。
+- Crochet Weaver 記法への変換を頼まれたとき。
+- 作品の説明から、この記法で編み図を書くよう頼まれたとき。
+
+## 進め方
+
+1. まず編み図タイプを決める——「編み図タイプの選び方」を参照。
+2. 対応表にしたがって 1 段ずつ変換する。トークンを勝手に作らない。
+3. 各段の目数を数え、原文の「(N)」と突き合わせる。
+4. 進捗パネル（`tool:` / `text:`）を付けるかどうかを決める。
+5. 回答する前に、最後のチェックリストを実行する。
 
 ## 生成するもの
 

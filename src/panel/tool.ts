@@ -1,10 +1,10 @@
-import type { AstNode, ChartHighlight, CrochetAst, PatternTextStyle, RowNode } from './types';
-import { parseChart } from './parse-chart';
-import { validateChartBudget } from './budget';
-import { roundStitchCount, unitStitchCounts } from './layout';
-import { renderCrochetError } from './errors';
-import { stitchName, t, type Locale } from './i18n';
-import { progressIdFromConfig } from './progress-id';
+import type { AstNode, ChartHighlight, CrochetAst, PatternTextStyle, RowNode } from '../types';
+import { parseChart } from '../pattern/parse-chart';
+import { validateChartBudget } from '../pattern/budget';
+import { roundStitchCount, unitStitchCounts } from '../layout';
+import { renderCrochetError } from '../pattern/errors';
+import { stitchName, t, type Locale } from '../i18n';
+import { progressIdFromConfig } from '../panel/progress-id';
 
 export interface ProgressStore {
 	getProgress(id: string): number;

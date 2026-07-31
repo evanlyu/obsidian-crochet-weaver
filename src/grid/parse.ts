@@ -1,4 +1,4 @@
-import type { GridConfig } from '../types';
+import type { GridConfig } from './types';
 
 const LINE_PATTERN = /^(?<key>[A-Za-z0-9_-]+)\s*:\s*(?<value>.*)$/;
 

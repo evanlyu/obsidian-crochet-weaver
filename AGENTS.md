@@ -43,22 +43,22 @@ npm run build
 
 - **Organize code into multiple files**: Split functionality across separate modules rather than putting everything in `main.ts`.
 - Source lives in `src/`. Keep `main.ts` small and focused on plugin lifecycle (loading, unloading, registering commands).
-- **Example file structure**:
+- **This plugin's file structure**, one folder per step of the pipeline a code block goes through:
     ```
     src/
-      main.ts           # Plugin entry point, lifecycle management
-      settings.ts       # Settings interface and defaults
-      commands/         # Command implementations
-        command1.ts
-        command2.ts
-      ui/              # UI components, modals, views
-        modal.ts
-        view.ts
-      utils/           # Utility functions, helpers
-        helpers.ts
-        constants.ts
-      types.ts         # TypeScript interfaces and types
+      main.ts            # Plugin entry: registers the code-block processors and commands
+      types.ts           # The data shapes the pipeline passes along
+      i18n.ts            # Locale resolution and lookup
+      i18n/              # One file per language (en.ts is the source of truth for keys)
+      pattern/           # The text language: grammar.peggy -> parser.ts, parse-chart, repeats, budget, errors
+      layout/            # Pattern -> geometry (index.ts dispatches flat / round / spiral)
+      render/            # Geometry -> SVG: chart.ts, symbols.ts (shape + size of every stitch), scroll-pan
+      panel/             # Progress tool, its embedding beside a chart, and progress identity
+      settings/          # tab.ts (Obsidian UI), data.ts (defaults, parsing), options.ts (per-chart overrides)
+      grid/              # The standalone blank crochet-grid block, with its own types
+      skill-content.ts   # Generated: the bundled crochet-weaver-pattern skill
     ```
+    Only `main.ts` and `settings/tab.ts` import from `obsidian`; everything else is plain TypeScript, which is what lets the tests run without a vault.
 - **Do not commit build artifacts**: Never commit `node_modules/`, `main.js`, or other generated files to version control.
 - Keep the plugin small. Avoid large dependencies. Prefer browser-compatible packages.
 - Generated output should be placed at the plugin root or `dist/` depending on your build setup. Release artifacts must end up at the top level of the plugin folder in the vault (`main.js`, `manifest.json`, `styles.css`).

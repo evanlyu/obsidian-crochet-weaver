@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { calculateLayout } from '../src/layout';
-import { parse } from '../src/parser';
-import { renderSVG, supportedSymbolNames } from '../src/render';
+import { parse } from '../src/pattern/parser';
+import { renderSVG } from '../src/render/chart';
+import { SYMBOLS, supportedSymbolNames, symbolExtent } from '../src/render/symbols';
 import type { CrochetAst, RenderOptions } from '../src/types';
 
 const LAYOUT_OPTIONS = { rotation: 'none', ringSpacing: 30, grid: false } as const;
@@ -36,6 +37,42 @@ describe('stitch symbol library', () => {
 			expect(svg?.querySelector(`g[id="${href.slice(1)}"]`)).not.toBeNull();
 		});
 	}
+
+	// A symbol is one fact with two halves — what it is drawn as, and how much
+	// room that takes. They live in one entry so they cannot disagree; this is
+	// what says so.
+	it('gives every symbol both a shape and a size', () => {
+		for (const name of supportedSymbolNames()) {
+			const spec = SYMBOLS[name];
+			expect(spec, name).toBeDefined();
+			const draws = (spec?.paths?.length ?? 0) > 0 || spec?.ellipse !== undefined || spec?.circle !== undefined;
+			expect(draws, `${name} draws something`).toBe(true);
+			expect(symbolExtent(name), `${name} has a real extent`).toBeGreaterThan(0);
+		}
+	});
+
+	// The extent has to cover what the symbol actually draws, or two of them side
+	// by side would overlap however carefully the layout spaced them.
+	it('sizes every symbol to at least what its own drawing reaches', () => {
+		for (const name of supportedSymbolNames()) {
+			const spec = SYMBOLS[name];
+			if (!spec) throw new Error(`expected a spec for ${name}`);
+			const coordinates = (spec.paths ?? []).flatMap((path) =>
+				[...path.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Math.abs(Number(match[0]))),
+			);
+			const drawnReach = Math.max(
+				0,
+				...coordinates,
+				spec.ellipse?.rx ?? 0,
+				spec.ellipse?.ry ?? 0,
+				spec.circle?.r ?? 0,
+			);
+			// The reach is measured from every coordinate in the path, and a curve's
+			// control points sit outside the curve itself — so allow a couple of px
+			// for that rather than solving each Bézier.
+			expect(symbolExtent(name) + 2, name).toBeGreaterThanOrEqual(drawnReach);
+		}
+	});
 
 	it('parses every symbol name in one row without prefix shadowing', () => {
 		const names = supportedSymbolNames();

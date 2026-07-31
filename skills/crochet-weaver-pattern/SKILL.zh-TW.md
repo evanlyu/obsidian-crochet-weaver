@@ -1,10 +1,28 @@
-# Crochet Weaver — AI 織圖撰寫參考文件
+---
+name: crochet-weaver-pattern
+description: 把書上、PDF、網站或速記的鉤織織圖，轉換成 Crochet Weaver 外掛在 Obsidian 使用的 `crochet` / `crochet-tool` Markdown 語法，或依描述直接寫一份新的。當使用者貼上織圖要求畫圖、說要轉成 Crochet Weaver，或要求產生相容織圖時使用。
+license: MIT
+---
 
-**[English](ai-pattern-authoring.md) | [繁體中文](ai-pattern-authoring.zh-TW.md) | [简体中文](ai-pattern-authoring.zh-CN.md) | [日本語](ai-pattern-authoring.ja.md)**
+# Crochet Weaver 織圖 skill
 
-這份文件是寫給 **AI 助理**（Claude、ChatGPT 或其他模型）使用的，當鉤織愛好者請你把一份文字織圖──或是從描述直接生成新織圖──轉換成 Crochet Weaver 語法時參考：這是 Crochet Weaver Obsidian 外掛的 `crochet` / `crochet-tool` 程式碼區塊所能理解的一種簡短文字語言。
+**[English](SKILL.md) | [繁體中文](SKILL.zh-TW.md) | [简体中文](SKILL.zh-CN.md) | [日本語](SKILL.ja.md)**
 
-在請 AI 轉換織圖之前，把整份文件貼進任何 AI 對話中，或讓代理程式（agent）參考這份文件。
+這份 skill 是寫給 AI 助理使用的，內容自成一體：把整份檔案貼進對話，或讓代理程式（agent）參考它，就足以把織圖轉換或撰寫成 Crochet Weaver 語法──也就是 Crochet Weaver Obsidian 外掛的 `crochet` / `crochet-tool` 程式碼區塊所理解的簡短文字語言。
+
+## 什麼時候用
+
+- 使用者貼上一份文字織圖，想要得到織圖圖表。
+- 使用者要求把織圖轉成 Crochet Weaver 語法。
+- 使用者描述一件作品，要求用這個語法寫出織圖。
+
+## 工作流程
+
+1. 先決定織圖類型──見「選擇織圖類型」。
+2. 依照對照表逐行轉換，不要自創代號。
+3. 算出每一行產生的針數，與原文自己標註的「(N)」核對。
+4. 決定這個區塊要不要一併附上進度面板（`tool:` / `text:`）。
+5. 回覆前跑一次最後的檢查清單。
 
 ## 你要產生的內容
 

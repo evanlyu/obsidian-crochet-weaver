@@ -6,46 +6,97 @@ import {
 	type SettingDefinitionItem,
 	type SettingGroupItem,
 } from 'obsidian';
-import { AI_PATTERN_AUTHORING_DOCS } from './ai-doc-content';
-import { t, type Locale, type TranslationKey } from './i18n';
-import type CrochetWeaverPlugin from './main';
+import { patternSkill, SKILL_LOCALES, type SkillLocale } from '../skill-content';
+import { t, type Locale, type TranslationKey } from '../i18n';
+import type CrochetWeaverPlugin from '../main';
 import {
 	getLocalizedSettingGroups,
 	type CrochetSettingDefinition,
 	type CrochetWeaverSettings,
-} from './settings-data';
+} from '../settings/data';
+
+// Where to say something about the plugin — in the open, or privately. Shown as
+// a row of its own rather than only in the README, since the settings page is
+// where someone already is when a chart will not come out the way they expected.
+const ISSUES_URL = 'https://github.com/evanlyu/obsidian-crochet-weaver/issues';
+const CONTACT_EMAIL = 'crochet@kiyudesign.com';
 
 // One button per doc language, reusing the same language-name strings the
 // language-preference dropdown uses so the labels stay consistent.
-const AI_DOC_LANGUAGES: ReadonlyArray<{ readonly locale: Locale; readonly nameKey: TranslationKey }> = [
-	{ locale: 'en', nameKey: 'settings.language.en' },
-	{ locale: 'zh-TW', nameKey: 'settings.language.zhTW' },
-	{ locale: 'zh-CN', nameKey: 'settings.language.zhCN' },
-	{ locale: 'ja', nameKey: 'settings.language.ja' },
-];
+const SKILL_LANGUAGE_KEYS: Readonly<Record<SkillLocale, TranslationKey>> = {
+	en: 'settings.language.en',
+	'zh-TW': 'settings.language.zhTW',
+	'zh-CN': 'settings.language.zhCN',
+	ja: 'settings.language.ja',
+};
 
-// Adds one "copy to clipboard" button per doc language to an existing
-// Setting row. Shared between the declarative getSettingDefinitions() path
-// and the pre-1.13.0 manual display() fallback.
-function addAiDocsButtons(setting: Setting, uiLocale: Locale): void {
-	for (const { locale: docLocale, nameKey } of AI_DOC_LANGUAGES) {
+// Adds one "copy to clipboard" button per language the skill is written in, to
+// an existing Setting row. Shared between the declarative getSettingDefinitions()
+// path and the pre-1.13.0 manual display() fallback.
+function addSkillButtons(setting: Setting, uiLocale: Locale): void {
+	for (const skillLocale of SKILL_LOCALES) {
 		setting.addButton((button) => {
-			const label = t(uiLocale, nameKey);
+			const label = t(uiLocale, SKILL_LANGUAGE_KEYS[skillLocale]);
 			button.setButtonText(label).onClick(() => {
-				void copyAiDoc(docLocale, uiLocale, button, label);
+				void copySkill(skillLocale, uiLocale, button, label);
 			});
 		});
 	}
 }
 
-async function copyAiDoc(docLocale: Locale, uiLocale: Locale, button: ButtonComponent, label: string): Promise<void> {
+// Both ways to reach it: the issue tracker, a mail client, and — for anywhere
+// that has neither — the address on the clipboard.
+function addContactButtons(setting: Setting, locale: Locale): void {
+	setting.addButton((button) =>
+		button
+			.setButtonText(t(locale, 'settings.contact.issue'))
+			.setCta()
+			.onClick(() => {
+				window.open(ISSUES_URL);
+			}),
+	);
+	setting.addButton((button) =>
+		button
+			.setButtonText(t(locale, 'settings.contact.mail'))
+			.onClick(() => {
+				window.open(`mailto:${CONTACT_EMAIL}`);
+			}),
+	);
+	setting.addButton((button) => {
+		const label = t(locale, 'settings.contact.copy');
+		button.setButtonText(label).onClick(() => {
+			void copyContact(locale, button, label);
+		});
+	});
+}
+
+async function copyContact(locale: Locale, button: ButtonComponent, label: string): Promise<void> {
 	try {
-		await navigator.clipboard.writeText(AI_PATTERN_AUTHORING_DOCS[docLocale]);
+		await navigator.clipboard.writeText(CONTACT_EMAIL);
+	} catch {
+		// Clipboard access can be denied by the OS; the address is in the
+		// description either way.
+		return;
+	}
+	button.setButtonText(t(locale, 'settings.contact.copied'));
+	window.setTimeout(() => {
+		button.setButtonText(label);
+	}, 1500);
+}
+
+async function copySkill(
+	skillLocale: SkillLocale,
+	uiLocale: Locale,
+	button: ButtonComponent,
+	label: string,
+): Promise<void> {
+	try {
+		await navigator.clipboard.writeText(patternSkill(skillLocale));
 	} catch {
 		// Clipboard access can be denied by the OS; nothing more we can do here.
 		return;
 	}
-	button.setButtonText(t(uiLocale, 'settings.aiDocs.copied'));
+	button.setButtonText(t(uiLocale, 'settings.skill.copied'));
 	window.setTimeout(() => {
 		button.setButtonText(label);
 	}, 1500);
@@ -57,7 +108,7 @@ export {
 	normalizeSettings,
 	type CrochetSettingDefinition,
 	type CrochetWeaverSettings,
-} from './settings-data';
+} from '../settings/data';
 
 // These settings back numeric dropdowns: Obsidian's dropdown control only persists
 // strings, so values round-trip through String()/Number() at the get/set boundary.
@@ -81,11 +132,20 @@ function isNumberSettingKey(key: string): key is NumberSettingKey {
 	return NUMBER_KEYS.has(key as NumberSettingKey);
 }
 
-function aiDocsDefinition(locale: Locale): SettingGroupItem {
+function skillDefinition(locale: Locale): SettingGroupItem {
 	return {
-		name: t(locale, 'settings.aiDocs.name'),
-		desc: t(locale, 'settings.aiDocs.desc'),
-		render: (setting: Setting) => addAiDocsButtons(setting, locale),
+		name: t(locale, 'settings.skill.name'),
+		desc: t(locale, 'settings.skill.desc'),
+		render: (setting: Setting) => addSkillButtons(setting, locale),
+	};
+}
+
+function contactDefinition(locale: Locale): SettingGroupItem {
+	return {
+		name: t(locale, 'settings.contact.name'),
+		desc: t(locale, 'settings.contact.desc'),
+		aliases: [CONTACT_EMAIL, ISSUES_URL],
+		render: (setting: Setting) => addContactButtons(setting, locale),
 	};
 }
 
@@ -109,7 +169,7 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 					...(group.items as readonly SettingGroupItem[]),
 					// The reference is something you copy once, from the same place
 					// as the rest of the set-once settings.
-					...(group.id === 'general' ? [aiDocsDefinition(locale)] : []),
+					...(group.id === 'general' ? [skillDefinition(locale), contactDefinition(locale)] : []),
 				],
 			})),
 		];
@@ -140,10 +200,16 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 			new Setting(containerEl).setName(group.heading).setHeading();
 			for (const definition of group.items) this.renderSetting(containerEl, definition);
 			if (group.id === 'general') {
-				addAiDocsButtons(
+				addSkillButtons(
 					new Setting(containerEl)
-						.setName(t(locale, 'settings.aiDocs.name'))
-						.setDesc(t(locale, 'settings.aiDocs.desc')),
+						.setName(t(locale, 'settings.skill.name'))
+						.setDesc(t(locale, 'settings.skill.desc')),
+					locale,
+				);
+				addContactButtons(
+					new Setting(containerEl)
+						.setName(t(locale, 'settings.contact.name'))
+						.setDesc(t(locale, 'settings.contact.desc')),
 					locale,
 				);
 			}

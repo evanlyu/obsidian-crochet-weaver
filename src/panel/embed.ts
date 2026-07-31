@@ -1,8 +1,8 @@
-import type { CrochetAst, LayoutResult, ChartHighlight } from './types';
-import type { ResolvedOptions, PanelOptions } from './options';
-import type { Locale } from './i18n';
-import { renderSVG } from './render';
-import { renderCrochetTool, renderCrochetPatternText, type ProgressStore } from './tool';
+import type { CrochetAst, LayoutResult, ChartHighlight } from '../types';
+import type { ResolvedOptions, PanelOptions } from '../settings/options';
+import type { Locale } from '../i18n';
+import { renderSVG } from '../render/chart';
+import { renderCrochetTool, renderCrochetPatternText, type ProgressStore } from '../panel/tool';
 
 export function renderEmbeddedChart(
 	el: HTMLElement,

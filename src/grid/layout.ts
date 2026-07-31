@@ -1,5 +1,5 @@
 import { PADDING } from '../layout/constants';
-import type { GridLayoutResult, ResolvedGridOptions } from '../types';
+import type { GridLayoutResult, ResolvedGridOptions } from './types';
 
 export function calculateGridLayout(options: ResolvedGridOptions): GridLayoutResult {
 	return options.shape === 'polar' ? layoutPolarGrid(options) : layoutRectGrid(options);

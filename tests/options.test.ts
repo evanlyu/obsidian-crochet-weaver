@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { resolveOptions, resolvePanelOptions } from '../src/options';
-import { parse } from '../src/parser';
+import { resolveOptions, resolvePanelOptions } from '../src/settings/options';
+import { parse } from '../src/pattern/parser';
 import type { CrochetAst } from '../src/types';
-import type { CrochetWeaverSettings } from '../src/settings';
+import type { CrochetWeaverSettings } from '../src/settings/tab';
 
 const SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',

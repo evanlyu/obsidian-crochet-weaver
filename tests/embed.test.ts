@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { renderEmbeddedChart } from '../src/embed';
+import { renderEmbeddedChart } from '../src/panel/embed';
 import type { CrochetAst, LayoutResult } from '../src/types';
-import type { ResolvedOptions, PanelOptions } from '../src/options';
-import type { ProgressStore } from '../src/tool';
+import type { ResolvedOptions, PanelOptions } from '../src/settings/options';
+import type { ProgressStore } from '../src/panel/tool';
 
 describe('renderEmbeddedChart', () => {
 	const ast: CrochetAst = {

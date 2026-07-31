@@ -5,8 +5,8 @@ import { calculateGridLayout } from '../src/grid/layout';
 import { resolveGridOptions } from '../src/grid/options';
 import { GridParseError, parseGridConfig } from '../src/grid/parse';
 import { renderGrid } from '../src/grid/render';
-import type { CrochetWeaverSettings } from '../src/settings';
-import type { ResolvedGridOptions } from '../src/types';
+import type { CrochetWeaverSettings } from '../src/settings/tab';
+import type { ResolvedGridOptions } from '../src/grid/types';
 
 const SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',

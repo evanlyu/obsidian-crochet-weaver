@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderCrochetTool, type ProgressStore } from '../src/tool';
+import { renderCrochetTool, type ProgressStore } from '../src/panel/tool';
 
 class MemoryProgressStore implements ProgressStore {
 	readonly progress: Record<string, number> = {};

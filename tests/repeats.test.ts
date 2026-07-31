@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calculateLayout, roundStitchCount } from '../src/layout';
-import { parseChart } from '../src/parse-chart';
+import { parseChart } from '../src/pattern/parse-chart';
 import type { RepeatNode, StitchNode } from '../src/types';
 
 function chart(rows: string): ReturnType<typeof parseChart> {

@@ -1,5 +1,5 @@
-import type { TranslationKey } from './i18n';
-import type { AstNode, CrochetAst } from './types';
+import type { TranslationKey } from '../i18n';
+import type { AstNode, CrochetAst } from '../types';
 
 export const CHART_BUDGET = {
 	maxRows: 200,

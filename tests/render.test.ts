@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { renderCrochetError } from '../src/errors';
-import { renderSVG } from '../src/render';
+import { renderCrochetError } from '../src/pattern/errors';
+import { renderSVG } from '../src/render/chart';
 import type { LayoutResult, RenderOptions } from '../src/types';
 
 const OPTIONS: RenderOptions = {

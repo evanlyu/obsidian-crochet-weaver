@@ -8,7 +8,7 @@ import {
 	getLocalizedSettingDefinitions,
 	getLocalizedSettingGroups,
 	normalizeSettings,
-} from '../src/settings-data';
+} from '../src/settings/data';
 
 describe('plugin settings', () => {
 	it('normalizes malformed persisted settings to safe values', () => {

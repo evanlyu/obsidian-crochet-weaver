@@ -1,10 +1,28 @@
-# Crochet Weaver — AI Pattern Authoring Reference
+---
+name: crochet-weaver-pattern
+description: Convert a written crochet pattern — from a book, PDF, website, or shorthand notes — into the Crochet Weaver plugin's `crochet` / `crochet-tool` Markdown syntax for Obsidian, or write a new pattern in it from a description. Use whenever someone pastes a crochet pattern and asks for a chart, asks to convert something to Crochet Weaver, or asks for a Crochet Weaver-compatible pattern.
+license: MIT
+---
 
-**[English](ai-pattern-authoring.md) | [繁體中文](ai-pattern-authoring.zh-TW.md) | [简体中文](ai-pattern-authoring.zh-CN.md) | [日本語](ai-pattern-authoring.ja.md)**
+# Crochet Weaver pattern skill
 
-This document is written **for an AI assistant** (Claude, ChatGPT, or any other model) that a crocheter has asked to convert a written pattern — or write a new one — into Crochet Weaver syntax: the small text language the Crochet Weaver Obsidian plugin's `crochet` / `crochet-tool` code blocks understand.
+**[English](SKILL.md) | [繁體中文](SKILL.zh-TW.md) | [简体中文](SKILL.zh-CN.md) | [日本語](SKILL.ja.md)**
 
-Paste this whole file into any AI chat, or point an agent at it, before asking it to convert a pattern.
+This skill is written for an AI assistant. It is self-contained: paste the whole file into a chat, or point an agent at it, and it has everything needed to convert or write a pattern in Crochet Weaver syntax — the small text language the Crochet Weaver Obsidian plugin's `crochet` / `crochet-tool` code blocks understand.
+
+## When to use it
+
+- Someone pastes a written crochet pattern and wants a chart from it.
+- Someone asks to convert a pattern into Crochet Weaver syntax.
+- Someone describes a piece and asks for a pattern written in that syntax.
+
+## How to work through it
+
+1. Choose the chart type — see "Choosing a chart type".
+2. Convert row by row with the phrase table. Never invent a token.
+3. Count the stitches each row produces and check them against the source's own "(N)" annotations.
+4. Decide whether the block also carries a progress panel (`tool:` / `text:`).
+5. Run the checklist at the end before answering.
 
 ## What you're generating
 

@@ -1,6 +1,6 @@
-import type { TranslationKey } from './i18n';
-import { consumedStitches, outputStitches, roundInstructions, unroll } from './layout/steps';
-import type { AstNode, CrochetAst, RepeatNode, RowNode } from './types';
+import type { TranslationKey } from '../i18n';
+import { consumedStitches, outputStitches, roundInstructions, unroll } from '../layout/steps';
+import type { AstNode, CrochetAst, RepeatNode, RowNode } from '../types';
 
 // Works out how many times a bare "rep" repeats.
 //

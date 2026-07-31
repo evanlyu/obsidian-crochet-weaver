@@ -15,7 +15,7 @@ Crochet Weaver renders crochet stitch charts from text patterns inside Obsidian 
 - **Embed the progress tool or a read-only pattern-text list directly next to a `crochet` chart** (`tool: on` / `text: on`), so you never have to paste the same pattern into two code blocks.
 - **Highlight the current row and target stitch on the chart itself** when the progress tool is embedded, in a configurable color.
 - **Mark yarn color changes** with a `color <name>` step, mid-row or per-round — the chart flags each switch with a small colored ring (without repainting the stitches themselves), and the tool/text panels spell it out as "change to `<color>`".
-- **Show pattern text in a fully translated, readable style** (`readable: on`) instead of raw shorthand — e.g. `短針6` instead of `6 sc` — in any of the four supported languages.
+- **Show pattern text in a fully translated, readable style** (`readable: on`) instead of raw shorthand — e.g. `短針6` instead of `6 sc` — in any of the eight interface languages.
 - **Pan and scroll charts that are larger than their note pane** instead of squeezing them to fit — drag with the mouse, or use native touch/trackpad scrolling; a chart that overflows opens centered.
 - **Copy the AI pattern-authoring reference from Settings**, in any of four languages, ready to paste into an AI chat for help converting or writing patterns.
 - Store all progress locally in the plugin data file.
@@ -77,6 +77,47 @@ R3: [2 sc, inc] x 6, sl st
 ```
 
 Use an explicit `id` when you want progress to survive edits to the pattern text. If `id` is omitted, Crochet Weaver derives a local hash from the code block content, so editing the block can reset progress.
+
+## Let an AI write the pattern for you
+
+You do not have to learn the syntax to use the plugin. Hand an AI assistant the **crochet-weaver-pattern skill** once, then give it any written pattern — from a book, a PDF, a shop listing, or your own shorthand — and paste back what it returns.
+
+1. **Copy the skill.** Settings → Crochet Weaver → **Copy the pattern skill**, and press the button for the language you want (English, 繁體中文, 简体中文, 日本語).
+2. **Start a chat** with any assistant (Claude, ChatGPT, whichever you use) and paste the skill in as the first message. It is self-contained: nothing else has to be installed or fetched.
+3. **Paste your pattern** and ask for a chart. For example:
+
+    > Here is the pattern for the head of an amigurumi bunny. Convert it into one Crochet Weaver `crochet` block, `type: round`, with the progress tool on.
+    >
+    > R1: 6 sc in magic ring (6)
+    > R2: inc in each st around (12)
+    > R3: (sc, inc) around (18)
+    > R4–R6: sc around (18)
+    > R7: (sc, dec) around (12)
+
+4. **Paste the block it returns** into a note, in Reading or Live Preview mode:
+
+    ````markdown
+    ```crochet
+    ---
+    type: round
+    tool: on
+    id: bunny-head
+    ---
+    R1: 6 sc in MR
+    R2: [inc] x 6
+    R3: [sc, inc] x 6
+    R4: 18 sc
+    R5: 18 sc
+    R6: 18 sc
+    R7: [sc, dec] x 6
+    ```
+    ````
+
+5. **Check it before you crochet it.** The chart and the row list are generated from what the assistant wrote, so read the stitch counts in the progress panel against the source's own `(N)` numbers. If a row is off, say so in the chat — the skill tells the assistant how counting works, so "R7 should end on 12 stitches" is usually enough to get a fix.
+
+**Using Claude Code?** Drop [`skills/crochet-weaver-pattern/`](skills/crochet-weaver-pattern/) into your project's or your home `.claude/skills/` folder and the skill loads itself whenever you paste a crochet pattern.
+
+**If something can't be converted**, the assistant is told to say so rather than guess — an unsupported stitch, or an instruction that has no chart meaning. Those are worth reading; a silently "working" chart that drops a stitch is worse than a note that says it could not.
 
 ## Pattern Syntax
 
@@ -325,7 +366,7 @@ When the tool is embedded next to its chart (`tool: on`), the chart highlights y
 
 Open the plugin settings tab to configure global defaults:
 
-- **Language**: follow Obsidian or choose English, Traditional Chinese, Simplified Chinese, or Japanese.
+- **Language**: follow Obsidian or choose one of eight — English, Traditional Chinese, Simplified Chinese, Japanese, Korean, German, French, or Spanish. Stitch names and every message are translated in all of them; the AI pattern-authoring reference is written in the first four.
 - **Chart scale**: chart display scale.
 - **Symbol stroke width**: SVG stroke width.
 - **Round spacing**: spacing between round or spiral rings.
@@ -395,11 +436,11 @@ Lint the project:
 npm run lint
 ```
 
-The parser is generated from `src/grammar.peggy` into `src/parser.ts`. Do not edit `src/parser.ts` by hand.
+The parser is generated from `src/pattern/grammar.peggy` into `src/pattern/parser.ts`. Do not edit the generated file by hand.
 
-### AI-assisted authoring
+### The pattern skill
 
-If you use an AI assistant to write or convert crochet patterns into Crochet Weaver's syntax, point it at [`docs/ai-pattern-authoring.md`](docs/ai-pattern-authoring.md) — a self-contained reference to the pattern language written for that purpose, also available in [繁體中文](docs/ai-pattern-authoring.zh-TW.md), [简体中文](docs/ai-pattern-authoring.zh-CN.md), and [日本語](docs/ai-pattern-authoring.ja.md). You can also copy any of these straight from the plugin's settings tab (Settings → "Copy AI pattern-authoring instructions"). A ready-to-use Claude Code skill lives at [`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/).
+The knowledge an assistant needs lives in [`skills/crochet-weaver-pattern/`](skills/crochet-weaver-pattern/) — `SKILL.md` plus `.zh-TW`, `.zh-CN` and `.ja` versions. See [Let an AI write the pattern for you](#let-an-ai-write-the-pattern-for-you) for the workflow. When you edit a SKILL file, run `npm run generate-skill` so the copy bundled into the plugin (`src/skill-content.ts`) matches; the build, tests and lint all run it first, and a test compares the two byte for byte.
 
 ## Manual Install
 

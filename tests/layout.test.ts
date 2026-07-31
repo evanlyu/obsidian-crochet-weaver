@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { calculateLayout, roundStitchCount, unitStitchCounts } from '../src/layout';
 import { symbolExtent } from '../src/layout/constants';
-import { parse } from '../src/parser';
+import { parse } from '../src/pattern/parser';
 import type { CrochetAst, GridPoint, LayoutResult, RenderItem, RowNode, ShapingMark } from '../src/types';
 
 const OPTIONS = {
