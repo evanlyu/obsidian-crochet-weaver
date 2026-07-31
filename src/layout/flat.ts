@@ -7,11 +7,31 @@ import type {
 	RenderItem,
 	RowConnector,
 } from '../types';
-import { GROUP_FAN_ANGLE, GROUP_FAN_SPREAD, ROW_HEIGHT, STITCH_WIDTH } from './constants';
+import { GROUP_FAN_ANGLE, GROUP_FAN_SPREAD, ROW_HEIGHT, symbolArc } from './constants';
 import { normalize } from './normalize';
-import { flattenGroup, tagLoop, unroll, type ColorState } from './steps';
+import { flattenGroup, tagLoop, unitSymbols, unroll, type ColorState } from './steps';
+
+// How far apart a flat chart's stitches sit, in px: the chart's own pitch, or
+// what its widest symbol needs, whichever is larger. One pitch for the whole
+// chart rather than per stitch, so its rows still line up in columns and the
+// mesh guide still has columns to draw — but a chart of doubles or trebles is
+// spaced for the symbols it actually draws instead of for single crochet.
+function chartPitch(ast: CrochetAst): number {
+	let pitch = 0;
+	for (const row of ast.rows) {
+		for (const unit of unroll(row.steps)) {
+			for (const symbol of unitSymbols(unit)) pitch = Math.max(pitch, symbolArc(symbol));
+		}
+	}
+	return Math.max(symbolArc('sc'), pitch);
+}
 
 export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResult {
+	const stitchWidth = chartPitch(ast);
+	// Rows are as far apart as the chart's own row height, or as the symbols need
+	// if those are taller than it — a row of trebles is taller than a row of
+	// single crochet, and its rows must not touch.
+	const rowHeight = Math.max(ROW_HEIGHT, stitchWidth);
 	const items: RenderItem[] = [];
 	const rowConnectors: RowConnector[] = [];
 	let direction = 1;
@@ -24,7 +44,7 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 	let previousColor: string | undefined;
 
 	ast.rows.forEach((row, rowIndex) => {
-		const y = -rowIndex * ROW_HEIGHT;
+		const y = -rowIndex * rowHeight;
 		let x = rowIndex === 0 ? 0 : prevRowEndX;
 		if (rowIndex > 0) {
 			rowConnectors.push({ x: prevRowEndX, fromY: prevRowY, toY: y });
@@ -59,7 +79,7 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 				previousColor = unit.color;
 			}
 			prevRowEndX = x;
-			x += STITCH_WIDTH * direction;
+			x += stitchWidth * direction;
 		});
 
 		tagLoop(items, start, row.loop);
@@ -68,7 +88,7 @@ export function layoutFlat(ast: CrochetAst, options: LayoutOptions): LayoutResul
 	});
 
 	const gridGuide = options.grid
-		? buildMeshGuide(ast.rows.length, minSlotX, maxSlotX, options.gridCount, options.gridColumns)
+		? buildMeshGuide(ast.rows.length, minSlotX, maxSlotX, stitchWidth, rowHeight, options.gridCount, options.gridColumns)
 		: undefined;
 	return normalize(items, rowConnectors, gridGuide, colorMarkers);
 }
@@ -82,6 +102,8 @@ function buildMeshGuide(
 	actualRows: number,
 	minSlotX: number,
 	maxSlotX: number,
+	stitchWidth: number,
+	rowHeight: number,
 	gridCount: number | undefined,
 	gridColumns: number | undefined,
 ): ChartGridGuide | undefined {
@@ -89,22 +111,22 @@ function buildMeshGuide(
 
 	const hasStitches = Number.isFinite(minSlotX) && Number.isFinite(maxSlotX);
 	const realMinX = hasStitches ? minSlotX : 0;
-	const actualColumns = hasStitches ? Math.round((maxSlotX - realMinX) / STITCH_WIDTH) + 1 : 0;
+	const actualColumns = hasStitches ? Math.round((maxSlotX - realMinX) / stitchWidth) + 1 : 0;
 
 	const rows = Math.max(actualRows, gridCount ?? 0);
 	const columns = Math.max(actualColumns, gridColumns ?? 0, 1);
 
-	const yMax = ROW_HEIGHT / 2;
-	const yMin = -(rows - 1) * ROW_HEIGHT - ROW_HEIGHT / 2;
-	const xMin = realMinX - STITCH_WIDTH / 2;
-	const xMax = xMin + columns * STITCH_WIDTH;
+	const yMax = rowHeight / 2;
+	const yMin = -(rows - 1) * rowHeight - rowHeight / 2;
+	const xMin = realMinX - stitchWidth / 2;
+	const xMax = xMin + columns * stitchWidth;
 
 	const horizontal = Array.from({ length: rows + 1 }, (_, i) => {
-		const y = -i * ROW_HEIGHT + ROW_HEIGHT / 2;
+		const y = -i * rowHeight + rowHeight / 2;
 		return { x1: xMin, y1: y, x2: xMax, y2: y };
 	});
 	const vertical = Array.from({ length: columns + 1 }, (_, j) => {
-		const x = xMin + j * STITCH_WIDTH;
+		const x = xMin + j * stitchWidth;
 		return { x1: x, y1: yMin, x2: x, y2: yMax };
 	});
 

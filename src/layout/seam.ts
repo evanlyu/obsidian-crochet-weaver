@@ -1,5 +1,5 @@
 import { arcToDegrees } from './angles';
-import { labelExtent, symbolExtent, SYMBOL_CLEARANCE } from './constants';
+import { labelExtent, ROUND_CHANGE_ARC, symbolExtent, SYMBOL_CLEARANCE } from './constants';
 
 // The seam of a round: the wrap-around gap between its last stitch and its
 // first, where one round becomes the next.
@@ -22,12 +22,14 @@ import { labelExtent, symbolExtent, SYMBOL_CLEARANCE } from './constants';
 // need. Nothing here is per-round or per-stitch — a round with no chain and no
 // join simply has no slot for them.
 
-// Room left between the seam's contents and the stitches either side of it.
-const STITCH_CLEARANCE = 4;
+// Air left around each thing drawn at the seam, in px. More than the clearance
+// between two neighbouring stitches: the seam is a channel read across the whole
+// chart, and it only reads as one if what sits in it is not touching its edges.
+const SEAM_AIR = 4;
 
-// The step out to the next round's band. It is drawn nearly radially, so it
-// needs no more than clearance either side of the seam angle itself.
-const STEP_ARC = 8;
+// The step out to the next round's band: the width it is drawn at, plus air
+// either side. It is drawn nearly radially, so it needs no more than that.
+const STEP_ARC = ROUND_CHANGE_ARC + 2 * SEAM_AIR;
 
 // A round with few stitches would otherwise hand the seam a third of the chart.
 // So the gap is capped: at two stitches' worth of the round, plus one more for
@@ -43,6 +45,12 @@ const MAX_SEAM_GAP_DEG = 90;
 // given the room it actually takes; `label` is the round number, absent in the
 // styles that draw none.
 export interface SeamContents {
+	// The stitches the seam sits between — the round's last and its first. A
+	// stitch's angle is the middle of its symbol, so half of each reaches into
+	// the gap; the seam leaves room for that before anything else goes in it.
+	lastStitch: string;
+	firstStitch: string;
+	// The chain(s) the round opens with and the slip stitch(es) it closes with.
 	start: readonly string[];
 	end: readonly string[];
 	label?: string;
@@ -65,11 +73,12 @@ export interface SeamRegion {
 // How much arc the seam wants for what this round draws there, in px.
 export function seamArc(contents: SeamContents): number {
 	return (
-		2 * STITCH_CLEARANCE +
+		clearanceOf(contents.lastStitch) +
 		instructionArcs(contents.end).reduce(sum, 0) +
 		STEP_ARC +
 		labelArc(contents.label) +
-		instructionArcs(contents.start).reduce(sum, 0)
+		instructionArcs(contents.start).reduce(sum, 0) +
+		clearanceOf(contents.firstStitch)
 	);
 }
 
@@ -105,7 +114,7 @@ export function placeSeam(
 
 	// Each slot is claimed by stepping to its middle and on to its far edge, so
 	// the next one starts where this one ended.
-	let at = lastStitchAngle - spare - slot(STITCH_CLEARANCE);
+	let at = lastStitchAngle - spare - slot(clearanceOf(contents.lastStitch));
 	const middleOf = (slotSize: number): number => {
 		at -= slotSize / 2;
 		const middle = at;
@@ -121,6 +130,14 @@ export function placeSeam(
 	return { step, label, end, start };
 }
 
+// Room the seam leaves at one of its edges: half the symbol of the stitch there,
+// which its angle is the middle of, and air after it. Whatever that stitch's own
+// shaping reaches past it is handled by the caller, which knows what the round
+// below it looks like (see seamReachOf in layout/round-graph.ts).
+function clearanceOf(symbol: string): number {
+	return symbolExtent(symbol) + SEAM_AIR;
+}
+
 // A chain or a slip stitch at the seam takes the width its own symbol is drawn
 // at, beside the next thing drawn there — not a stitch's slot of the round: it is
 // an instruction squeezed into the seam, not a stitch of the ring.
@@ -129,7 +146,7 @@ function instructionArcs(symbols: readonly string[]): number[] {
 }
 
 function labelArc(text: string | undefined): number {
-	return text === undefined ? 0 : 2 * labelExtent(text) + 2 * SYMBOL_CLEARANCE;
+	return text === undefined ? 0 : 2 * labelExtent(text) + 2 * SEAM_AIR;
 }
 
 function sum(total: number, value: number): number {

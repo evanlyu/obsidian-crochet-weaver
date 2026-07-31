@@ -38,7 +38,7 @@ export const GRID_ROWS_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20] a
 
 export const DEFAULT_SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
-	roundChartStyle: 'standard',
+	roundChartStyle: 'radial',
 	scale: 1,
 	strokeWidth: 1.5,
 	ringSpacing: 30,
@@ -95,189 +95,244 @@ export type CrochetSettingDefinition =
 	| ToggleSettingDefinition
 	| ColorSettingDefinition;
 
+// A run of settings shown under one heading.
+export interface CrochetSettingGroup {
+	readonly id: 'chart' | 'shaping' | 'tool' | 'grid' | 'general';
+	readonly heading: string;
+	readonly items: readonly CrochetSettingDefinition[];
+}
+
 export const SETTING_DEFINITIONS = getLocalizedSettingDefinitions('en');
 
-export function getLocalizedSettingDefinitions(locale: Locale): readonly CrochetSettingDefinition[] {
+// The settings, in the order they are shown: grouped by what they affect, and
+// the groups themselves ordered by how much of a chart they change — the look of
+// every chart first, the panels beside it next, then the blank grid block, and
+// last the things set once and left alone.
+// The settings, in the order they are shown: grouped by what they affect, and
+// the groups ordered by how often they are the reason someone opened this page —
+// the language the plugin speaks and the reference to hand an AI first, then the
+// look of every chart, the panels beside it, and the blank grid block last.
+// The settings, in the order they are shown: grouped by what they affect, and
+// the groups ordered by how much of a chart each one changes — the look of every
+// chart first, the panels beside it next, then the blank grid block, and last the
+// things set once and left alone.
+export function getLocalizedSettingGroups(locale: Locale): readonly CrochetSettingGroup[] {
 	return [
 		{
-			name: t(locale, 'settings.language.name'),
-			desc: t(locale, 'settings.language.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'languagePreference',
-				defaultValue: DEFAULT_SETTINGS.languagePreference,
-				options: languageOptions(locale),
-			},
-		},
-		{
-			name: t(locale, 'settings.scale.name'),
-			desc: t(locale, 'settings.scale.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'scale',
-				defaultValue: String(DEFAULT_SETTINGS.scale),
-				options: numberOptions(SCALE_OPTIONS),
-			},
-		},
-		{
-			name: t(locale, 'settings.stroke.name'),
-			desc: t(locale, 'settings.stroke.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'strokeWidth',
-				defaultValue: String(DEFAULT_SETTINGS.strokeWidth),
-				options: numberOptions(STROKE_WIDTH_OPTIONS),
-			},
-		},
-		{
-			name: t(locale, 'settings.spacing.name'),
-			desc: t(locale, 'settings.spacing.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'ringSpacing',
-				defaultValue: String(DEFAULT_SETTINGS.ringSpacing),
-				options: numberOptions(RING_SPACING_OPTIONS),
-			},
-		},
-		{
-			name: t(locale, 'settings.highlight.name'),
-			desc: t(locale, 'settings.highlight.desc'),
-			control: {
-				type: 'toggle',
-				key: 'highlightIncDec',
-				defaultValue: DEFAULT_SETTINGS.highlightIncDec,
-			},
-		},
-		{
-			name: t(locale, 'settings.highlightColor.name'),
-			desc: t(locale, 'settings.highlightColor.desc'),
-			control: {
-				type: 'color',
-				key: 'highlightColor',
-				defaultValue: DEFAULT_SETTINGS.highlightColor,
-			},
-		},
-		{
-			name: t(locale, 'settings.chartMarkerColor.name'),
-			desc: t(locale, 'settings.chartMarkerColor.desc'),
-			control: {
-				type: 'color',
-				key: 'chartMarkerColor',
-				defaultValue: DEFAULT_SETTINGS.chartMarkerColor,
-			},
-		},
-		{
-			name: t(locale, 'settings.showTool.name'),
-			desc: t(locale, 'settings.showTool.desc'),
-			control: {
-				type: 'toggle',
-				key: 'showTool',
-				defaultValue: DEFAULT_SETTINGS.showTool,
-			},
-		},
-		{
-			name: t(locale, 'settings.showPatternText.name'),
-			desc: t(locale, 'settings.showPatternText.desc'),
-			control: {
-				type: 'toggle',
-				key: 'showPatternText',
-				defaultValue: DEFAULT_SETTINGS.showPatternText,
-			},
-		},
-		{
-			name: t(locale, 'settings.patternTextStyle.name'),
-			desc: t(locale, 'settings.patternTextStyle.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'patternTextStyle',
-				defaultValue: DEFAULT_SETTINGS.patternTextStyle,
-				options: {
-					raw: t(locale, 'settings.patternTextStyle.raw'),
-					readable: t(locale, 'settings.patternTextStyle.readable'),
+			id: 'chart',
+			heading: t(locale, 'settings.group.chart'),
+			items: [
+				{
+					name: t(locale, 'settings.roundStyle.name'),
+					desc: t(locale, 'settings.roundStyle.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'roundChartStyle',
+						defaultValue: DEFAULT_SETTINGS.roundChartStyle,
+						options: {
+							radial: t(locale, 'settings.roundStyle.radial'),
+							japanese: t(locale, 'settings.roundStyle.japanese'),
+							continuous: t(locale, 'settings.roundStyle.continuous'),
+						},
+					},
 				},
-			},
-		},
-		{
-			name: t(locale, 'settings.panelPosition.name'),
-			desc: t(locale, 'settings.panelPosition.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'panelPosition',
-				defaultValue: DEFAULT_SETTINGS.panelPosition,
-				options: {
-					right: t(locale, 'settings.panelPosition.right'),
-					left: t(locale, 'settings.panelPosition.left'),
-					below: t(locale, 'settings.panelPosition.below'),
+				{
+					name: t(locale, 'settings.scale.name'),
+					desc: t(locale, 'settings.scale.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'scale',
+						defaultValue: String(DEFAULT_SETTINGS.scale),
+						options: numberOptions(SCALE_OPTIONS),
+					},
 				},
-			},
-		},
-		{
-			name: t(locale, 'settings.showGrid.name'),
-			desc: t(locale, 'settings.showGrid.desc'),
-			control: {
-				type: 'toggle',
-				key: 'showGrid',
-				defaultValue: DEFAULT_SETTINGS.showGrid,
-			},
-		},
-		{
-			name: t(locale, 'settings.roundStyle.name'),
-			desc: t(locale, 'settings.roundStyle.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'roundChartStyle',
-				defaultValue: DEFAULT_SETTINGS.roundChartStyle,
-				options: {
-					standard: t(locale, 'settings.roundStyle.standard'),
-					book: t(locale, 'settings.roundStyle.book'),
-					linked: t(locale, 'settings.roundStyle.linked'),
+				{
+					name: t(locale, 'settings.stroke.name'),
+					desc: t(locale, 'settings.stroke.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'strokeWidth',
+						defaultValue: String(DEFAULT_SETTINGS.strokeWidth),
+						options: numberOptions(STROKE_WIDTH_OPTIONS),
+					},
 				},
-			},
-		},
-		{
-			name: t(locale, 'settings.gridDefaultShape.name'),
-			desc: t(locale, 'settings.gridDefaultShape.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'gridDefaultShape',
-				defaultValue: DEFAULT_SETTINGS.gridDefaultShape,
-				options: {
-					polar: t(locale, 'settings.gridDefaultShape.polar'),
-					rect: t(locale, 'settings.gridDefaultShape.rect'),
+				{
+					name: t(locale, 'settings.spacing.name'),
+					desc: t(locale, 'settings.spacing.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'ringSpacing',
+						defaultValue: String(DEFAULT_SETTINGS.ringSpacing),
+						options: numberOptions(RING_SPACING_OPTIONS),
+					},
 				},
-			},
+				{
+					name: t(locale, 'settings.showGrid.name'),
+					desc: t(locale, 'settings.showGrid.desc'),
+					control: {
+						type: 'toggle',
+						key: 'showGrid',
+						defaultValue: DEFAULT_SETTINGS.showGrid,
+					},
+				},
+			],
 		},
 		{
-			name: t(locale, 'settings.gridDefaultRounds.name'),
-			desc: t(locale, 'settings.gridDefaultRounds.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'gridDefaultRounds',
-				defaultValue: String(DEFAULT_SETTINGS.gridDefaultRounds),
-				options: numberOptions(GRID_ROUNDS_OPTIONS),
-			},
+			id: 'shaping',
+			heading: t(locale, 'settings.group.shaping'),
+			items: [
+				{
+					name: t(locale, 'settings.highlight.name'),
+					desc: t(locale, 'settings.highlight.desc'),
+					control: {
+						type: 'toggle',
+						key: 'highlightIncDec',
+						defaultValue: DEFAULT_SETTINGS.highlightIncDec,
+					},
+				},
+				{
+					name: t(locale, 'settings.highlightColor.name'),
+					desc: t(locale, 'settings.highlightColor.desc'),
+					control: {
+						type: 'color',
+						key: 'highlightColor',
+						defaultValue: DEFAULT_SETTINGS.highlightColor,
+					},
+				},
+				{
+					name: t(locale, 'settings.chartMarkerColor.name'),
+					desc: t(locale, 'settings.chartMarkerColor.desc'),
+					control: {
+						type: 'color',
+						key: 'chartMarkerColor',
+						defaultValue: DEFAULT_SETTINGS.chartMarkerColor,
+					},
+				},
+			],
 		},
 		{
-			name: t(locale, 'settings.gridDefaultColumns.name'),
-			desc: t(locale, 'settings.gridDefaultColumns.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'gridDefaultColumns',
-				defaultValue: String(DEFAULT_SETTINGS.gridDefaultColumns),
-				options: numberOptions(GRID_COLUMNS_OPTIONS),
-			},
+			id: 'tool',
+			heading: t(locale, 'settings.group.tool'),
+			items: [
+				{
+					name: t(locale, 'settings.showTool.name'),
+					desc: t(locale, 'settings.showTool.desc'),
+					control: {
+						type: 'toggle',
+						key: 'showTool',
+						defaultValue: DEFAULT_SETTINGS.showTool,
+					},
+				},
+				{
+					name: t(locale, 'settings.showPatternText.name'),
+					desc: t(locale, 'settings.showPatternText.desc'),
+					control: {
+						type: 'toggle',
+						key: 'showPatternText',
+						defaultValue: DEFAULT_SETTINGS.showPatternText,
+					},
+				},
+				{
+					name: t(locale, 'settings.patternTextStyle.name'),
+					desc: t(locale, 'settings.patternTextStyle.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'patternTextStyle',
+						defaultValue: DEFAULT_SETTINGS.patternTextStyle,
+						options: {
+							raw: t(locale, 'settings.patternTextStyle.raw'),
+							readable: t(locale, 'settings.patternTextStyle.readable'),
+						},
+					},
+				},
+				{
+					name: t(locale, 'settings.panelPosition.name'),
+					desc: t(locale, 'settings.panelPosition.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'panelPosition',
+						defaultValue: DEFAULT_SETTINGS.panelPosition,
+						options: {
+							right: t(locale, 'settings.panelPosition.right'),
+							left: t(locale, 'settings.panelPosition.left'),
+							below: t(locale, 'settings.panelPosition.below'),
+						},
+					},
+				},
+			],
 		},
 		{
-			name: t(locale, 'settings.gridDefaultRows.name'),
-			desc: t(locale, 'settings.gridDefaultRows.desc'),
-			control: {
-				type: 'dropdown',
-				key: 'gridDefaultRows',
-				defaultValue: String(DEFAULT_SETTINGS.gridDefaultRows),
-				options: numberOptions(GRID_ROWS_OPTIONS),
-			},
+			id: 'grid',
+			heading: t(locale, 'settings.group.grid'),
+			items: [
+				{
+					name: t(locale, 'settings.gridDefaultShape.name'),
+					desc: t(locale, 'settings.gridDefaultShape.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'gridDefaultShape',
+						defaultValue: DEFAULT_SETTINGS.gridDefaultShape,
+						options: {
+							polar: t(locale, 'settings.gridDefaultShape.polar'),
+							rect: t(locale, 'settings.gridDefaultShape.rect'),
+						},
+					},
+				},
+				{
+					name: t(locale, 'settings.gridDefaultRounds.name'),
+					desc: t(locale, 'settings.gridDefaultRounds.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'gridDefaultRounds',
+						defaultValue: String(DEFAULT_SETTINGS.gridDefaultRounds),
+						options: numberOptions(GRID_ROUNDS_OPTIONS),
+					},
+				},
+				{
+					name: t(locale, 'settings.gridDefaultColumns.name'),
+					desc: t(locale, 'settings.gridDefaultColumns.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'gridDefaultColumns',
+						defaultValue: String(DEFAULT_SETTINGS.gridDefaultColumns),
+						options: numberOptions(GRID_COLUMNS_OPTIONS),
+					},
+				},
+				{
+					name: t(locale, 'settings.gridDefaultRows.name'),
+					desc: t(locale, 'settings.gridDefaultRows.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'gridDefaultRows',
+						defaultValue: String(DEFAULT_SETTINGS.gridDefaultRows),
+						options: numberOptions(GRID_ROWS_OPTIONS),
+					},
+				},
+			],
+		},
+		{
+			id: 'general',
+			heading: t(locale, 'settings.group.general'),
+			items: [
+				{
+					name: t(locale, 'settings.language.name'),
+					desc: t(locale, 'settings.language.desc'),
+					control: {
+						type: 'dropdown',
+						key: 'languagePreference',
+						defaultValue: DEFAULT_SETTINGS.languagePreference,
+						options: languageOptions(locale),
+					},
+				},
+			],
 		},
 	];
+}
+
+// The same settings as one flat list, for anything that wants them without their
+// grouping.
+export function getLocalizedSettingDefinitions(locale: Locale): readonly CrochetSettingDefinition[] {
+	return getLocalizedSettingGroups(locale).flatMap((group) => group.items);
 }
 
 export function normalizeSettings(raw: unknown): CrochetWeaverSettings {
@@ -321,8 +376,20 @@ function numberOptions(values: readonly number[]): Record<string, string> {
 	return options;
 }
 
-function parseRoundStyle(value: unknown): RoundStyle | undefined {
-	return value === 'standard' || value === 'book' || value === 'linked' ? value : undefined;
+// The three styles, and the names they used to go by. A chart or a saved setting
+// written before they were renamed still means what it meant, so reading one
+// never silently changes how a chart is drawn.
+const ROUND_STYLES: readonly RoundStyle[] = ['radial', 'japanese', 'continuous'];
+const RENAMED_ROUND_STYLES: Readonly<Record<string, RoundStyle>> = {
+	standard: 'radial',
+	book: 'japanese',
+	linked: 'continuous',
+};
+
+export function parseRoundStyle(value: unknown): RoundStyle | undefined {
+	if (typeof value !== 'string') return undefined;
+	const name = value.trim().toLowerCase();
+	return ROUND_STYLES.find((style) => style === name) ?? RENAMED_ROUND_STYLES[name];
 }
 
 function parsePositiveNumber(value: unknown): number | undefined {

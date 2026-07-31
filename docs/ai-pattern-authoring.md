@@ -47,7 +47,7 @@ Optional, delimited by `---` lines, flat `key: value` pairs (no nesting, no list
 | `stroke` | positive number | plugin setting | SVG stroke width. |
 | `spacing` | positive number | plugin setting | Pixel gap between round/spiral rings. |
 | `highlight` | `on`/`off`/`true`/`false`/`yes`/`no`/`1`/`0` | plugin setting | Accent-colors `inc`/`dec` stitches. |
-| `style` | `standard` \| `book` \| `linked` | plugin setting | Round-chart drawing style. `book` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, an `inc` is a **V** and a `dec` an **∧** drawn in line with the round's own stitches, rounds are numbered. `linked` uses the same layout but draws every stitch's own symbol and links each one to the stitch below it — useful for checking a conversion. Only affects `type: round`. |
+| `style` | `radial` \| `japanese` \| `continuous` | plugin setting | Round-chart drawing style. `japanese` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, an `inc` is a **V** and a `dec` an **∧** drawn in line with the round's own stitches, rounds are numbered. `continuous` uses the same layout but draws every stitch's own symbol and links each one to the stitch below it — useful for checking a conversion. Only affects `type: round`. |
 | `tool` | boolean (as above) | plugin setting | Embeds the interactive progress tool next to the chart. See "Embedding a progress panel". |
 | `text` | boolean (as above) | plugin setting | Embeds a read-only shorthand list next to the chart (ignored if `tool` is also on). |
 | `position` | `right` \| `left` \| `below` | plugin setting | Where an embedded `tool`/`text` panel sits relative to the chart. |
@@ -241,7 +241,7 @@ After converting, add up each row's stitches and compare to the source pattern's
 
 ## Choosing a chart type
 
-- **`round`** — concentric rings from a center point. Use for anything worked in the round with joins (hats, coasters, amigurumi pieces, granny squares worked as circles). This is the most common choice for amigurumi. Add `style: book` in frontmatter when the user asks for the printed-book look (enclosed rounds, parent-aligned stitches, numbered rounds); it changes only how the chart is drawn, never how the pattern is written.
+- **`round`** — concentric rings from a center point. Use for anything worked in the round with joins (hats, coasters, amigurumi pieces, granny squares worked as circles). This is the most common choice for amigurumi. Add `style: japanese` in frontmatter when the user asks for the printed-book look (enclosed rounds, parent-aligned stitches, numbered rounds); it changes only how the chart is drawn, never how the pattern is written.
 - **`spiral`** — one continuous spiral, no per-round joins. Use only when the source pattern explicitly says "continuous spiral, do not join, place a stitch marker" — most amigurumi patterns that say "join" or number their rounds discretely should be `round`, not `spiral`.
 - **`flat`** — alternating back-and-forth rows. Use for scarves, blankets worked flat, anything turned at the end of each row.
 

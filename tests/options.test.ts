@@ -6,7 +6,7 @@ import type { CrochetWeaverSettings } from '../src/settings';
 
 const SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
-	roundChartStyle: 'standard',
+	roundChartStyle: 'radial',
 	scale: 1,
 	strokeWidth: 1.5,
 	ringSpacing: 30,
@@ -35,7 +35,7 @@ describe('chart option resolution', () => {
 		const options = resolveOptions(parseChart('R1: sc\n'), SETTINGS);
 
 		expect(options).toEqual({
-			roundStyle: 'standard',
+			roundStyle: 'radial',
 			ringSpacing: 30,
 			grid: false,
 			scale: 1,
@@ -61,7 +61,7 @@ R1: sc
 		);
 
 		expect(options).toEqual({
-			roundStyle: 'standard',
+			roundStyle: 'radial',
 			ringSpacing: 40,
 			grid: false,
 			scale: 1.25,
@@ -87,7 +87,7 @@ R1: sc
 		);
 
 		expect(options).toEqual({
-			roundStyle: 'standard',
+			roundStyle: 'radial',
 			ringSpacing: 30,
 			grid: false,
 			scale: 1,
@@ -150,25 +150,36 @@ R1: sc
 	});
 
 	it('resolves roundStyle from global settings or the style frontmatter override', () => {
-		expect(resolveOptions(parseChart('R1: sc\n'), SETTINGS).roundStyle).toBe('standard');
+		expect(resolveOptions(parseChart('R1: sc\n'), SETTINGS).roundStyle).toBe('radial');
 		expect(
-			resolveOptions(parseChart('R1: sc\n'), { ...SETTINGS, roundChartStyle: 'book' }).roundStyle,
-		).toBe('book');
+			resolveOptions(parseChart('R1: sc\n'), { ...SETTINGS, roundChartStyle: 'japanese' }).roundStyle,
+		).toBe('japanese');
 		expect(
-			resolveOptions(parseChart('---\ntype: round\nstyle: book\n---\nR1: 6 sc in MR\n'), SETTINGS).roundStyle,
-		).toBe('book');
+			resolveOptions(parseChart('---\ntype: round\nstyle: japanese\n---\nR1: 6 sc in MR\n'), SETTINGS).roundStyle,
+		).toBe('japanese');
 		expect(
 			resolveOptions(
-				parseChart('---\ntype: round\nstyle: standard\n---\nR1: 6 sc in MR\n'),
-				{ ...SETTINGS, roundChartStyle: 'book' },
+				parseChart('---\ntype: round\nstyle: radial\n---\nR1: 6 sc in MR\n'),
+				{ ...SETTINGS, roundChartStyle: 'japanese' },
 			).roundStyle,
-		).toBe('standard');
+		).toBe('radial');
 		expect(
 			resolveOptions(
 				parseChart('---\ntype: round\nstyle: fancy\n---\nR1: 6 sc in MR\n'),
-				{ ...SETTINGS, roundChartStyle: 'book' },
+				{ ...SETTINGS, roundChartStyle: 'japanese' },
 			).roundStyle,
-		).toBe('book');
+		).toBe('japanese');
+	});
+
+	// The styles were renamed once they had names from the craft rather than from
+	// the code. A chart written before that still means what it said.
+	it('still reads the names the three round styles used to go by', () => {
+		const styleOf = (name: string) =>
+			resolveOptions(parseChart(`---\ntype: round\nstyle: ${name}\n---\nR1: 6 sc in MR\n`), SETTINGS).roundStyle;
+
+		expect(styleOf('standard')).toBe('radial');
+		expect(styleOf('book')).toBe('japanese');
+		expect(styleOf('linked')).toBe('continuous');
 	});
 
 	it('resolves gridColumns from the columns frontmatter key', () => {

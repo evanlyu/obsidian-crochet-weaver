@@ -92,7 +92,7 @@ scale: 1.5
 stroke: 2
 spacing: 40
 highlight: on
-style: standard | book | linked
+style: radial | japanese | continuous
 tool: on | off
 text: on | off
 position: right | left | below
@@ -225,22 +225,22 @@ R1: 6 sc in MR
 R2: [sc, inc] x 6, sl st
 ```
 
-`style: book` switches a round chart to Japanese-pattern-book styling: a continuous spiral guide winds through the rounds (as crochet-in-the-round really is one spiralling line), stepping out to the next round at each starting seam, with each round numbered in red at that seam.
+`style: japanese` switches a round chart to Japanese-pattern-book styling: a continuous spiral guide winds through the rounds (as crochet-in-the-round really is one spiralling line), stepping out to the next round at each starting seam, with each round numbered in red at that seam.
 
 Shaping is drawn the way the books do it: as a symbol of its own round, in line with the plain stitches. An `inc` is a **V** whose point sits on the round's inner edge, in line with the stitch it is worked into, and whose two arms open out to the round's outer edge — one per stitch it makes, where the next round will be worked. A `dec` (or an `scNtog`) is the **∧**: its feet on each stitch it closed over, its point standing above them. Nothing floats in the gap between two rounds, and nothing is a fixed glyph: each mark is sized to its round's band and leans toward the stitches it belongs to. It opens far enough to reach across the stitches it belongs to, but never so far that it stops reading as a V: a decrease merging two stitches a long way apart on a big round still reaches toward both instead of stretching into two long lines.
 
 Underneath, every stitch is placed from the previous-round stitch it is worked into, and records it: an increase's two stitches share one source, a decrease's stitch has two. Stitches never change working order, never overlap, and share out whatever room the shaping leaves.
 
-`style: linked` uses that same layout and spells the correspondence out instead of printing it: every stitch keeps its own symbol — including **both** stitches an increase makes — and lines are drawn from them to the stitch below they are worked into. Useful for checking a pattern, or for reading a chart when you don't already know the book symbols.
+`style: continuous` uses that same layout and spells the correspondence out instead of printing it: every stitch keeps its own symbol — including **both** stitches an increase makes — and lines are drawn from them to the stitch below they are worked into. Useful for checking a pattern, or for reading a chart when you don't already know the book symbols.
 
 In both, nothing is grouped or packed: every stitch simply follows the stitch below it. A round written as a repeat — `[2 sc, inc] x 6` — still reads as six wedges, because its six increases sit above the six stitches they are worked into. A round that neither writes repeats nor shapes — the straight sides of a basket, `R9: 40 sc` — copies the round below exactly, so a run of plain rounds stacks into straight radial columns above whatever the shaping under it left.
 
-The default `style: standard` keeps the original evenly spread layout with the stock `inc`/`dec` glyphs; the global **Round chart style** setting changes the default for all charts.
+The default `style: radial` keeps the original evenly spread layout with the stock `inc`/`dec` glyphs; the global **Round chart style** setting changes the default for all charts.
 
 ```crochet
 ---
 type: round
-style: book
+style: japanese
 ---
 R1: 6 sc in MR
 R2: [inc] x 6
@@ -336,7 +336,7 @@ Open the plugin settings tab to configure global defaults:
 - **Show pattern text by default**: embed the read-only pattern text on every `crochet` chart unless overridden per chart with `text: on/off`.
 - **Panel position**: default position (right / left / below) for an embedded tool or text panel, overridable per chart with `position:`.
 - **Show background grid guide**: draw the round/row reference guide behind every `crochet` chart by default, overridable per chart with `grid: on/off`.
-- **Round chart style**: `standard` (evenly spread stitches), `book` (round separators, parent-placed stitches, printed V/∧ shaping, and round numbers), or `linked` (same layout, every stitch drawn and joined by lines to the round below).
+- **Round chart style**: `radial` (evenly spread stitches), `japanese` (round separators, parent-placed stitches, printed V/∧ shaping, and round numbers), or `continuous` (same layout, every stitch drawn and joined by lines to the round below).
 - **Grid default shape**: `polar` or `rect` default for new `crochet-grid` blocks.
 - **Grid default rounds**: default ring count for a `polar` grid.
 - **Grid default columns**: default column/spoke count for a grid block.

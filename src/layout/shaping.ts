@@ -1,6 +1,6 @@
 import type { GridPoint, ShapingMark } from '../types';
 import { arcToDegrees, shortestAngleDelta } from './angles';
-import { MIN_ARC } from './constants';
+import { symbolArc } from './constants';
 import type { GraphStitch, StitchMappingGroup } from './graph';
 import { symbolAngle } from './polar';
 
@@ -21,16 +21,15 @@ export interface RoundBand {
 const BAND_INSET_SHARE = 0.16;
 const MIN_BAND_INSET = 1.5;
 
-// How far a mark opens, at most, relative to its own height — and never past
-// this in px whatever the round's size. A decrease has to open far enough to
-// reach across the two stitches it closed over, or it says nothing about which
-// two they were; but left to reach any distance, one merging stitches a whole
-// slot apart on a large round would flatten into two long, nearly straight
-// lines that no longer read as a symbol. Between those, an opening of about
-// twice the mark's height still reads as a V. It never opens wider than the
-// stitches themselves are apart.
+// How far a mark opens, at most, relative to its own height — and never wider
+// than the stitches it is drawn across take up between them. A decrease has to
+// open far enough to reach across the two stitches it closed over, or it says
+// nothing about which two they were; but left to reach any distance, one merging
+// stitches a whole slot apart on a large round would flatten into two long,
+// nearly straight lines that no longer read as a symbol. Between those, an
+// opening of about twice the mark's height still reads as a V. It never opens
+// wider than the stitches themselves are apart.
 const MARK_ASPECT = 2.4;
-const MAX_MARK_WIDTH = MIN_ARC * 2;
 
 // Builds the V of an increase or the ∧ of a decrease.
 //
@@ -79,7 +78,10 @@ export function buildShapingMark(
 	const apexAngle = point.layout.angle;
 	const offsets = openAngles.map((angle) => shortestAngleDelta(apexAngle, angle));
 	const height = Math.abs(apexRadius - openRadius);
-	const maxSpan = arcToDegrees(Math.min(height * MARK_ASPECT, MAX_MARK_WIDTH), openRadius);
+	// The widest a mark may open, in px: one stitch's room for each stitch on its
+	// open side, taken from those stitches' own symbols.
+	const widest = open.reduce((total, stitch) => total + symbolArc(stitch.symbol), 0);
+	const maxSpan = arcToDegrees(Math.min(height * MARK_ASPECT, widest), openRadius);
 	const span = Math.max(...offsets) - Math.min(...offsets);
 	const squeeze = span > maxSpan ? maxSpan / span : 1;
 	// Closing the opening is not enough on its own: where a round cannot follow

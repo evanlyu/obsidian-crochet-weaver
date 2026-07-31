@@ -61,22 +61,24 @@ export type PanelPosition = 'left' | 'right' | 'below';
 // abbreviations into full, localized names (e.g. "短針6").
 export type PatternTextStyle = 'raw' | 'readable';
 
-// Drawing style for type: round charts.
+// Drawing style for type: round charts, named for what the finished chart is.
 //
-// standard: each round's units spread evenly around the circle, with the stock
-// inc/dec glyphs (the original behavior).
+// radial: each round's units spread evenly around the circle, so the chart reads
+// as spokes out from the centre, with the stock inc/dec glyphs. What a round
+// contains, not which stitch is worked into which.
 //
-// book and linked share one layout — separator circles enclose each round in
-// its own band, every stitch is placed from the previous-round stitch it is
-// worked into, and each round is numbered at the starting seam — and differ in
-// how shaping is drawn:
-//   book: as Japanese pattern books print it, the V of an increase and the ∧ of
-//     a decrease standing in for the stitches they make, inside their own
-//     round's band, in line with the plain stitches.
-//   linked: every stitch keeps its own symbol, and lines are drawn from an
+// japanese and continuous share one layout — separator circles enclose each
+// round in its own band, every stitch is placed from the previous-round stitch
+// it is worked into, and each round is numbered at the starting seam — and
+// differ in how shaping is drawn:
+//   japanese: as pattern books print it, the V of an increase and the ∧ of a
+//     decrease standing in for the stitches they make, inside their own round's
+//     band, in line with the plain stitches.
+//   continuous: every stitch keeps its own symbol, and lines are drawn from an
 //     increase's or decrease's stitches to the stitch below they are worked
-//     into — the correspondence spelled out rather than implied.
-export type RoundStyle = 'standard' | 'book' | 'linked';
+//     into, so the fabric reads as one continuous run from round to round —
+//     the correspondence spelled out rather than implied.
+export type RoundStyle = 'radial' | 'japanese' | 'continuous';
 
 // Layout options resolved from global settings and per-chart frontmatter.
 export interface LayoutOptions {

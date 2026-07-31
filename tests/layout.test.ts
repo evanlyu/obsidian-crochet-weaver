@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calculateLayout, roundStitchCount, unitStitchCounts } from '../src/layout';
+import { symbolExtent } from '../src/layout/constants';
 import { parse } from '../src/parser';
 import type { CrochetAst, GridPoint, LayoutResult, RenderItem, RowNode, ShapingMark } from '../src/types';
 
@@ -324,8 +325,21 @@ R3: [sc, inc] x 6
 	});
 });
 
-describe('book-style round layout', () => {
-	const BOOK = { ...OPTIONS, roundStyle: 'book' } as const;
+describe('traditional-Japanese round layout', () => {
+	const BOOK = { ...OPTIONS, roundStyle: 'japanese' } as const;
+
+	// How far the layout may move a stitch from the one it is worked into, as a
+	// share of its round's stitch pitch: a fifth of a stitch to even out the
+	// crowding shaping below it left (MAX_DRIFT_SHARE), and as much again where a
+	// round closes its seam back to the one width it needs (SEAM_CLOSE_SHARE — see
+	// closeSeam in layout/angles.ts). Both are spent beside the seam and neither
+	// opposite it, so this is the worst case, not the usual one.
+	const DRIFT_SHARE = 0.4;
+
+	// That allowance in degrees, on a round of `count` stitches.
+	function driftDegrees(count: number): number {
+		return (360 / count) * DRIFT_SHARE;
+	}
 
 	function angleOf(center: { x: number; y: number }, item: { x: number; y: number }): number {
 		return (Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
@@ -417,7 +431,7 @@ describe('book-style round layout', () => {
 			// arms straddle it symmetrically — one stitch became two.
 			expect(angleDiff(angleOf(center, apex), angleOf(center, parent))).toBeLessThan(0.01);
 			const mid = midAngle(angleOf(center, left), angleOf(center, right));
-			expect(angleDiff(angleOf(center, parent), mid)).toBeLessThan(0.01);
+			expect(angleDiff(angleOf(center, parent), mid)).toBeLessThan(driftDegrees(12));
 			// Close enough together to read as one step worked into one stitch.
 			expect(angleDiff(angleOf(center, left), angleOf(center, right))).toBeLessThan(360 / 12);
 		});
@@ -498,7 +512,7 @@ describe('book-style round layout', () => {
 				midAngle(angleOf(center, footA), angleOf(center, footB)),
 				midAngle(angleOf(center, parentA), angleOf(center, parentB)),
 			),
-		).toBeLessThan(0.01);
+		).toBeLessThan(driftDegrees(5));
 		expect(radiusOf(center, footA)).toBeGreaterThan(inner);
 		expect(radiusOf(center, footA)).toBeLessThan(roundRadius(layout, center, 1));
 		// ...and the point stands above them, further out, on this round.
@@ -573,9 +587,9 @@ describe('book-style round layout', () => {
 	});
 
 	describe('repeat grouping', () => {
-		const LINKED = { ...OPTIONS, roundStyle: 'linked' } as const;
+		const LINKED = { ...OPTIONS, roundStyle: 'continuous' } as const;
 
-		// Every stitch renders in linked style, so the round's real spacing can be
+		// Every stitch renders in continuous style, so the round's real spacing can be
 		// read straight off the chart.
 		function gapsOf(layout: LayoutResult, rowIndex: number): number[] {
 			const center = layout.items[0];
@@ -626,8 +640,7 @@ describe('book-style round layout', () => {
 				const parent = byId.get(stitch.sourceStitchIds?.[0]);
 				if (!parent) throw new Error('expected the stitch below');
 				const drift = angleDiff(angleOf(center, stitch), angleOf(center, parent));
-				// MAX_DRIFT_SHARE: a fifth of a stitch, at most, per round.
-				expect((drift * Math.PI * radius) / 180).toBeLessThanOrEqual(pitch * 0.2);
+				expect((drift * Math.PI * radius) / 180).toBeLessThanOrEqual(pitch * DRIFT_SHARE);
 			}
 		});
 
@@ -651,7 +664,7 @@ describe('book-style round layout', () => {
 					const parent = byId.get(stitch.sourceStitchIds?.[0]);
 					if (!parent) throw new Error('expected the stitch below');
 					const drift = angleDiff(angleOf(center, stitch), angleOf(center, parent));
-					expect((drift * Math.PI * radius) / 180).toBeLessThanOrEqual(pitch * 0.2);
+					expect((drift * Math.PI * radius) / 180).toBeLessThanOrEqual(pitch * DRIFT_SHARE);
 				}
 			}
 			// And they do close up: by the last one the round is nearly even.
@@ -683,14 +696,17 @@ describe('book-style round layout', () => {
 				return worst;
 			};
 
-			// Half a stitch at most, on every round: an increase's two stitches
-			// straddle the one they share, so they cannot sit dead over it.
+			// An increase's two stitches straddle the one they share, so they cannot
+			// sit dead over it — half a stitch — and the layout may move a stitch a
+			// further DRIFT_SHARE of one. Nothing may exceed the two together.
 			for (let rowIndex = 1; rowIndex <= 8; rowIndex++) {
-				expect(worstDrift(rowIndex)).toBeLessThan(0.55);
+				expect(worstDrift(rowIndex)).toBeLessThan(0.5 + DRIFT_SHARE);
 			}
 			// And it stays there instead of creeping outward round after round,
-			// which is what would really lose the correspondence.
-			expect(worstDrift(8)).toBeLessThanOrEqual(worstDrift(4) * 1.15);
+			// which is what would really lose the correspondence: the outermost
+			// round is no further off its own parents than an inner one, give or
+			// take what closing the seam costs.
+			expect(worstDrift(8)).toBeLessThanOrEqual(worstDrift(4) + DRIFT_SHARE);
 		});
 
 		// An increase makes two stitches where there was one, so it needs room —
@@ -727,12 +743,17 @@ describe('book-style round layout', () => {
 				LINKED,
 			);
 
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
 			for (const rowIndex of [0, 1]) {
 				const gaps = gapsOf(layout, rowIndex);
 				expect(gaps).toHaveLength(6);
-				const seam = gaps[gaps.length - 1] ?? 0;
 				for (const gap of gaps.slice(0, -1)) expect(gap).toBeCloseTo(gaps[0] ?? 0);
-				expect(seam).toBeGreaterThan(gaps[0] ?? 0);
+				// The seam holds the round number and the step out, whatever the
+				// stitches around it are doing.
+				const radius = roundRadius(layout, center, rowIndex);
+				const seam = ((gaps[gaps.length - 1] ?? 0) * Math.PI * radius) / 180;
+				expect(seam).toBeGreaterThan(24);
 			}
 		});
 
@@ -773,9 +794,12 @@ describe('book-style round layout', () => {
 				const width = distance(first, last);
 				const height = Math.abs(radiusOf(center, apex) - radiusOf(center, first));
 				// Open enough to reach across the stitches it belongs to, never so
-				// open that it stops reading as a V — whatever the round's size.
+				// open that it stops reading as a V — whatever the round's size. The
+				// width it is allowed follows the stitches it spans: one stitch's
+				// worth of the round each, so a 3-together may open wider than a
+				// 2-together but neither may sprawl.
 				expect(width / height).toBeLessThan(2.5);
-				expect(width).toBeLessThanOrEqual(40);
+				expect(width).toBeLessThanOrEqual(20 * arms.length);
 			}
 		}
 	});
@@ -863,10 +887,12 @@ describe('book-style round layout', () => {
 			// Its point stands midway above the two stitches, one foot leaning
 			// toward each, opening no wider than the two stitches themselves.
 			const mid = midAngle(angleOf(center, left), angleOf(center, right));
-			expect(angleDiff(angleOf(center, apex), mid)).toBeLessThan(0.01);
-			expect(angleDiff(midAngle(angleOf(center, footA), angleOf(center, footB)), mid)).toBeLessThan(0.01);
+			expect(angleDiff(angleOf(center, apex), mid)).toBeLessThan(driftDegrees(6));
+			expect(angleDiff(midAngle(angleOf(center, footA), angleOf(center, footB)), mid)).toBeLessThan(
+				driftDegrees(6),
+			);
 			expect(clockwiseDelta(angleOf(center, footA), angleOf(center, footB))).toBeLessThanOrEqual(
-				clockwiseDelta(angleOf(center, left), angleOf(center, right)),
+				clockwiseDelta(angleOf(center, left), angleOf(center, right)) + 1e-9,
 			);
 		});
 	});
@@ -962,7 +988,7 @@ describe('book-style round layout', () => {
 			const right = round1[2 * i + 1];
 			if (!left || !right) throw new Error('expected parent stitches');
 			const mid = midAngle(angleOf(center, left), angleOf(center, right));
-			expect(angleDiff(angleOf(center, dec), mid)).toBeLessThan(0.01);
+			expect(angleDiff(angleOf(center, dec), mid)).toBeLessThan(driftDegrees(3));
 		});
 	});
 
@@ -990,7 +1016,7 @@ describe('book-style round layout', () => {
 			if (!left || !right) throw new Error('expected two grandchildren');
 			const mid = midAngle(angleOf(center, left), angleOf(center, right));
 			const off = (angleDiff(angleOf(center, parent), mid) * Math.PI * radius) / 180;
-			expect(off).toBeLessThanOrEqual(pitch * 0.2);
+			expect(off).toBeLessThanOrEqual(pitch * DRIFT_SHARE);
 		});
 	});
 
@@ -1018,17 +1044,17 @@ describe('book-style round layout', () => {
 		expect(Math.max(...radii) - Math.min(...radii)).toBeGreaterThan(radiusAt(1) - radiusAt(0));
 	});
 
-	describe('linked style', () => {
-		const LINKED = { ...OPTIONS, roundStyle: 'linked' } as const;
+	describe('continuous style', () => {
+		const LINKED = { ...OPTIONS, roundStyle: 'continuous' } as const;
 
-		it('shares its rounds and numbering with book style', () => {
+		it('shares its rounds and numbering with traditional Japanese style', () => {
 			const source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [sc, inc] x 3\nR3: 9 sc\n';
 			const book = calculateLayout(parseChart(source), BOOK);
 			const linked = calculateLayout(parseChart(source), LINKED);
 
 			// Same rounds at the same radii, numbered the same, both enclosed by
 			// the band guide. Only the spacing within a round can differ, and
-			// only because book style draws the two stitches of an increase as
+			// only because traditional Japanese style draws the two stitches of an increase as
 			// one V, which needs less room than the two symbols linked draws —
 			// which also nudges where each round's seam falls.
 			expect(linked.labels?.map((label) => label.text)).toEqual(book.labels?.map((label) => label.text));
@@ -1051,7 +1077,7 @@ describe('book-style round layout', () => {
 			const center = layout.items[0];
 			if (!center) throw new Error('expected MR center');
 
-			// Unlike book style, all seven stitches keep their own symbol.
+			// Unlike traditional Japanese style, all seven stitches keep their own symbol.
 			expect(round(layout, 1)).toHaveLength(7);
 			const [childA, childB] = [stitchOf(layout, 'r1s0'), stitchOf(layout, 'r1s1')];
 			expect(childA.sourceStitchIds).toEqual(['r0s0']);
@@ -1133,8 +1159,10 @@ describe('book-style round layout', () => {
 			'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: [2 sc, inc] x 6\nR5: 24 sc\n';
 		const ROUNDS = [0, 1, 2, 3, 4];
 
-		// Where the guide steps from one band out to the next: the points where its
-		// one continuous polyline jumps radius, in round order.
+		// Where the guide steps from one band out to the next: the straight run
+		// between the two rounded corners of each step, which is the one segment of
+		// its continuous polyline that crosses most of the gap between two bands.
+		// The corners themselves change radius a fraction of a px at a time.
 		function guideSteps(layout: LayoutResult, center: GridPoint): { from: GridPoint; to: GridPoint }[] {
 			const polyline = layout.gridGuide?.polylines?.[0] ?? [];
 			const steps: { from: GridPoint; to: GridPoint }[] = [];
@@ -1142,7 +1170,7 @@ describe('book-style round layout', () => {
 				const from = polyline[i - 1];
 				const to = polyline[i];
 				if (!from || !to) continue;
-				if (Math.abs(radiusOf(center, to) - radiusOf(center, from)) > 1) steps.push({ from, to });
+				if (Math.abs(radiusOf(center, to) - radiusOf(center, from)) > 5) steps.push({ from, to });
 			}
 			return steps;
 		}
@@ -1150,7 +1178,7 @@ describe('book-style round layout', () => {
 		it('keeps room of its own at every round, with no stitch in it', () => {
 			// Linked style draws every stitch, so the gap the round really left at
 			// its seam can be read straight off the chart.
-			const layout = calculateLayout(parseChart(SOURCE), { ...OPTIONS, roundStyle: 'linked' });
+			const layout = calculateLayout(parseChart(SOURCE), { ...OPTIONS, roundStyle: 'continuous' });
 			const center = layout.items[0];
 			if (!center) throw new Error('expected MR center');
 
@@ -1165,16 +1193,59 @@ describe('book-style round layout', () => {
 				);
 				const seam = gaps[gaps.length - 1] ?? 0;
 
-				// Room for the round number and the step out, and so wider than any
-				// gap the round leaves between two stitches.
+				// Room for the round number and the step out, at every round.
 				expect(seam).toBeGreaterThan(24);
-				expect(seam).toBeGreaterThan(Math.max(...gaps.slice(0, -1)));
 				// Half a round number plus half a stitch symbol: enough that the two
 				// cannot touch, whichever digits the number has.
 				const nearest = Math.min(
 					...stitches.map((stitch) => arc(angleDiff(angleOf(center, stitch), angleOf(center, label)))),
 				);
 				expect(nearest).toBeGreaterThan(10);
+			}
+		});
+
+		// A decrease is drawn down onto the stitches it closed over, and those sit
+		// either side of the one it makes — so a round that opens or closes with one
+		// draws out past its own first or last stitch. That reach is part of what
+		// the seam has to be asked for, or the ∧ is drawn across the round's own
+		// number and step.
+		//
+		// Read in continuous style, where every stitch draws a symbol, so the round's
+		// first and last really are the ends of what it drew. The layout underneath
+		// is the same one traditional Japanese style uses.
+		it('keeps the shaping at either end of a round out of the seam', () => {
+			const LINKED = { ...OPTIONS, roundStyle: 'continuous' } as const;
+			for (const source of [
+				'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: 18 sc\nR5: [sc, dec] x 6\nR6: [dec] x 6\n',
+				'---\ntype: round\n---\nR1: 12 sc in MR\nR2: 9 sc, dec, sc\nR3: 11 sc\n',
+				'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: [2 sc, inc] x 6\n',
+			]) {
+				const layout = calculateLayout(parseChart(source), LINKED);
+				const center = layout.items[0];
+				if (!center) throw new Error('expected MR center');
+
+				const steps = guideSteps(layout, center);
+				(layout.labels ?? []).forEach((label, rowIndex) => {
+					const step = steps[rowIndex];
+					if (!step) throw new Error(`expected round ${rowIndex} to step out`);
+					const radius = roundRadius(layout, center, rowIndex);
+					const margin = (180 * 6) / (Math.PI * radius); // 6px of arc, in degrees
+
+					// The channel the round change is drawn in: from the step out to
+					// the round number, which follows it. Nothing else belongs in it.
+					const from = angleOf(center, step.to) + margin;
+					const to = angleOf(center, label) - margin;
+					const channel = clockwiseDelta(from, to);
+
+					for (const mark of marksOf(layout, rowIndex)) {
+						for (const segment of mark.segments) {
+							for (const point of segment) {
+								const into = clockwiseDelta(from, angleOf(center, point));
+								expect(into > 0 && into < channel).toBe(false);
+							}
+						}
+					}
+				});
 			}
 		});
 
@@ -1212,6 +1283,79 @@ describe('book-style round layout', () => {
 					(((angleOf(center, to) - angleOf(center, from) + 540) % 360) - 180) * (Math.PI / 180) * mean;
 				const fromRing = (Math.atan2(Math.abs(radial), Math.abs(across)) * 180) / Math.PI;
 				expect(fromRing).toBeGreaterThan(70);
+			}
+		});
+	});
+
+	// Nothing about a chart's size is taken from stitch counts alone: a ring is as
+	// long as the symbols on it and the seam in it need. So the same pattern
+	// written in taller stitches is drawn on a larger ring rather than a crowded
+	// one, and neither ring has two symbols overlapping.
+	describe('ring sizing', () => {
+		function neighbourGaps(layout: LayoutResult, rowIndex: number): number[] {
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const radius = roundRadius(layout, center, rowIndex);
+			const stitches = round(layout, rowIndex);
+			return stitches.map((stitch, i) => {
+				const next = stitches[(i + 1) % stitches.length] ?? stitch;
+				const gap = clockwiseDelta(angleOf(center, stitch), angleOf(center, next));
+				return (gap * Math.PI * radius) / 180;
+			});
+		}
+
+		for (const [symbol, source] of [
+			['sc', '---\ntype: round\n---\nR1: 12 sc in MR\n'],
+			['dc', '---\ntype: round\n---\nR1: 12 dc in MR\n'],
+			['dtr', '---\ntype: round\n---\nR1: 12 dtr in MR\n'],
+		] as const) {
+			it(`draws a round of ${symbol} on a ring long enough to hold it`, () => {
+				const layout = calculateLayout(parseChart(source), BOOK);
+
+				for (const gap of neighbourGaps(layout, 0)) {
+					expect(gap).toBeGreaterThanOrEqual(2 * symbolExtent(symbol));
+				}
+			});
+		}
+
+		it('grows the ring with the stitches, for the same stitch count', () => {
+			const center = (layout: LayoutResult) => layout.items[0];
+			const radiusOfRound = (source: string) => {
+				const layout = calculateLayout(parseChart(source), BOOK);
+				const middle = center(layout);
+				if (!middle) throw new Error('expected MR center');
+				return roundRadius(layout, middle, 0);
+			};
+
+			expect(radiusOfRound('---\ntype: round\n---\nR1: 12 dtr in MR\n')).toBeGreaterThan(
+				radiusOfRound('---\ntype: round\n---\nR1: 12 sc in MR\n'),
+			);
+		});
+
+		it("makes room at the seam for the chains a round opens with, however many it writes", () => {
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: ch 3, 12 dc in MR, sl st\nR2: ch 3, [dc, inc] x 6, sl st\n'),
+				BOOK,
+			);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			for (const rowIndex of [0, 1]) {
+				// The chain and the join are the round's instructions: drawn at its
+				// seam, with no unitIndex of their own.
+				const seamItems = layout.items.filter(
+					(item) => item.rowIndex === rowIndex && item.unitIndex === undefined,
+				);
+				expect(seamItems).toHaveLength(4);
+				const radius = roundRadius(layout, center, rowIndex);
+				for (let i = 1; i < seamItems.length; i++) {
+					const before = seamItems[i - 1];
+					const here = seamItems[i];
+					if (!before || !here) throw new Error('expected two seam instructions');
+					const apart =
+						(angleDiff(angleOf(center, before), angleOf(center, here)) * Math.PI * radius) / 180;
+					expect(apart).toBeGreaterThanOrEqual(symbolExtent('ch'));
+				}
 			}
 		});
 	});

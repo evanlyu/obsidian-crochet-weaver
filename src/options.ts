@@ -4,8 +4,8 @@ import type {
 	PanelPosition,
 	PatternTextStyle,
 	RenderOptions,
-	RoundStyle,
 } from './types';
+import { parseRoundStyle } from './settings-data';
 import type { CrochetWeaverSettings } from './settings';
 
 export type ResolvedOptions = RenderOptions & LayoutOptions;
@@ -25,7 +25,7 @@ export function resolveOptions(
 	const style = config.style?.toLowerCase();
 	const gridCountKey = config.type === 'flat' ? config.rows : config.rounds;
 	return {
-		roundStyle: isRoundStyle(style) ? style : settings.roundChartStyle,
+		roundStyle: parseRoundStyle(style) ?? settings.roundChartStyle,
 		ringSpacing: positiveFloat(config.spacing) ?? settings.ringSpacing,
 		scale: positiveFloat(config.scale) ?? settings.scale,
 		strokeWidth: positiveFloat(config.stroke) ?? settings.strokeWidth,
@@ -51,10 +51,6 @@ export function resolvePanelOptions(
 		position: isPanelPosition(position) ? position : settings.panelPosition,
 		textStyle: readableOverride === undefined ? settings.patternTextStyle : readableOverride ? 'readable' : 'raw',
 	};
-}
-
-function isRoundStyle(value: string | undefined): value is RoundStyle {
-	return value === 'standard' || value === 'book' || value === 'linked';
 }
 
 function isPanelPosition(value: string | undefined): value is PanelPosition {

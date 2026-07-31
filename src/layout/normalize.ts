@@ -7,7 +7,7 @@ import type {
 	RowConnector,
 	ShapingMark,
 } from '../types';
-import { COLOR_MARKER_RADIUS, LABEL_EXTENT, PADDING, symbolExtent } from './constants';
+import { COLOR_MARKER_RADIUS, labelExtent, PADDING, symbolExtent } from './constants';
 
 export function normalize(
 	items: RenderItem[],
@@ -67,10 +67,11 @@ export function normalize(
 		maxY = Math.max(maxY, marker.y + COLOR_MARKER_RADIUS);
 	}
 	for (const label of labels ?? []) {
-		minX = Math.min(minX, label.x - LABEL_EXTENT);
-		maxX = Math.max(maxX, label.x + LABEL_EXTENT);
-		minY = Math.min(minY, label.y - LABEL_EXTENT);
-		maxY = Math.max(maxY, label.y + LABEL_EXTENT);
+		const extent = labelExtent(label.text);
+		minX = Math.min(minX, label.x - extent);
+		maxX = Math.max(maxX, label.x + extent);
+		minY = Math.min(minY, label.y - extent);
+		maxY = Math.max(maxY, label.y + extent);
 	}
 	for (const mark of shapingMarks ?? []) {
 		for (const segment of mark.segments) {

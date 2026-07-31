@@ -54,7 +54,7 @@ Optional, delimited by \`---\` lines, flat \`key: value\` pairs (no nesting, no 
 | \`stroke\` | positive number | plugin setting | SVG stroke width. |
 | \`spacing\` | positive number | plugin setting | Pixel gap between round/spiral rings. |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | plugin setting | Accent-colors \`inc\`/\`dec\` stitches. |
-| \`style\` | \`standard\` \\| \`book\` \\| \`linked\` | plugin setting | Round-chart drawing style. \`book\` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, an \`inc\` is a **V** and a \`dec\` an **∧** drawn in line with the round's own stitches, rounds are numbered. \`linked\` uses the same layout but draws every stitch's own symbol and links each one to the stitch below it — useful for checking a conversion. Only affects \`type: round\`. |
+| \`style\` | \`radial\` \\| \`japanese\` \\| \`continuous\` | plugin setting | Round-chart drawing style. \`japanese\` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, an \`inc\` is a **V** and a \`dec\` an **∧** drawn in line with the round's own stitches, rounds are numbered. \`continuous\` uses the same layout but draws every stitch's own symbol and links each one to the stitch below it — useful for checking a conversion. Only affects \`type: round\`. |
 | \`tool\` | boolean (as above) | plugin setting | Embeds the interactive progress tool next to the chart. See "Embedding a progress panel". |
 | \`text\` | boolean (as above) | plugin setting | Embeds a read-only shorthand list next to the chart (ignored if \`tool\` is also on). |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | plugin setting | Where an embedded \`tool\`/\`text\` panel sits relative to the chart. |
@@ -248,7 +248,7 @@ After converting, add up each row's stitches and compare to the source pattern's
 
 ## Choosing a chart type
 
-- **\`round\`** — concentric rings from a center point. Use for anything worked in the round with joins (hats, coasters, amigurumi pieces, granny squares worked as circles). This is the most common choice for amigurumi. Add \`style: book\` in frontmatter when the user asks for the printed-book look (enclosed rounds, parent-aligned stitches, numbered rounds); it changes only how the chart is drawn, never how the pattern is written.
+- **\`round\`** — concentric rings from a center point. Use for anything worked in the round with joins (hats, coasters, amigurumi pieces, granny squares worked as circles). This is the most common choice for amigurumi. Add \`style: japanese\` in frontmatter when the user asks for the printed-book look (enclosed rounds, parent-aligned stitches, numbered rounds); it changes only how the chart is drawn, never how the pattern is written.
 - **\`spiral\`** — one continuous spiral, no per-round joins. Use only when the source pattern explicitly says "continuous spiral, do not join, place a stitch marker" — most amigurumi patterns that say "join" or number their rounds discretely should be \`round\`, not \`spiral\`.
 - **\`flat\`** — alternating back-and-forth rows. Use for scarves, blankets worked flat, anything turned at the end of each row.
 
@@ -341,7 +341,7 @@ R2: <步驟>
 | \`stroke\` | 正數 | 外掛設定值 | SVG 線條粗細。 |
 | \`spacing\` | 正數 | 外掛設定值 | 圈與圈（round/spiral）之間的像素間距。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | 外掛設定值 | 將 \`inc\`/\`dec\` 針目標示為強調色。 |
-| \`style\` | \`standard\` \\| \`book\` \\| \`linked\` | 外掛設定值 | 環織織圖的繪製樣式。\`book\` 為日本鉤織書風格：一條連續螺旋線繞過每一圈、針目對齊上一圈鉤入的針目、加針畫成 **V**、減針畫成 **∧** 並與該圈其他針目並排、並標示圈數。\`linked\` 使用同樣的排版，但每一針都畫出自己的符號，並連線到它所鉤入的下方針目──適合用來檢查轉換結果。只影響 \`type: round\`。 |
+| \`style\` | \`radial\` \\| \`japanese\` \\| \`continuous\` | 外掛設定值 | 環織織圖的繪製樣式。\`japanese\` 為日本鉤織書風格：一條連續螺旋線繞過每一圈、針目對齊上一圈鉤入的針目、加針畫成 **V**、減針畫成 **∧** 並與該圈其他針目並排、並標示圈數。\`continuous\` 使用同樣的排版，但每一針都畫出自己的符號，並連線到它所鉤入的下方針目──適合用來檢查轉換結果。只影響 \`type: round\`。 |
 | \`tool\` | 布林值（同上） | 外掛設定值 | 在織圖旁內嵌互動式進度工具。見「內嵌進度面板」。 |
 | \`text\` | 布林值（同上） | 外掛設定值 | 在織圖旁內嵌唯讀的縮寫清單（若 \`tool\` 也開啟則會被忽略）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | 外掛設定值 | 內嵌的 \`tool\`／\`text\` 面板相對於織圖要放在哪個位置。 |
@@ -535,7 +535,7 @@ Crochet Weaver 計算一行針數的方式，跟真實織圖標註「(N sc)」�
 
 ## 選擇織圖類型
 
-- **\`round\`（圓編）** ── 從中心點往外的同心圓。用於任何有接合（join）的圈織作品（帽子、杯墊、娃娃編各部位、以圓形織的祖母方格）。這是娃娃編最常用的選擇。使用者若想要鉤織書那種畫法（圈線框住每一圈、針目對齊、標示圈數），在 frontmatter 加上 \`style: book\` 即可；它只改變織圖的畫法，完全不影響織圖的寫法。
+- **\`round\`（圓編）** ── 從中心點往外的同心圓。用於任何有接合（join）的圈織作品（帽子、杯墊、娃娃編各部位、以圓形織的祖母方格）。這是娃娃編最常用的選擇。使用者若想要鉤織書那種畫法（圈線框住每一圈、針目對齊、標示圈數），在 frontmatter 加上 \`style: japanese\` 即可；它只改變織圖的畫法，完全不影響織圖的寫法。
 - **\`spiral\`（螺旋）** ── 一條連續螺旋，每圈之間沒有接合。只有在原始織圖明確寫「連續螺旋，不要接合，放記號扣」時才使用──大多數寫「接合」或有明確編號分圈的娃娃編織圖，應該用 \`round\`，不是 \`spiral\`。
 - **\`flat\`（平織）** ── 來回交替的橫列。用於圍巾、平織毯子，以及任何在每列結尾要翻面的作品。
 
@@ -628,7 +628,7 @@ R2: <步骤>
 | \`stroke\` | 正数 | 插件设置值 | SVG 线条粗细。 |
 | \`spacing\` | 正数 | 插件设置值 | 圈与圈（round/spiral）之间的像素间距。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | 插件设置值 | 把 \`inc\`/\`dec\` 针目标记为强调色。 |
-| \`style\` | \`standard\` \\| \`book\` \\| \`linked\` | 插件设置值 | 环织织图的绘制样式。\`book\` 为日本钩织书风格：一条连续螺旋线绕过每一圈、针目对齐上一圈钩入的针目、加针画成 **V**、减针画成 **∧** 并与该圈其他针目并排、并标注圈数。\`linked\` 使用同样的排版，但每一针都画出自己的符号，并连线到它所钩入的下方针目——适合用来检查转换结果。只影响 \`type: round\`。 |
+| \`style\` | \`radial\` \\| \`japanese\` \\| \`continuous\` | 插件设置值 | 环织织图的绘制样式。\`japanese\` 为日本钩织书风格：一条连续螺旋线绕过每一圈、针目对齐上一圈钩入的针目、加针画成 **V**、减针画成 **∧** 并与该圈其他针目并排、并标注圈数。\`continuous\` 使用同样的排版，但每一针都画出自己的符号，并连线到它所钩入的下方针目——适合用来检查转换结果。只影响 \`type: round\`。 |
 | \`tool\` | 布尔值（同上） | 插件设置值 | 在织图旁内嵌交互式进度工具。见“内嵌进度面板”。 |
 | \`text\` | 布尔值（同上） | 插件设置值 | 在织图旁内嵌只读的缩写列表（如果 \`tool\` 也开启则会被忽略）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | 插件设置值 | 内嵌的 \`tool\`／\`text\` 面板相对于织图放在哪个位置。 |
@@ -822,7 +822,7 @@ Crochet Weaver 计算一行针数的方式，跟真实织图标注“(N sc)”�
 
 ## 选择织图类型
 
-- **\`round\`（圆编）** —— 从中心点向外的同心圆。用于任何有接合（join）的圈织作品（帽子、杯垫、玩偶编各部位、以圆形织的祖母方块）。这是玩偶编最常用的选择。用户若想要钩织书那种画法（圈线框住每一圈、针目对齐、标注圈数），在 frontmatter 加上 \`style: book\` 即可；它只改变织图的画法，完全不影响织图的写法。
+- **\`round\`（圆编）** —— 从中心点向外的同心圆。用于任何有接合（join）的圈织作品（帽子、杯垫、玩偶编各部位、以圆形织的祖母方块）。这是玩偶编最常用的选择。用户若想要钩织书那种画法（圈线框住每一圈、针目对齐、标注圈数），在 frontmatter 加上 \`style: japanese\` 即可；它只改变织图的画法，完全不影响织图的写法。
 - **\`spiral\`（螺旋）** —— 一条连续螺旋，每圈之间没有接合。只有在原始织图明确写“连续螺旋，不要接合，放记号扣”时才使用——大多数写“接合”或有明确编号分圈的玩偶编织图，应该用 \`round\`，而不是 \`spiral\`。
 - **\`flat\`（平织）** —— 来回交替的横行。用于围巾、平织毯子，以及任何在每行结尾要翻面的作品。
 
@@ -915,7 +915,7 @@ R2: <ステップ>
 | \`stroke\` | 正の数値 | プラグイン設定 | SVG の線の太さ。 |
 | \`spacing\` | 正の数値 | プラグイン設定 | 輪編み／スパイラルの段と段の間隔（ピクセル）。 |
 | \`highlight\` | \`on\`/\`off\`/\`true\`/\`false\`/\`yes\`/\`no\`/\`1\`/\`0\` | プラグイン設定 | \`inc\`/\`dec\` の目をアクセントカラーで強調表示します。 |
-| \`style\` | \`standard\` \\| \`book\` \\| \`linked\` | プラグイン設定 | 輪編みチャートの描画スタイル。\`book\` は日本の編み物本風：連続したらせん線が各段を巡り、針目が前段の編み入れ先の真上に並び、増し目は **V**、減らし目は **∧** としてその段の針目と同じ列に描かれ、段数が表示されます。\`linked\` は同じ配置のまま、各針目の記号をそれぞれ描いて編み入れ先の目と線でつなぎます（変換の確認に便利です）。\`type: round\` にのみ影響します。 |
+| \`style\` | \`radial\` \\| \`japanese\` \\| \`continuous\` | プラグイン設定 | 輪編みチャートの描画スタイル。\`japanese\` は日本の編み物本風：連続したらせん線が各段を巡り、針目が前段の編み入れ先の真上に並び、増し目は **V**、減らし目は **∧** としてその段の針目と同じ列に描かれ、段数が表示されます。\`continuous\` は同じ配置のまま、各針目の記号をそれぞれ描いて編み入れ先の目と線でつなぎます（変換の確認に便利です）。\`type: round\` にのみ影響します。 |
 | \`tool\` | 真偽値（上記と同様） | プラグイン設定 | 編み図の横にインタラクティブな進捗ツールを埋め込みます。「進捗パネルを埋め込む」を参照。 |
 | \`text\` | 真偽値（上記と同様） | プラグイン設定 | 編み図の横に読み取り専用の略記リストを埋め込みます（\`tool\` が有効な場合は無視されます）。 |
 | \`position\` | \`right\` \\| \`left\` \\| \`below\` | プラグイン設定 | 埋め込んだ \`tool\`／\`text\` パネルを編み図に対してどこに配置するか。 |
@@ -1109,7 +1109,7 @@ Crochet Weaver は、実際の編み図が「(N sc)」と注記するのと同�
 
 ## 編み図タイプの選び方
 
-- **\`round\`（輪編み）** — 中心点から外側へ広がる同心円。つなぎ（join）のある輪編み作品（帽子、コースター、アミグルミの各パーツ、円形のグラニースクエアなど）に使います。アミグルミで最もよく使われる選択肢です。編み物本のような描画（連続らせんの区切り線、針目の整列、段数表示）を求められたら frontmatter に \`style: book\` を追加してください。チャートの描き方だけが変わり、パターンの書き方には一切影響しません。
+- **\`round\`（輪編み）** — 中心点から外側へ広がる同心円。つなぎ（join）のある輪編み作品（帽子、コースター、アミグルミの各パーツ、円形のグラニースクエアなど）に使います。アミグルミで最もよく使われる選択肢です。編み物本のような描画（連続らせんの区切り線、針目の整列、段数表示）を求められたら frontmatter に \`style: japanese\` を追加してください。チャートの描き方だけが変わり、パターンの書き方には一切影響しません。
 - **\`spiral\`（スパイラル）** — 段ごとのつなぎがない、1 本の連続した螺旋。原文に「連続スパイラル、つながずに段目リングを付ける」と明記されている場合にのみ使ってください──「つなぐ」と書かれていたり、段番号がはっきり振られていたりするほとんどのアミグルミ編み図は \`spiral\` ではなく \`round\` にすべきです。
 - **\`flat\`（平編み）** — 交互に往復する段。マフラーや平編みのブランケットなど、各段の終わりで編み地を返す作品に使います。
 

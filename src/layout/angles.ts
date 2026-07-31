@@ -109,6 +109,42 @@ export function fitTurn(angles: readonly number[], minGaps: readonly number[]): 
 	return fitted;
 }
 
+// Closes a round's seam back to the room it actually needs.
+//
+// What is drawn at a seam — a round number, a step out to the next round — is
+// the same size on every round of a chart. Its *angle* is not: ancestry hands a
+// round the angles of the round below, seam gap and all, so the same wedge of
+// the turn covers more and more arc the further out it is drawn, and the seam
+// fans open into a widening corridor instead of reading as one channel.
+//
+// So a round spreads its stitches out into that surplus. The spread is measured
+// from the point of the round opposite the seam, which does not move: stitches
+// far from the seam keep the angle their ancestry gave them, and the ones beside
+// it — the ones the corridor is actually too wide for — give way most. No stitch
+// moves further than `maxDrift`, so a round closes what it can and the rounds
+// above it carry on from there, each starting from a seam its own round below
+// already narrowed.
+export function closeSeam(
+	targets: readonly number[],
+	seamTarget: number,
+	maxDrift: number,
+): number[] {
+	const count = targets.length;
+	const first = targets[0];
+	const last = targets[count - 1];
+	if (count < 2 || first === undefined || last === undefined) return [...targets];
+
+	const span = first - last;
+	const excess = 360 - span - seamTarget;
+	if (span <= 0 || excess <= 0 || maxDrift <= 0) return [...targets];
+
+	// Spreading by `scale` moves the stitches at either end of the round by half
+	// the arc it takes up, and the middle of the round not at all.
+	const scale = Math.min(1 + excess / span, 1 + (2 * maxDrift) / span);
+	const middle = (first + last) / 2;
+	return targets.map((target) => middle + (target - middle) * scale);
+}
+
 // How strongly one pass pulls a stitch toward the midpoint of its neighbours.
 const RELAX_WEIGHT = 0.4;
 

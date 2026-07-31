@@ -1,5 +1,6 @@
 import type { CrochetAst, RenderItem } from '../types';
-import { CH_RING_COUNT, CH_RING_RADIUS, GROUP_FAN_ARC_DEG } from './constants';
+import { arcToDegrees } from './angles';
+import { CH_RING_COUNT, chRingRadius, symbolExtent, SYMBOL_CLEARANCE } from './constants';
 import { flattenGroup, type LayoutUnit } from './steps';
 
 export function pushCenterAnchor(ast: CrochetAst, items: RenderItem[]) {
@@ -7,13 +8,14 @@ export function pushCenterAnchor(ast: CrochetAst, items: RenderItem[]) {
 	if (anchor === 'MR') {
 		items.push({ symbol: 'MR', x: 0, y: 0, rotation: 0 });
 	} else if (anchor === 'ch ring') {
+		const ringRadius = chRingRadius();
 		for (let i = 0; i < CH_RING_COUNT; i++) {
 			const phiDeg = -90 - i * (360 / CH_RING_COUNT);
 			const rad = (phiDeg * Math.PI) / 180;
 			items.push({
 				symbol: 'ch',
-				x: CH_RING_RADIUS * Math.cos(rad),
-				y: CH_RING_RADIUS * Math.sin(rad),
+				x: ringRadius * Math.cos(rad),
+				y: ringRadius * Math.sin(rad),
 				rotation: phiDeg + 90,
 			});
 		}
@@ -33,12 +35,39 @@ export function placeUnitPolar(
 	} else {
 		const children = flattenGroup(unit);
 		const mid = (children.length - 1) / 2;
+		const fan = fanStep(children, radius);
 		children.forEach((stitch, i) => {
-			items.push(
-				polarItem(stitch, radius, phiDeg - (i - mid) * GROUP_FAN_ARC_DEG, rowIndex, unitIndex, unit.color),
-			);
+			items.push(polarItem(stitch, radius, phiDeg - (i - mid) * fan, rowIndex, unitIndex, unit.color));
 		});
 	}
+}
+
+// How far apart the stitches of a group fan out around the one place they are
+// all worked into, in degrees. Taken from the symbols themselves at the radius
+// they are drawn on — a fan of five doubles needs more room than one of two
+// chains, and the same arc is a wider angle on a small round than on a large
+// one — rather than a fixed angle that is too tight for one and too loose for
+// the other.
+function fanStep(children: readonly string[], radius: number): number {
+	if (radius <= 0 || children.length < 2) return 0;
+	let arc = 0;
+	for (let i = 0; i + 1 < children.length; i++) {
+		const here = children[i];
+		const next = children[i + 1];
+		if (here === undefined || next === undefined) continue;
+		arc = Math.max(arc, symbolExtent(here) + symbolExtent(next) + SYMBOL_CLEARANCE);
+	}
+	return arcToDegrees(arc, radius);
+}
+
+// How far the chart's center anchor reaches out from the middle: a magic ring's
+// own radius, a chain ring's outer edge, or nothing where a chart has neither.
+// What is drawn around the center is kept outside it.
+export function centerExtent(ast: CrochetAst): number {
+	const anchor = ast.rows[0]?.anchor ?? writtenAnchor(ast);
+	if (anchor === 'MR') return symbolExtent('MR');
+	if (anchor === 'ch ring') return chRingRadius() + symbolExtent('ch');
+	return 0;
 }
 
 function polarItem(

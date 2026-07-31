@@ -1,4 +1,4 @@
-import type { AstNode, GroupNode, RenderItem, RowNode, StitchNode } from '../types';
+import type { AstNode, CrochetAst, GroupNode, RenderItem, RowNode, StitchNode } from '../types';
 
 export type LayoutUnit = StitchNode | GroupNode;
 
@@ -32,6 +32,22 @@ export function unroll(steps: AstNode[], colorState: ColorState = {}): LayoutUni
 		}
 	}
 	return result;
+}
+
+// The stitch symbols one unit draws, in order. A group draws one per stitch it
+// names, so a shell takes a shell's worth of the chart rather than one stitch's.
+export function unitSymbols(unit: LayoutUnit): string[] {
+	return unit.type === 'GroupNode' ? flattenGroup(unit) : [unit.stitch];
+}
+
+// The first symbol a chart draws, whatever step it comes from. What is drawn
+// around the chart's center is kept clear of it.
+export function firstDrawnSymbol(ast: CrochetAst): string {
+	for (const row of ast.rows) {
+		const symbol = unroll(row.steps).flatMap(unitSymbols)[0];
+		if (symbol !== undefined) return symbol;
+	}
+	return 'sc';
 }
 
 export function flattenGroup(group: GroupNode): string[] {

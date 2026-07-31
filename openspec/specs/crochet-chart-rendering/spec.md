@@ -45,11 +45,30 @@ The system SHALL lay out `type: flat` charts as alternating flat rows with dynam
 - **THEN** layout SHALL track the real minimum and maximum stitch column across all rows so any aligned background geometry covers every rendered stitch
 
 ### Requirement: Support round chart layout
-The system SHALL lay out `type: round` charts as concentric rounds, and SHALL offer three drawing styles resolved from the `style` frontmatter key or the global round-chart-style setting: `standard` (each round's stitches spread evenly, stock `inc`/`dec` glyphs), `book` (Japanese-pattern-book styling), and `linked` (book layout with each stitch's correspondence drawn as a connector).
+The system SHALL lay out `type: round` charts as concentric rounds, and SHALL offer three drawing styles resolved from the `style` frontmatter key or the global round-chart-style setting: `standard` (each round's stitches spread evenly, stock `inc`/`dec` glyphs), `japanese` (Japanese-pattern-book styling), and `continuous` (book layout with each stitch's correspondence drawn as a connector).
 
 #### Scenario: Every round moves outward, even a decrease round
 - **WHEN** a round chart contains a round whose stitch count is lower than the previous round's
 - **THEN** that round SHALL still be placed at a larger radius than the previous round, never at a smaller radius that would overlap or nest inside an earlier round
+
+### Requirement: Size every chart from the symbols it draws
+The system SHALL take every chart size — ring radii, stitch pitch, row height, spiral advance, group fans, seam slots and shaping widths — from the symbols and text the chart actually draws and from the pattern's own contents, never from a stitch count times an assumed per-stitch size.
+
+#### Scenario: A round of tall stitches gets a longer ring
+- **WHEN** two rounds have the same stitch count but one is written in a wider or taller stitch than the other
+- **THEN** the round of wider stitches SHALL be drawn on a longer ring, and in neither round SHALL two neighbouring symbols be closer than their own widths
+
+#### Scenario: The seam is sized by what it holds
+- **WHEN** a round opens with more than one chain, closes with a join, or is numbered with more than one digit
+- **THEN** the room reserved at its seam SHALL grow by what each of those is drawn at, so none of them is drawn over another
+
+#### Scenario: Flat charts follow their own symbols
+- **WHEN** a flat chart contains stitches wider or taller than a single crochet
+- **THEN** its stitch pitch and row height SHALL grow to hold them, uniformly across the chart so its rows still line up in columns and aligned background geometry still has columns to draw
+
+#### Scenario: Nothing is drawn over the center anchor
+- **WHEN** a round or spiral chart is worked into a magic ring or a chain ring
+- **THEN** the first stitches and the innermost guide line SHALL be placed outside what that anchor is drawn as, measured from it rather than from a fixed radius
 
 #### Scenario: Magic ring anchor
 - **WHEN** a round chart starts from a row anchored `in MR`
@@ -64,16 +83,17 @@ The system SHALL lay out `type: round` charts as concentric rounds, and SHALL of
 - **THEN** the trailing slip stitch SHALL be rendered as a join between the last and first round positions and SHALL not increase the round stitch-count spacing
 
 #### Scenario: Round style resolution
-- **WHEN** a chart sets `style: book` or `style: linked` in frontmatter, or neither and the global round-chart-style setting selects one
+- **WHEN** a chart sets `style: japanese` or `style: continuous` in frontmatter, or neither and the global round-chart-style setting selects one
 - **THEN** the chart SHALL be drawn in that style, and an unrecognized value SHALL fall back to the global setting
 
 #### Scenario: Book style draws a continuous spiral guide
-- **WHEN** a round chart is drawn in `book` style
+- **WHEN** a round chart is drawn in `japanese` style
 - **THEN** one continuous guide SHALL wind through the rounds, stepping outward at each starting seam, with each round numbered at that seam
 
 #### Scenario: Round-change step stays near radial
 - **WHEN** the guide steps from one round's band out to the next
 - **THEN** both ends of that step SHALL be anchored on the seam of the round it steps into, separated by a gap measured as a length of arc rather than as an angle, so the step reads as a near-radial jog at every radius instead of flattening into a slant on the outer rounds
+- **AND** the two corners where it leaves one band and meets the next SHALL be drawn as curves, with the run between them left straight, so the step reads as one S rather than two right angles
 
 ### Requirement: Support spiral chart layout
 The system SHALL lay out `type: spiral` charts as a continuous spiral path across all rows.
@@ -312,8 +332,13 @@ The system SHALL position each stitch of a round from the stitch or stitches it 
 - **AND** those SHALL be laid out in that order from the closing side of the round to the opening side, putting the round number between the step and the round's first stitch
 - **AND** where the round leaves more room than the seam asked for, the extra SHALL sit either side of the seam's contents rather than to one side of them
 
+#### Scenario: The seam stays one width, however far out the round is
+- **WHEN** a round inherits from the round below a seam gap wider in arc than what it draws there needs
+- **THEN** the round SHALL spread its stitches into the surplus so its seam keeps about the same width on screen as every other round's, rather than the same angle
+- **AND** that spread SHALL be measured from the point of the round opposite the seam, which does not move, and SHALL move no stitch further than the layout's per-round drift allowance
+
 ### Requirement: Draw shaping as a symbol of its own round
-In `book` style the system SHALL draw an increase and a decrease as a mark belonging to its own round, in line with that round's plain stitches and inside that round's band, never as a mark floating in the gap between two rounds.
+In `japanese` style the system SHALL draw an increase and a decrease as a mark belonging to its own round, in line with that round's plain stitches and inside that round's band, never as a mark floating in the gap between two rounds.
 
 #### Scenario: Increase drawn as a V
 - **WHEN** a round contains an `inc`
@@ -328,10 +353,10 @@ In `book` style the system SHALL draw an increase and a decrease as a mark belon
 - **THEN** the mark SHALL still lean toward both of them but SHALL be capped in width so it reads as a V or ∧ rather than stretching into two long lines
 
 ### Requirement: Link stitches to the stitches they are worked into
-In `linked` style the system SHALL keep every stitch's own symbol — including both stitches an increase makes — and SHALL draw a connector from a shaping stitch to each stitch below it is worked into, with every endpoint landing on a real stitch position.
+In `continuous` style the system SHALL keep every stitch's own symbol — including both stitches an increase makes — and SHALL draw a connector from a shaping stitch to each stitch below it is worked into, with every endpoint landing on a real stitch position.
 
 #### Scenario: Both stitches of an increase are drawn
-- **WHEN** a round containing an `inc` is drawn in `linked` style
+- **WHEN** a round containing an `inc` is drawn in `continuous` style
 - **THEN** two stitch symbols SHALL be rendered for that increase, each connected to the one stitch below they share
 
 #### Scenario: Printed decrease symbol gains its connectors

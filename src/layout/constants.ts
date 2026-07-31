@@ -7,15 +7,15 @@ export const GROUP_FAN_SPREAD = 7;
 export const BASE_RADIUS = 22;
 export const MIN_ARC = STITCH_WIDTH;
 
-// Closest two neighbouring stitches may sit on a round, as arc length in px.
-// Smaller than MIN_ARC (the slot width a round's radius is sized from) so a
-// graph-driven round has room to bunch stitches where the pattern really does —
-// an increase's pair, say — before spacing has to override the correspondence.
-export const MIN_STITCH_GAP = 14;
-
 // Breathing room left between two neighbouring symbols, on top of the space they
 // actually occupy, in px.
 export const SYMBOL_CLEARANCE = 2;
+
+// How wide the round change at a seam is drawn, as arc length in px: the gap each
+// band boundary leaves for the step out to the next round (layout/grid-guide.ts),
+// which is also the room the seam reserves for it (layout/seam.ts). One constant
+// for both, so the step and the space kept for it can never disagree.
+export const ROUND_CHANGE_ARC = 5;
 
 // How many chains a `ch ring` center is drawn with. The syntax carries no count
 // ("in ch ring"), so unlike everything else about a chart's size this one is a
@@ -23,7 +23,10 @@ export const SYMBOL_CLEARANCE = 2;
 // drawn on is sized from it and from how wide a chain really is, so the chains
 // sit round it without touching whatever either of those becomes.
 export const CH_RING_COUNT = 6;
-export const CH_RING_RADIUS = (CH_RING_COUNT * symbolArc('ch')) / (2 * Math.PI);
+
+export function chRingRadius(): number {
+	return (CH_RING_COUNT * symbolArc('ch')) / (2 * Math.PI);
+}
 
 // Radius of the hollow ring drawn around the first stitch worked in a new
 // yarn color, flagging the color change without covering the stitch symbol

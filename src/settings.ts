@@ -1,16 +1,17 @@
-import { PluginSettingTab, Setting, type App, type ButtonComponent, type SettingDefinitionItem } from 'obsidian';
-import { AI_PATTERN_AUTHORING_DOCS } from './ai-doc-content';
-import { t, type Locale, type LanguagePreference, type TranslationKey } from './i18n';
-import type CrochetWeaverPlugin from './main';
-import type { GridShape, PanelPosition, PatternTextStyle, RoundStyle } from './types';
 import {
-	getLocalizedSettingDefinitions,
-	GRID_COLUMNS_OPTIONS,
-	GRID_ROUNDS_OPTIONS,
-	GRID_ROWS_OPTIONS,
-	RING_SPACING_OPTIONS,
-	SCALE_OPTIONS,
-	STROKE_WIDTH_OPTIONS,
+	PluginSettingTab,
+	Setting,
+	type App,
+	type ButtonComponent,
+	type SettingDefinitionItem,
+	type SettingGroupItem,
+} from 'obsidian';
+import { AI_PATTERN_AUTHORING_DOCS } from './ai-doc-content';
+import { t, type Locale, type TranslationKey } from './i18n';
+import type CrochetWeaverPlugin from './main';
+import {
+	getLocalizedSettingGroups,
+	type CrochetSettingDefinition,
 	type CrochetWeaverSettings,
 } from './settings-data';
 
@@ -80,6 +81,14 @@ function isNumberSettingKey(key: string): key is NumberSettingKey {
 	return NUMBER_KEYS.has(key as NumberSettingKey);
 }
 
+function aiDocsDefinition(locale: Locale): SettingGroupItem {
+	return {
+		name: t(locale, 'settings.aiDocs.name'),
+		desc: t(locale, 'settings.aiDocs.desc'),
+		render: (setting: Setting) => addAiDocsButtons(setting, locale),
+	};
+}
+
 export class CrochetWeaverSettingTab extends PluginSettingTab {
 	plugin: CrochetWeaverPlugin;
 
@@ -91,12 +100,18 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		const locale = this.plugin.getLocale();
 		return [
-			...getLocalizedSettingDefinitions(locale),
-			{
-				name: t(locale, 'settings.aiDocs.name'),
-				desc: t(locale, 'settings.aiDocs.desc'),
-				render: (setting) => addAiDocsButtons(setting, locale),
-			},
+			// What the page opens on: what these settings are, before any control.
+			{ name: t(locale, 'settings.intro.name'), desc: t(locale, 'settings.intro.desc') },
+			...getLocalizedSettingGroups(locale).map((group) => ({
+				type: 'group' as const,
+				heading: group.heading,
+				items: [
+					...(group.items as readonly SettingGroupItem[]),
+					// The reference is something you copy once, from the same place
+					// as the rest of the set-once settings.
+					...(group.id === 'general' ? [aiDocsDefinition(locale)] : []),
+				],
+			})),
 		];
 	}
 
@@ -119,285 +134,49 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 		const locale = this.plugin.getLocale();
 		containerEl.empty();
 
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.language.name'))
-			.setDesc(t(locale, 'settings.language.desc'))
-			.addDropdown((dd) =>
-				dd
-					.addOption('auto', t(locale, 'settings.language.auto'))
-					.addOption('en', t(locale, 'settings.language.en'))
-					.addOption('zh-TW', t(locale, 'settings.language.zhTW'))
-					.addOption('zh-CN', t(locale, 'settings.language.zhCN'))
-					.addOption('ja', t(locale, 'settings.language.ja'))
-					.setValue(this.plugin.settings.languagePreference)
-					.onChange(async (value) => {
-						this.plugin.settings.languagePreference = value as LanguagePreference;
-						await this.plugin.saveSettings();
-						this.display();
-					}),
+		new Setting(containerEl).setName(t(locale, 'settings.intro.name')).setDesc(t(locale, 'settings.intro.desc')).setHeading();
+
+		for (const group of getLocalizedSettingGroups(locale)) {
+			new Setting(containerEl).setName(group.heading).setHeading();
+			for (const definition of group.items) this.renderSetting(containerEl, definition);
+			if (group.id === 'general') {
+				addAiDocsButtons(
+					new Setting(containerEl)
+						.setName(t(locale, 'settings.aiDocs.name'))
+						.setDesc(t(locale, 'settings.aiDocs.desc')),
+					locale,
+				);
+			}
+		}
+	}
+
+	// One row, built from the same definition the declarative path hands Obsidian
+	// — so the fallback can never drift from it in wording, order or options.
+	private renderSetting(containerEl: HTMLElement, definition: CrochetSettingDefinition): void {
+		const setting = new Setting(containerEl).setName(definition.name).setDesc(definition.desc);
+		const { control } = definition;
+		const save = async (value: unknown): Promise<void> => {
+			await this.setControlValue(control.key, value);
+			// The whole page is written in the chosen language, so changing it
+			// rewrites the page.
+			if (control.key === 'languagePreference') this.display();
+		};
+
+		if (control.type === 'toggle') {
+			setting.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings[control.key]).onChange((value) => void save(value)),
 			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.scale.name'))
-			.setDesc(t(locale, 'settings.scale.desc'))
-			.addDropdown((dd) => {
-				const options: number[] = [...SCALE_OPTIONS];
-				const currentValue = this.plugin.settings.scale;
-				if (!options.includes(currentValue)) {
-					options.push(currentValue);
-					options.sort((a, b) => a - b);
-				}
-				options.forEach((opt) => {
-					dd.addOption(opt.toString(), opt.toString());
-				});
-				return dd
-					.setValue(currentValue.toString())
-					.onChange(async (value) => {
-						this.plugin.settings.scale = Number(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.stroke.name'))
-			.setDesc(t(locale, 'settings.stroke.desc'))
-			.addDropdown((dd) => {
-				const options: number[] = [...STROKE_WIDTH_OPTIONS];
-				const currentValue = this.plugin.settings.strokeWidth;
-				if (!options.includes(currentValue)) {
-					options.push(currentValue);
-					options.sort((a, b) => a - b);
-				}
-				options.forEach((opt) => {
-					dd.addOption(opt.toString(), opt.toString());
-				});
-				return dd
-					.setValue(currentValue.toString())
-					.onChange(async (value) => {
-						this.plugin.settings.strokeWidth = Number(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.spacing.name'))
-			.setDesc(t(locale, 'settings.spacing.desc'))
-			.addDropdown((dd) => {
-				const options: number[] = [...RING_SPACING_OPTIONS];
-				const currentValue = this.plugin.settings.ringSpacing;
-				if (!options.includes(currentValue)) {
-					options.push(currentValue);
-					options.sort((a, b) => a - b);
-				}
-				options.forEach((opt) => {
-					dd.addOption(opt.toString(), opt.toString());
-				});
-				return dd
-					.setValue(currentValue.toString())
-					.onChange(async (value) => {
-						this.plugin.settings.ringSpacing = Number(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.highlight.name'))
-			.setDesc(t(locale, 'settings.highlight.desc'))
-			.addToggle((t) =>
-				t
-					.setValue(this.plugin.settings.highlightIncDec)
-					.onChange(async (value) => {
-						this.plugin.settings.highlightIncDec = value;
-						await this.plugin.saveSettings();
-					}),
+			return;
+		}
+		if (control.type === 'color') {
+			setting.addColorPicker((picker) =>
+				picker.setValue(this.plugin.settings[control.key]).onChange((value) => void save(value)),
 			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.highlightColor.name'))
-			.setDesc(t(locale, 'settings.highlightColor.desc'))
-			.addColorPicker((picker) =>
-				picker
-					.setValue(this.plugin.settings.highlightColor)
-					.onChange(async (value) => {
-						this.plugin.settings.highlightColor = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.chartMarkerColor.name'))
-			.setDesc(t(locale, 'settings.chartMarkerColor.desc'))
-			.addColorPicker((picker) =>
-				picker
-					.setValue(this.plugin.settings.chartMarkerColor)
-					.onChange(async (value) => {
-						this.plugin.settings.chartMarkerColor = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.showTool.name'))
-			.setDesc(t(locale, 'settings.showTool.desc'))
-			.addToggle((t) =>
-				t
-					.setValue(this.plugin.settings.showTool)
-					.onChange(async (value) => {
-						this.plugin.settings.showTool = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.showPatternText.name'))
-			.setDesc(t(locale, 'settings.showPatternText.desc'))
-			.addToggle((t) =>
-				t
-					.setValue(this.plugin.settings.showPatternText)
-					.onChange(async (value) => {
-						this.plugin.settings.showPatternText = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.patternTextStyle.name'))
-			.setDesc(t(locale, 'settings.patternTextStyle.desc'))
-			.addDropdown((dd) =>
-				dd
-					.addOption('raw', t(locale, 'settings.patternTextStyle.raw'))
-					.addOption('readable', t(locale, 'settings.patternTextStyle.readable'))
-					.setValue(this.plugin.settings.patternTextStyle)
-					.onChange(async (value) => {
-						this.plugin.settings.patternTextStyle = value as PatternTextStyle;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.panelPosition.name'))
-			.setDesc(t(locale, 'settings.panelPosition.desc'))
-			.addDropdown((dd) =>
-				dd
-					.addOption('right', t(locale, 'settings.panelPosition.right'))
-					.addOption('left', t(locale, 'settings.panelPosition.left'))
-					.addOption('below', t(locale, 'settings.panelPosition.below'))
-					.setValue(this.plugin.settings.panelPosition)
-					.onChange(async (value) => {
-						this.plugin.settings.panelPosition = value as PanelPosition;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.showGrid.name'))
-			.setDesc(t(locale, 'settings.showGrid.desc'))
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.showGrid)
-					.onChange(async (value) => {
-						this.plugin.settings.showGrid = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.roundStyle.name'))
-			.setDesc(t(locale, 'settings.roundStyle.desc'))
-			.addDropdown((dd) =>
-				dd
-					.addOption('standard', t(locale, 'settings.roundStyle.standard'))
-					.addOption('book', t(locale, 'settings.roundStyle.book'))
-					.addOption('linked', t(locale, 'settings.roundStyle.linked'))
-					.setValue(this.plugin.settings.roundChartStyle)
-					.onChange(async (value) => {
-						this.plugin.settings.roundChartStyle = value as RoundStyle;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.gridDefaultShape.name'))
-			.setDesc(t(locale, 'settings.gridDefaultShape.desc'))
-			.addDropdown((dd) =>
-				dd
-					.addOption('polar', t(locale, 'settings.gridDefaultShape.polar'))
-					.addOption('rect', t(locale, 'settings.gridDefaultShape.rect'))
-					.setValue(this.plugin.settings.gridDefaultShape)
-					.onChange(async (value) => {
-						this.plugin.settings.gridDefaultShape = value as GridShape;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.gridDefaultRounds.name'))
-			.setDesc(t(locale, 'settings.gridDefaultRounds.desc'))
-			.addDropdown((dd) => {
-				const options: number[] = [...GRID_ROUNDS_OPTIONS];
-				const currentValue = this.plugin.settings.gridDefaultRounds;
-				if (!options.includes(currentValue)) {
-					options.push(currentValue);
-					options.sort((a, b) => a - b);
-				}
-				options.forEach((opt) => {
-					dd.addOption(opt.toString(), opt.toString());
-				});
-				return dd
-					.setValue(currentValue.toString())
-					.onChange(async (value) => {
-						this.plugin.settings.gridDefaultRounds = Number(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.gridDefaultColumns.name'))
-			.setDesc(t(locale, 'settings.gridDefaultColumns.desc'))
-			.addDropdown((dd) => {
-				const options: number[] = [...GRID_COLUMNS_OPTIONS];
-				const currentValue = this.plugin.settings.gridDefaultColumns;
-				if (!options.includes(currentValue)) {
-					options.push(currentValue);
-					options.sort((a, b) => a - b);
-				}
-				options.forEach((opt) => {
-					dd.addOption(opt.toString(), opt.toString());
-				});
-				return dd
-					.setValue(currentValue.toString())
-					.onChange(async (value) => {
-						this.plugin.settings.gridDefaultColumns = Number(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t(locale, 'settings.gridDefaultRows.name'))
-			.setDesc(t(locale, 'settings.gridDefaultRows.desc'))
-			.addDropdown((dd) => {
-				const options: number[] = [...GRID_ROWS_OPTIONS];
-				const currentValue = this.plugin.settings.gridDefaultRows;
-				if (!options.includes(currentValue)) {
-					options.push(currentValue);
-					options.sort((a, b) => a - b);
-				}
-				options.forEach((opt) => {
-					dd.addOption(opt.toString(), opt.toString());
-				});
-				return dd
-					.setValue(currentValue.toString())
-					.onChange(async (value) => {
-						this.plugin.settings.gridDefaultRows = Number(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
-		addAiDocsButtons(
-			new Setting(containerEl)
-				.setName(t(locale, 'settings.aiDocs.name'))
-				.setDesc(t(locale, 'settings.aiDocs.desc')),
-			locale,
-		);
+			return;
+		}
+		setting.addDropdown((dropdown) => {
+			for (const [value, label] of Object.entries(control.options)) dropdown.addOption(value, label);
+			dropdown.setValue(String(this.getControlValue(control.key))).onChange((value) => void save(value));
+		});
 	}
 }

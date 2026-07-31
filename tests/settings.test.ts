@@ -6,6 +6,7 @@ import {
 	SETTING_DEFINITIONS,
 	STROKE_WIDTH_OPTIONS,
 	getLocalizedSettingDefinitions,
+	getLocalizedSettingGroups,
 	normalizeSettings,
 } from '../src/settings-data';
 
@@ -61,53 +62,51 @@ describe('plugin settings', () => {
 			DEFAULT_SETTINGS.patternTextStyle,
 		);
 		expect(normalizeSettings({}).patternTextStyle).toBe(DEFAULT_SETTINGS.patternTextStyle);
-		expect(normalizeSettings({ roundChartStyle: 'book' }).roundChartStyle).toBe('book');
+		expect(normalizeSettings({ roundChartStyle: 'japanese' }).roundChartStyle).toBe('japanese');
 		expect(normalizeSettings({ roundChartStyle: 'comic' }).roundChartStyle).toBe(
 			DEFAULT_SETTINGS.roundChartStyle,
 		);
 		expect(normalizeSettings({}).roundChartStyle).toBe(DEFAULT_SETTINGS.roundChartStyle);
 	});
 
-	it('exposes settings definitions for Obsidian settings search', () => {
-		const controls = SETTING_DEFINITIONS.map((definition) => definition.control.key);
+	// Grouped by what they affect, and the groups ordered by how much of a chart
+	// they change: the look of every chart first, the panels beside it next, the
+	// blank grid block after that, and the set-once things last.
+	it('exposes settings definitions for Obsidian settings search, grouped and in order', () => {
+		const groups = getLocalizedSettingGroups('en');
 
-		expect(controls).toEqual([
-			'languagePreference',
-			'scale',
-			'strokeWidth',
-			'ringSpacing',
-			'highlightIncDec',
-			'highlightColor',
-			'chartMarkerColor',
-			'showTool',
-			'showPatternText',
-			'patternTextStyle',
-			'panelPosition',
-			'showGrid',
-			'roundChartStyle',
-			'gridDefaultShape',
-			'gridDefaultRounds',
-			'gridDefaultColumns',
-			'gridDefaultRows',
+		expect(groups.map((group) => group.id)).toEqual(['chart', 'shaping', 'tool', 'grid', 'general']);
+		expect(groups.map((group) => group.items.map((definition) => definition.control.key))).toEqual([
+			['roundChartStyle', 'scale', 'strokeWidth', 'ringSpacing', 'showGrid'],
+			['highlightIncDec', 'highlightColor', 'chartMarkerColor'],
+			['showTool', 'showPatternText', 'patternTextStyle', 'panelPosition'],
+			['gridDefaultShape', 'gridDefaultRounds', 'gridDefaultColumns', 'gridDefaultRows'],
+			['languagePreference'],
 		]);
+		// Every setting sits in exactly one group, and the flat list is those
+		// groups read straight through.
+		expect(SETTING_DEFINITIONS.map((definition) => definition.control.key)).toEqual(
+			groups.flatMap((group) => group.items.map((definition) => definition.control.key)),
+		);
 	});
 
 	it('exposes localized setting definitions', () => {
 		const definitions = getLocalizedSettingDefinitions('ja');
 
-		expect(definitions[0]?.name).toBe('言語');
-		expect(definitions[5]?.name).toBe('増し目・減らし目の色');
-		expect(definitions[6]?.name).toBe('チャートの現在位置マーカー色');
-		expect(definitions[7]?.name).toBe('進捗ツールを既定で表示');
-		expect(definitions[8]?.name).toBe('編み図テキストを既定で表示');
-		expect(definitions[9]?.name).toBe('パターン文字の表示方法');
-		expect(definitions[10]?.name).toBe('パネルの位置');
-		expect(definitions[11]?.name).toBe('背景の参考グリッドを表示');
-		expect(definitions[12]?.name).toBe('輪編みチャートのスタイル');
-		expect(definitions[13]?.name).toBe('グリッドの既定の形状');
-		expect(definitions[14]?.name).toBe('グリッドの既定の周数');
-		expect(definitions[15]?.name).toBe('グリッドの既定の列数');
-		expect(definitions[16]?.name).toBe('グリッドの既定の行数');
+		expect(definitions[0]?.name).toBe('輪編みチャートのスタイル');
+		expect(definitions[4]?.name).toBe('背景の参考グリッドを表示');
+		expect(definitions[6]?.name).toBe('増し目・減らし目の色');
+		expect(definitions[7]?.name).toBe('チャートの現在位置マーカー色');
+		expect(definitions[8]?.name).toBe('進捗ツールを既定で表示');
+		expect(definitions[12]?.name).toBe('グリッドの既定の形状');
+		expect(definitions.at(-1)?.name).toBe('言語');
+		expect(getLocalizedSettingGroups('ja').map((group) => group.heading)).toEqual([
+			'チャートの見た目',
+			'強調表示と色',
+			'進捗ツールとパネル',
+			'方眼シートの既定値',
+			'一般',
+		]);
 	});
 
 	it('normalizes malformed grid default settings', () => {
