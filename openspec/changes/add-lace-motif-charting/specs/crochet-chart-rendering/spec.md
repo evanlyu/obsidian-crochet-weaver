@@ -3,6 +3,35 @@
 ### Requirement: Support round chart layout
 The system SHALL lay out `type: round` charts as concentric rounds, and SHALL offer three drawing styles resolved from the `style` frontmatter key or the global round-chart-style setting: `radial`, `japanese`, and `continuous`. Graph-driven round styles SHALL support the bounded `crochet-dev` note grammar directly, including shell-fan motifs, chain spaces, implicit skips from typed-next searches, explicit low-level skips, counted beginning chains, non-counting beginning chains, explicit slip-stitch joins, repositioning, current-round turns, V aliases, picot targets, center-shell targets, structured count validation, and source-repeat-expanded rows without introducing a fourth chart style or a new chart presentation.
 
+#### Scenario: Every round moves outward, even a decrease round
+- **WHEN** a round chart contains a round whose stitch count is lower than the previous round's
+- **THEN** that round SHALL still be placed at a larger radius than the previous round, never at a smaller radius that would overlap or nest inside an earlier round
+
+#### Scenario: Magic ring anchor
+- **WHEN** a round chart starts from a row anchored `in MR`
+- **THEN** the chart SHALL include a center magic-ring symbol
+
+#### Scenario: Chain ring anchor
+- **WHEN** a round chart starts from a row anchored `in ch ring`
+- **THEN** the chart SHALL include a center ring made from chain symbols
+
+#### Scenario: Join slip stitch
+- **WHEN** a round contains a trailing `sl st` after other units
+- **THEN** the trailing slip stitch SHALL be rendered as a join between the last and first round positions and SHALL not increase the round stitch-count spacing
+
+#### Scenario: Round style resolution
+- **WHEN** a chart sets `style: japanese` or `style: continuous` in frontmatter, or neither and the global round-chart-style setting selects one
+- **THEN** the chart SHALL be drawn in that style, and an unrecognized value SHALL fall back to the global setting
+
+#### Scenario: Book style draws a continuous spiral guide
+- **WHEN** a round chart is drawn in `japanese` style
+- **THEN** one continuous guide SHALL wind through the rounds, stepping outward at each starting seam, with each round numbered at that seam
+
+#### Scenario: Round-change step stays near radial
+- **WHEN** the guide steps from one round's band out to the next
+- **THEN** both ends of that step SHALL be anchored on the seam of the round it steps into, separated by a gap measured as a length of arc rather than as an angle, so the step reads as a near-radial jog at every radius instead of flattening into a slant on the outer rounds
+- **AND** the two corners where it leaves one band and meets the next SHALL be drawn as curves, with the run between them left straight, so the step reads as one S rather than two right angles
+
 #### Scenario: Lace does not create a fourth style
 - **WHEN** a round chart contains chain spaces, implicit skips, turns, joins, beginning chains, or motifs worked into chain spaces
 - **THEN** `style: japanese` and `style: continuous` SHALL use the same graph-driven lace geometry
@@ -14,6 +43,22 @@ The system SHALL lay out `type: round` charts as concentric rounds, and SHALL of
 
 ### Requirement: Size every chart from the symbols it draws
 The system SHALL take every chart size from the symbols, motifs, curves, seam instructions, labels, and text the chart actually draws and from the pattern's own contents, never from a stitch count times an assumed per-stitch size.
+
+#### Scenario: A round of tall stitches gets a longer ring
+- **WHEN** two rounds have the same stitch count but one is written in a wider or taller stitch than the other
+- **THEN** the round of wider stitches SHALL be drawn on a longer ring, and in neither round SHALL two neighbouring symbols be closer than their own widths
+
+#### Scenario: The seam is sized by what it holds
+- **WHEN** a round opens with more than one chain, closes with a join, or is numbered with more than one digit
+- **THEN** the room reserved at its seam SHALL grow by what each of those is drawn at, so none of them is drawn over another
+
+#### Scenario: Flat charts follow their own symbols
+- **WHEN** a flat chart contains stitches wider or taller than a single crochet
+- **THEN** its stitch pitch and row height SHALL grow to hold them, uniformly across the chart so its rows still line up in columns and aligned background geometry still has columns to draw
+
+#### Scenario: Nothing is drawn over the center anchor
+- **WHEN** a round or spiral chart is worked into a magic ring or a chain ring
+- **THEN** the first stitches and the innermost guide line SHALL be placed outside what that anchor is drawn as, measured from it rather than from a fixed radius
 
 #### Scenario: Lace motifs size the ring by motif slots
 - **WHEN** a graph-driven round contains a grouped motif such as `9 dc in next ch-3 sp`
@@ -39,6 +84,18 @@ The system SHALL take every chart size from the symbols, motifs, curves, seam in
 
 ### Requirement: Record each stitch's source and target stitches
 The system SHALL build a stitch graph from the pattern's own operations in which every produced stitch records the previous-round stitch or space it is worked into, every chain run records one targetable space graph node, every explicit skip and implicit skipped position records previous-round target positions consumed without producing into, every reposition records the phase it moves to without consumption, and every stitch or space records later stitches worked into it. The graph SHALL validate lace mapping before drawing.
+
+#### Scenario: Increase and decrease ancestry
+- **WHEN** a round contains an `inc` or a `dec`/N-together decrease
+- **THEN** the increase's two stitches SHALL record the one stitch below they share, and the decrease's stitch SHALL record every stitch it closed over
+
+#### Scenario: First round anchored to the center
+- **WHEN** the first round of a round chart is built
+- **THEN** each of its stitches SHALL record the center ring as its source rather than having no source
+
+#### Scenario: Mapping problems reported as facts
+- **WHEN** a pattern skips a stitch of the round below, works into one twice, works into nothing, or leaves a stitch that no later round picks up
+- **THEN** validation SHALL report that as a typed issue before layout, instead of silently producing a chart
 
 #### Scenario: Stitch worked into a chain space
 - **WHEN** a stitch or group is written with `in next ch-1 sp`, `in next ch-2 sp`, `in next ch-3 sp`, or `in same ch-1 sp`
@@ -70,6 +127,41 @@ The system SHALL build a stitch graph from the pattern's own operations in which
 
 ### Requirement: Place round stitches from their ancestry
 The system SHALL position each stitch or shell motif of a graph-driven round from the stitch or chain space it is worked into, SHALL never reorder a round's written units or a motif's children, and SHALL keep a minimum gap between neighboring rendered symbols, curved chain runs, and shell fans sized from what is actually drawn at that radius.
+
+#### Scenario: Plain round follows its parents, closing up what they left
+- **WHEN** a round has no shaping anywhere in it
+- **THEN** each of its stitches SHALL sit at the angle of the stitch it is worked into, give or take the fraction of a stitch it may drift to even out crowding inherited from shaping below, so consecutive plain rounds stack into columns that lean toward even spacing rather than carrying that crowding outward unchanged
+
+#### Scenario: A stitch the next round shapes across keeps its angle
+- **WHEN** the next round works an increase or a decrease into a stitch of this round
+- **THEN** that stitch SHALL keep the angle its ancestry gave it and SHALL not be moved by any evening-out pass, since the V or ∧ drawn there is aimed at where it sits
+
+#### Scenario: Shaping stitches sit with the stitches they belong to
+- **WHEN** a round contains increases or decreases
+- **THEN** an increase's two stitches SHALL straddle the stitch below them and a decrease SHALL sit between the stitches it merged, with the remaining slack shared among the plain stitches near the shaping
+
+#### Scenario: Seam-crossing shaping
+- **WHEN** a decrease merges stitches that lie on opposite sides of the 0°/360° seam
+- **THEN** its position SHALL be computed on the shortest arc between them, not by averaging raw angles, so it never lands on the opposite side of the chart
+
+#### Scenario: Working order is never traded away
+- **WHEN** any spacing or relaxation pass adjusts a round
+- **THEN** the stitches SHALL remain in working order and no symbol SHALL overlap its neighbor
+
+#### Scenario: Round that cannot inherit an alignment
+- **WHEN** a round does not work into the round below exactly once for each of its stitches
+- **THEN** that round SHALL fall back to even spacing while still recording its real mapping
+
+#### Scenario: The seam keeps room of its own
+- **WHEN** a round of a graph-driven round chart is spaced
+- **THEN** the gap between its last stitch and its first SHALL be at least as wide as what is drawn at the seam needs — a slot each for the round's closing join, the step out to the next round, the round number, and the round's opening chain — so no stitch is drawn over any of them
+- **AND** those SHALL be laid out in that order from the closing side of the round to the opening side, putting the round number between the step and the round's first stitch
+- **AND** where the round leaves more room than the seam asked for, the extra SHALL sit either side of the seam's contents rather than to one side of them
+
+#### Scenario: The seam stays one width, however far out the round is
+- **WHEN** a round inherits from the round below a seam gap wider in arc than what it draws there needs
+- **THEN** the round SHALL spread its stitches into the surplus so its seam keeps about the same width on screen as every other round's, rather than the same angle
+- **AND** that spread SHALL be measured from the point of the round opposite the seam, which does not move, and SHALL move no stitch further than the layout's per-round drift allowance
 
 #### Scenario: Motif fans from its source
 - **WHEN** a grouped motif is worked into one stitch or chain space
@@ -105,6 +197,14 @@ The system SHALL position each stitch or shell motif of a graph-driven round fro
 ### Requirement: Link stitches to the stitches they are worked into
 In `continuous` style the system SHALL keep every stitch's own symbol and SHALL draw connector lines from lace motif stitches to the stitch or chain space they are worked into, with every endpoint landing on a real stitch or space position.
 
+#### Scenario: Both stitches of an increase are drawn
+- **WHEN** a round containing an `inc` is drawn in `continuous` style
+- **THEN** two stitch symbols SHALL be rendered for that increase, each connected to the one stitch below they share
+
+#### Scenario: Printed decrease symbol gains its connectors
+- **WHEN** a round contains an `hdc2tog`/`dc2tog`-family decrease
+- **THEN** its own printed symbol SHALL be kept and a connector SHALL be drawn to each stitch it closed over
+
 #### Scenario: Continuous connectors from chain-space motif
 - **WHEN** a grouped motif is worked into a chain space in `continuous` style
 - **THEN** each drawn stitch in that motif SHALL connect to the chain-space source position rather than to an inferred stitch position
@@ -117,6 +217,8 @@ In `continuous` style the system SHALL keep every stitch's own symbol and SHALL 
 - **WHEN** the same grouped motif is drawn in `japanese` style
 - **THEN** it SHALL use the same fan geometry but SHALL NOT add the continuous-style connector overlay
 
+## ADDED Requirements
+
 ### Requirement: Validate the crochet-dev chart contract
 The system SHALL accept the original bounded note form of `crochet-dev` R1 through R22 and SHALL draw all chart-relevant notation without treating finishing notes as chart syntax.
 
@@ -126,7 +228,7 @@ The system SHALL accept the original bounded note form of `crochet-dev` R1 throu
 - **AND** all joins, source targets, implicit skips, and spaces SHALL resolve without fallback placement
 
 #### Scenario: R3 first shell is one fan across steps
-- **WHEN** R3 begins `sl st into next ch-1 sp, ch 3 (counts as dc), 2 dc in same ch-1 sp`
+- **WHEN** R3 begins `sl st into next ch-1 sp, ch 3, 2 dc in same ch-1 sp`
 - **THEN** rendering SHALL show the counted beginning-chain replacement and the two following double crochets as one 3-dc shell fan at the selected space
 - **AND** graph validation SHALL treat the selected space as consumed once
 

@@ -37,9 +37,11 @@ The `crochet-dev` note is not arbitrary English. It is a bounded written-pattern
 
 **Repositioning changes phase only.** `sl st into next ch-1 sp` moves the cyclic starting phase to the matching space and draws the slip stitch as setup. It consumes no previous-round target position. The following produced step consumes that selected space.
 
-**R3's first shell aggregates across steps.** `sl st into next ch-1 sp, ch 3 (counts as dc), 2 dc in same ch-1 sp` forms one 3-dc shell fan. The reposition selects the current space without consumption; the counted beginning chain creates the first replacement `dc` at that selected space and consumes it once; the following `2 dc in same ch-1 sp` adds two sibling `dc` nodes to that same source; contiguous same-source outputs at round start aggregate into one motif slot with three visible heads.
+**R3's first shell aggregates across steps.** `sl st into next ch-1 sp, ch 3, 2 dc in same ch-1 sp` forms one 3-dc shell fan. The reposition selects the current space without consumption; the counted beginning chain creates the first replacement `dc` at that selected space and consumes it once; the following `2 dc in same ch-1 sp` adds two sibling `dc` nodes to that same source; contiguous same-source outputs at round start aggregate into one motif slot with three visible heads.
 
 **Beginning chains follow source count notes.** `ch 3 (counts as dc)` draws three seam chains and produces one addressable replacement `dc` graph node with written count weight 1. `ch 1 (does not count as a st)` draws one seam chain, produces no stitch graph node, and has written count weight 0. Concise aliases may parse, but the note forms are primary.
+
+**An unannotated beginning chain is decided by its round's join.** `crochet-dev` annotates the chain only in R1 and R2; R3 opens with a bare `ch 3` and closes `sl st to top of beginning ch-3`. That join is the pattern saying the chain is a stitch, so an unannotated beginning chain counts as the stitch it replaces when the round closes to its top, and counts zero when the round closes anywhere else. Requiring the annotation would mean rewriting the note, which this change exists to avoid.
 
 **Joins are written slip-stitch joins.** `sl st to top of beginning ch-3`, `sl st to first sc`, and `sl st to join` draw closing slip stitches, produce no graph stitch, and have written count weight 0.
 

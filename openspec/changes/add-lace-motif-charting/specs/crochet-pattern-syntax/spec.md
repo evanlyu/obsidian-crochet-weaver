@@ -3,6 +3,38 @@
 ### Requirement: Parse supported stitch instructions
 The system SHALL parse the bounded `crochet-dev` written-pattern grammar directly, including supported stitch names, quantities, repeat blocks, grouped stitches, explicit low-level skip steps, V aliases, beginning-chain count notes, closing slip-stitch joins, reposition instructions, current-round turns, structured count annotations, source repeats, explicit targets, multiline row bodies, accepted commas, and final periods into the AST.
 
+#### Scenario: Quantity-prefixed stitch
+- **WHEN** a step is written as `10 ch`
+- **THEN** the parser SHALL create a stitch node for `ch` with count `10`
+
+#### Scenario: Quantity written after the stitch name
+- **WHEN** a step is written as `sc6` or `sc 6`
+- **THEN** the parser SHALL create a stitch node for `sc` with count `6`, identical to the node produced by `6 sc`
+
+#### Scenario: Digit-bearing stitch names are not split by a suffix count
+- **WHEN** a step is written as `dc2tog`, `hdc3tog`, or `tr5cl`
+- **THEN** the parser SHALL create a single stitch node with that name and count `1`, and SHALL still read `dc12` as `dc` with count `12`
+
+#### Scenario: Slip-stitch spellings
+- **WHEN** a step is written as `sl st`, `slst`, `sl-st`, or `sl_st`
+- **THEN** the parser SHALL create a stitch node for the single normalized stitch name `sl st`
+
+#### Scenario: Supported stitch names
+- **WHEN** a step uses `ch`, `sc`, `hdc`, `dc`, `tr`, `dtr`, `sl st`, `fpdc`, `bpdc`, `bobble`, `popcorn`, `inc`, `dec`, or `MR`
+- **THEN** the parser SHALL create a stitch node with the corresponding stitch name
+
+#### Scenario: Repeat block
+- **WHEN** a step is written as `[sc, inc] x 6`
+- **THEN** the parser SHALL create a repeat node with count `6` and child stitch nodes for `sc` and `inc`
+
+#### Scenario: Equivalent repeat-count forms
+- **WHEN** a repeat's count is written as `x 6`, `x6`, `rep 6`, or `rep6`
+- **THEN** the parser SHALL produce the same repeat node with count `6` in every case
+
+#### Scenario: Grouped stitches
+- **WHEN** a step is written as `(dc, ch, dc)`
+- **THEN** the parser SHALL create a group node whose children are the enclosed steps
+
 #### Scenario: Multiline round bodies
 - **WHEN** a row or range label such as `R4:` is followed by indented continuation lines
 - **THEN** every indented nonblank continuation line SHALL belong to that row until the next row label, range label, or blank boundary
@@ -91,6 +123,38 @@ The system SHALL parse the bounded `crochet-dev` written-pattern grammar directl
 - **WHEN** a step is written as `skip 0`, `skip -1`, or `skip` without a positive integer count
 - **THEN** parsing SHALL fail instead of creating a zero-width or ambiguous skip node
 
+### Requirement: Distinguish a round's opening and closing instructions from its stitches
+The system SHALL treat the chain a round opens with, a magic ring written as a step, and the slip stitch a round closes with as instructions rather than stitches of the fabric: each SHALL be kept in the pattern and available to draw, and SHALL not be worked into by the following round. Such an instruction SHALL count toward the round's written count only where the pattern says it does — `ch 3 (counts as dc)` counts as the one stitch it replaces, `ch 1 (does not count as a st)` and every closing join count zero. Where a beginning chain carries no annotation, the round's own closing join SHALL decide it: a join written to the top of that beginning chain means it replaces a stitch, and any other join means it does not. A chain or slip stitch elsewhere in a round SHALL remain an ordinary stitch and SHALL count as one.
+
+#### Scenario: Opening chain parsed and kept
+- **WHEN** a round is written `R2: ch, 6 sc, sl st`
+- **THEN** parsing SHALL succeed and the row's steps SHALL retain the leading `ch` in written order
+
+#### Scenario: Opening and closing instructions excluded from the count
+- **WHEN** a round is written `R1: mr, ch, sc6, slst`
+- **THEN** the round's stitch count SHALL be `6`
+
+#### Scenario: A beginning chain that replaces a stitch
+- **WHEN** a round is written `R1: MR, ch 3 (counts as dc), 23 dc, sl st to top of beginning ch-3.`
+- **THEN** the beginning chain SHALL count as one double crochet, giving the round a written count of 24
+- **AND** it SHALL produce one graph stitch a later round can be worked into
+
+#### Scenario: An unannotated beginning chain counts when the join says so
+- **WHEN** a round is written `R3: sl st into next ch-1 sp, ch 3, 2 dc in same ch-1 sp, ... sl st to top of beginning ch-3.`, with no `(counts as dc)` note on the chain
+- **THEN** that beginning chain SHALL count as the one double crochet it replaces, because the round closes to its top
+- **AND** a round whose beginning chain carries no note and whose join is written to anything else, such as `sl st to first sc`, SHALL count that chain as zero
+
+#### Scenario: Magic ring written as a step
+- **WHEN** a first round is written `R1: mr, ch, sc6, slst` instead of using the `in MR` anchor
+- **THEN** the system SHALL treat `mr` as the round's center anchor rather than as a counted stitch
+
+#### Scenario: Mid-round chain is a real stitch
+- **WHEN** a chain or slip stitch appears between other stitches of a round rather than at its start or end
+- **THEN** that stitch SHALL count toward the round's stitch total like any other stitch
+- **AND** a run of such chains between two anchors SHALL additionally create one chain-space graph node, which itself counts zero
+
+## ADDED Requirements
+
 ### Requirement: Distinguish graph nodes, spaces, and written count weight
 The system SHALL preserve opening chains, ordinary chains, repositioning slip stitches, closing joins, turns, magic ring instructions, picots, spaces, and count annotations as written chart instructions while keeping separate graph-produced stitch nodes, chain-space graph nodes, and written stitch-count weight.
 
@@ -113,7 +177,7 @@ The system SHALL preserve opening chains, ordinary chains, repositioning slip st
 - **AND** the 24 ordinary mid-round chains SHALL create 24 targetable `ch-1 sp` graph nodes
 
 #### Scenario: R3 reposition and counted chain
-- **WHEN** R3 starts with `sl st into next ch-1 sp, ch 3 (counts as dc), 2 dc in same ch-1 sp` and has `(12 reps, 4 sts per rep)`
+- **WHEN** R3 starts with `sl st into next ch-1 sp, ch 3, 2 dc in same ch-1 sp` and has `(12 reps, 4 sts per rep)`
 - **THEN** the reposition SHALL move the cursor to that chain space without changing the written count
 - **AND** the beginning chain SHALL count as the first double crochet of the first 3-dc shell
 - **AND** the following `2 dc in same ch-1 sp` SHALL add two sibling double crochet graph nodes to the same source without a duplicate-consumption error

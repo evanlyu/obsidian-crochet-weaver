@@ -1,7 +1,33 @@
 ## MODIFIED Requirements
 
-### Requirement: Provide AI pattern-authoring reference text
-The system SHALL provide bundled AI pattern-authoring reference text that teaches every direct note-form syntax needed to convert or preserve chart-relevant shell-fan instructions in Crochet Weaver code blocks, including multiline rounds, beginning-chain count notes, slip-stitch joins, repositioning, current-round turns, typed targets, V2/V3 aliases, center-stitch selection, picot targets, chain-space counting rules, structured count annotations, source-repeat expansion, and the limits of chart syntax.
+### Requirement: Ship the pattern conversion knowledge as a skill
+The system SHALL provide a self-contained skill, written for an AI assistant converting or authoring crochet patterns, in English, Traditional Chinese, Simplified Chinese, and Japanese, with all syntax tokens and code examples kept identical (untranslated) across every language version, and SHALL keep it current with the pattern language and the chart styles the plugin actually supports. It SHALL teach every direct note-form syntax needed to convert or preserve chart-relevant shell-fan instructions, including multiline rounds, beginning-chain count notes, slip-stitch joins, repositioning, current-round turns, typed targets, V2/V3 aliases, center-stitch selection, picot targets, chain-space counting rules, structured count annotations, source-repeat expansion, and the limits of chart syntax.
+
+#### Scenario: Skill shape
+- **WHEN** any language version of the skill is read
+- **THEN** it SHALL open with YAML frontmatter carrying at least a `name` and a `description` saying both what the skill does and when to use it, so an agent can decide from the frontmatter alone whether to load it
+- **AND** it SHALL be usable on its own — pasted into a chat, pointed at by an agent, or dropped into a skills folder — without needing another file from the repository
+
+#### Scenario: Language parity
+- **WHEN** any of the four language versions of the skill is compared to the others
+- **THEN** every `crochet` code block and every backtick-quoted syntax token SHALL be byte-identical across all four versions
+
+#### Scenario: Documents every supported repeat form
+- **WHEN** the skill describes repeats
+- **THEN** it SHALL cover `x N`, `rep N`, the bare `rep` inferred from the round below, and the source repeats `R13: repeat R11.` and `R15-R18: repeat R11-R14.`, including when a bare `rep` is an error rather than an inference
+
+#### Scenario: Documents what a round's stitch count includes
+- **WHEN** the skill states the stitch-counting rule
+- **THEN** it SHALL say that a round's non-counting beginning chain, a `mr` written as a step, and the closing join are drawn but count zero, that a counted beginning chain (`ch 3 (counts as dc)`) counts as the one stitch it replaces, that each ordinary mid-round chain counts one, and that a chain space is not itself a stitch
+- **AND** it SHALL say that a beginning chain written without a note counts as the stitch it replaces when the round closes to the top of that chain, so a pattern written the way `crochet-dev` writes R3 needs no annotation added
+
+#### Scenario: Documents the available round styles
+- **WHEN** the skill lists the `style` frontmatter values
+- **THEN** it SHALL list `radial`, `japanese`, and `continuous`, and SHALL state that lace motifs are drawn by `japanese` and `continuous` rather than by a style of their own
+
+#### Scenario: Bundled copy matches the files
+- **WHEN** a skill file is updated
+- **THEN** the copy bundled into the compiled plugin SHALL be regenerated from it and SHALL be byte-identical to it, and a stale bundle SHALL fail the test suite rather than ship
 
 #### Scenario: Reference teaches multiline note form
 - **WHEN** the reference explains the `crochet-dev` style
@@ -43,7 +69,7 @@ The system SHALL provide bundled AI pattern-authoring reference text that teache
 - **AND** it SHALL state that the quantity forms one shell-fan motif sharing one consumed source, not N independent cursor-advancing stitches
 
 #### Scenario: Reference teaches R3 first shell aggregation
-- **WHEN** the reference explains `sl st into next ch-1 sp, ch 3 (counts as dc), 2 dc in same ch-1 sp`
+- **WHEN** the reference explains `sl st into next ch-1 sp, ch 3, 2 dc in same ch-1 sp`
 - **THEN** it SHALL state that these contiguous same-source outputs form one 3-dc shell fan
 - **AND** it SHALL state that the same-space double crochets do not cause duplicate source consumption
 

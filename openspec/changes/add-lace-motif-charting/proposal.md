@@ -7,7 +7,7 @@ The plugin must accept those note forms directly. Canonical AST names remain use
 ## What Changes
 
 - **The note's marking style is supported directly.** Indented continuation lines belong to the preceding row or range label until the next row label or blank boundary; commas and final periods are accepted.
-- **Beginning chains use written note forms.** `ch 3 (counts as dc)` draws three starting chains and contributes one replacement double crochet. `ch 1 (does not count as a st)` draws one setup chain and contributes zero.
+- **Beginning chains use written note forms.** `ch 3 (counts as dc)` draws three starting chains and contributes one replacement double crochet. `ch 1 (does not count as a st)` draws one setup chain and contributes zero. An unannotated beginning chain, as R3's `ch 3` is, counts as the stitch it replaces when the round closes to the top of that chain, and zero otherwise.
 - **Joins use written note forms.** `sl st to top of beginning ch-3`, `sl st to first sc`, and `sl st to join` are accepted as non-counting closing joins.
 - **Repositioning uses the written note form.** `sl st into next ch-1 sp` changes the cyclic starting phase and consumes nothing; the following produced step consumes the selected space.
 - **Targets use the written note forms.** The bounded target grammar accepts `same st`, `same ch-1 sp`, `next dc`, `next sc`, `next ch-1 sp`, `next ch-2 sp`, `next ch-3 sp`, `next picot`, and `center dc of next 3/5/7/9-dc shell`.
@@ -17,7 +17,7 @@ The plugin must accept those note forms directly. Canonical AST names remain use
 - **Turns apply to the current round.** A `turn` at the start of R4 and later reverses that current round's traversal and drawing direction relative to the previous round and toggles that current round's RS/WS state.
 - **Joins set the next entry point.** `sl st to top of beginning ch-3`, `sl st to first sc`, and `sl st to join` resolve to concrete current-round graph positions and define the entry/start position inherited by the next joined round.
 - **Written counts and graph nodes are separate.** Fabric stitches and counted beginning-chain replacements produce stitch graph nodes; each chain run produces one chain-space graph node; written count annotations still count ordinary mid-round chains one per chain. Space nodes add no extra count beyond their written chains.
-- **Progress uses written count weight.** Progress row totals and stitch-counter display use the same written-count weight as structured count validation, so R2 displays 48 rather than 24.
+- **Progress uses written count weight (BREAKING).** Progress row totals and stitch-counter display use the same written-count weight as structured count validation, so R2 displays 48 rather than 24. Every existing pattern with mid-round chains changes the number the progress panel shows and the total its saved position is measured against; stored per-row stitch positions therefore have to be reinterpreted or reset for those patterns.
 - **Source repeats expand before charting.** `R13: repeat R11.` and Unicode en-dash or ASCII-hyphen ranges such as `R15-R18: repeat R11-R14.` become real rounds with row labels, counts, turn state, and source metadata.
 - **The pattern skill teaches the direct note forms.** It keeps button loops, sewing, gauge, sector charts, and mixed circular/strip page presentation as external notes rather than chart syntax.
 

@@ -1,9 +1,13 @@
 ## 1. Parser, AST, and expansion
 
+The source pattern every task below refers to is copied verbatim into
+`reference/crochet-dev-pattern.md`; take the exact wording from there.
+
 - [ ] 1.1 Add failing parser tests for original `crochet-dev` multiline round bodies: indented continuations, commas, final periods, and row/range boundaries
 - [ ] 1.2 Implement multiline row-body parsing without changing non-multiline rows
 - [ ] 1.3 Add failing parser tests for direct note forms: `ch 3 (counts as dc)`, `ch 1 (does not count as a st)`, `sl st to top of beginning ch-3`, `sl st to first sc`, `sl st to join`, and `sl st into next ch-1 sp`
 - [ ] 1.4 Implement AST node types and grammar support for direct beginning-chain notes, note-form joins, and note-form repositioning
+- [ ] 1.4a Add a failing parser test for R3's unannotated `ch 3`, and implement the rule that an unannotated beginning chain counts as the stitch it replaces when the round closes to the top of that chain and zero otherwise
 - [ ] 1.5 Add failing parser tests for leading current-round `turn`, `same st`, `same ch-1 sp`, quantity-targeted motifs like `3 dc in next ch-1 sp`, `next sc/dc/ch-1 sp/ch-2 sp/ch-3 sp/picot`, center dc of next 3/5/7/9-dc shell, and targeted V2/V3 aliases
 - [ ] 1.6 Implement grammar and AST normalization for current-round turns, bounded targets, and V2/V3 aliases
 - [ ] 1.7 Add failing parser tests for structured annotations `(24 dc)`, `(24 sc + 24 ch-1 sp = 48 sts)`, `(12 reps, 4 sts per rep)`, `(12 reps, 7 sts per rep)`, `R13: repeat R11.`, `R14: repeat R12.`, and hyphen/en-dash ranges such as `R15-R18: repeat R11-R14.` and `R19–R22: repeat R11–R14.`
@@ -22,6 +26,7 @@
 - [ ] 2.7 Add failing count tests for R4/R6 per-repeat count 7, R8 per-repeat count 9, and R10/R12 per-repeat count 10, including V2/V3 chain weights and picot embellishment weight 0
 - [ ] 2.8 Implement V2/V3, picot, turn, skip, and source-repeat written count behavior
 - [ ] 2.9 Add failing progress-total tests proving row totals use written-count weight, including R2 displaying 48, counted beginning replacement displaying 1, and non-counting setup/join/reposition/turn/skip/picot/space nodes displaying 0
+- [ ] 2.9a Add failing tests for a stored in-progress stitch count that exceeds its row's new written-count total, proving it is clamped to the row total without losing the completed row count
 - [ ] 2.10 Implement progress row totals and stitch-counter increments from written-count weight while allowing one written instruction to advance atomically by its weight
 - [ ] 2.11 Add failing safety-budget tests covering multiline source repeats, chain-space runs, quantity-targeted shell motifs, implicit skipped positions, explicit skip aliases, and target nodes
 - [ ] 2.12 Implement budget accounting for the revised AST and expansion model
@@ -55,7 +60,7 @@
 - [ ] 4.6 Implement curved chain-symbol geometry inside the current round band with seam reservation
 - [ ] 4.7 Add failing layout tests for note-form quantity-targeted 3, 5, 7, and 9 double crochet shells whose feet converge on one source, consume one source once, and whose heads spread along the outer band
 - [ ] 4.8 Implement shell-fan geometry while keeping every child countable, addressable, targetable, and highlightable
-- [ ] 4.9 Add failing layout tests proving `sl st into next ch-1 sp, ch 3 (counts as dc), 2 dc in same ch-1 sp` aggregates into one 3-head shell-fan slot
+- [ ] 4.9 Add failing layout tests proving `sl st into next ch-1 sp, ch 3, 2 dc in same ch-1 sp` aggregates into one 3-head shell-fan slot
 - [ ] 4.10 Implement contiguous same-source motif aggregation at round start
 
 ## 5. Round rendering behavior
@@ -71,7 +76,7 @@
 
 ## 6. Direct crochet-dev acceptance coverage
 
-- [ ] 6.1 Add a failing acceptance test using the original multiline `crochet-dev` R1 through R3 forms: R1 count 24 and join, R2 count 48 with 24 targetable `ch-1 sp` spaces, R2 `sc in same st`, R3 first shell across `ch 3 (counts as dc), 2 dc in same ch-1 sp`, and R3 count annotation `(12 reps, 4 sts per rep)`
+- [ ] 6.1 Add a failing acceptance test using the original multiline `crochet-dev` R1 through R3 forms: R1 count 24 and join, R2 count 48 with 24 targetable `ch-1 sp` spaces, R2 `sc in same st`, R3 first shell across `ch 3, 2 dc in same ch-1 sp`, and R3 count annotation `(12 reps, 4 sts per rep)`
 - [ ] 6.2 Implement any missing parser, graph, written count, layout, or render behavior needed for direct R1 through R3 acceptance
 - [ ] 6.3 Add a failing acceptance test using original R4 through R10 forms covering leading current-round turns, WS/RS side alternation, V2/V3, targeted V aliases, quantity-targeted 5/7/9-dc shells, center-shell targets, picot targets, joins, implicit skips, and structured counts
 - [ ] 6.4 Implement any missing behavior needed for direct R4 through R10 acceptance
@@ -95,4 +100,4 @@
 - [ ] 8.4 Run the full test suite with `npm test`
 - [ ] 8.5 Run `npm run lint`
 - [ ] 8.6 Run `npm run build`
-- [ ] 8.7 Manually render the original `crochet-dev` fenced `crochet` block R1 through R22 and verify quantity-targeted 3/5/7/9-dc shell fans, R3 first-shell aggregation, chain spaces, V2/V3 spaces, picots, current-round turns, side state, join inheritance, progress totals, structured written counts, implicit skips, and no chart syntax for finishing notes
+- [ ] 8.7 Manually render `reference/crochet-dev-pattern.md`'s R1 through R22 block and verify quantity-targeted 3/5/7/9-dc shell fans, R3 first-shell aggregation, chain spaces, V2/V3 spaces, picots, current-round turns, side state, join inheritance, progress totals, structured written counts, implicit skips, and no chart syntax for finishing notes

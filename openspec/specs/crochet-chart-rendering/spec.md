@@ -51,25 +51,6 @@ The system SHALL lay out `type: round` charts as concentric rounds, and SHALL of
 - **WHEN** a round chart contains a round whose stitch count is lower than the previous round's
 - **THEN** that round SHALL still be placed at a larger radius than the previous round, never at a smaller radius that would overlap or nest inside an earlier round
 
-### Requirement: Size every chart from the symbols it draws
-The system SHALL take every chart size — ring radii, stitch pitch, row height, spiral advance, group fans, seam slots and shaping widths — from the symbols and text the chart actually draws and from the pattern's own contents, never from a stitch count times an assumed per-stitch size.
-
-#### Scenario: A round of tall stitches gets a longer ring
-- **WHEN** two rounds have the same stitch count but one is written in a wider or taller stitch than the other
-- **THEN** the round of wider stitches SHALL be drawn on a longer ring, and in neither round SHALL two neighbouring symbols be closer than their own widths
-
-#### Scenario: The seam is sized by what it holds
-- **WHEN** a round opens with more than one chain, closes with a join, or is numbered with more than one digit
-- **THEN** the room reserved at its seam SHALL grow by what each of those is drawn at, so none of them is drawn over another
-
-#### Scenario: Flat charts follow their own symbols
-- **WHEN** a flat chart contains stitches wider or taller than a single crochet
-- **THEN** its stitch pitch and row height SHALL grow to hold them, uniformly across the chart so its rows still line up in columns and aligned background geometry still has columns to draw
-
-#### Scenario: Nothing is drawn over the center anchor
-- **WHEN** a round or spiral chart is worked into a magic ring or a chain ring
-- **THEN** the first stitches and the innermost guide line SHALL be placed outside what that anchor is drawn as, measured from it rather than from a fixed radius
-
 #### Scenario: Magic ring anchor
 - **WHEN** a round chart starts from a row anchored `in MR`
 - **THEN** the chart SHALL include a center magic-ring symbol
@@ -94,6 +75,25 @@ The system SHALL take every chart size — ring radii, stitch pitch, row height,
 - **WHEN** the guide steps from one round's band out to the next
 - **THEN** both ends of that step SHALL be anchored on the seam of the round it steps into, separated by a gap measured as a length of arc rather than as an angle, so the step reads as a near-radial jog at every radius instead of flattening into a slant on the outer rounds
 - **AND** the two corners where it leaves one band and meets the next SHALL be drawn as curves, with the run between them left straight, so the step reads as one S rather than two right angles
+
+### Requirement: Size every chart from the symbols it draws
+The system SHALL take every chart size — ring radii, stitch pitch, row height, spiral advance, group fans, seam slots and shaping widths — from the symbols and text the chart actually draws and from the pattern's own contents, never from a stitch count times an assumed per-stitch size.
+
+#### Scenario: A round of tall stitches gets a longer ring
+- **WHEN** two rounds have the same stitch count but one is written in a wider or taller stitch than the other
+- **THEN** the round of wider stitches SHALL be drawn on a longer ring, and in neither round SHALL two neighbouring symbols be closer than their own widths
+
+#### Scenario: The seam is sized by what it holds
+- **WHEN** a round opens with more than one chain, closes with a join, or is numbered with more than one digit
+- **THEN** the room reserved at its seam SHALL grow by what each of those is drawn at, so none of them is drawn over another
+
+#### Scenario: Flat charts follow their own symbols
+- **WHEN** a flat chart contains stitches wider or taller than a single crochet
+- **THEN** its stitch pitch and row height SHALL grow to hold them, uniformly across the chart so its rows still line up in columns and aligned background geometry still has columns to draw
+
+#### Scenario: Nothing is drawn over the center anchor
+- **WHEN** a round or spiral chart is worked into a magic ring or a chain ring
+- **THEN** the first stitches and the innermost guide line SHALL be placed outside what that anchor is drawn as, measured from it rather than from a fixed radius
 
 ### Requirement: Support spiral chart layout
 The system SHALL lay out `type: spiral` charts as a continuous spiral path across all rows.

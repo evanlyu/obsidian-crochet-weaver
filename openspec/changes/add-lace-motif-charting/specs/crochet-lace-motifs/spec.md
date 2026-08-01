@@ -98,7 +98,7 @@ The system SHALL treat a round that uses typed `next` searches, `same` targets, 
 - **AND** the following produced shell SHALL consume the selected `ch-1 sp`
 
 #### Scenario: R3 first shell aggregates across steps
-- **WHEN** R3 begins `sl st into next ch-1 sp, ch 3 (counts as dc), 2 dc in same ch-1 sp`
+- **WHEN** R3 begins `sl st into next ch-1 sp, ch 3, 2 dc in same ch-1 sp`
 - **THEN** the counted beginning-chain replacement and the following two double crochets SHALL share the selected `ch-1 sp`
 - **AND** the chart SHALL draw one 3-dc shell fan with three visible heads at the round start
 
