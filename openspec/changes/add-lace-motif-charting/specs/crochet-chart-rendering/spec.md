@@ -217,6 +217,39 @@ In `continuous` style the system SHALL keep every stitch's own symbol and SHALL 
 - **WHEN** the same grouped motif is drawn in `japanese` style
 - **THEN** it SHALL use the same fan geometry but SHALL NOT add the continuous-style connector overlay
 
+### Requirement: Resolve chart options from settings and frontmatter
+The system SHALL resolve every chart option from the block's own frontmatter where it sets one and from the global settings otherwise, and SHALL fall back to the global setting for a value it does not recognize.
+
+#### Scenario: Valid frontmatter override
+- **WHEN** a chart's frontmatter sets a recognized option
+- **THEN** that value SHALL be used in place of the global setting
+
+#### Scenario: Invalid frontmatter override
+- **WHEN** a chart's frontmatter sets an option to a value the system does not recognize
+- **THEN** the global setting SHALL be used instead
+
+#### Scenario: Retired frontmatter key
+- **WHEN** a chart's frontmatter sets a key the system no longer supports
+- **THEN** it SHALL be ignored rather than reported as an error
+
+#### Scenario: A chart drawn as one wedge of itself
+- **WHEN** a chart's frontmatter sets `sector: 90`, or `sector: on`
+- **THEN** the chart SHALL be worked out whole and drawn from the seam through that many degrees of itself, leaving the rest undrawn
+- **AND** a motif that falls on the edge of the wedge SHALL be kept whole or left out whole, never drawn with some of its stitches missing
+- **AND** the wedge SHALL be taken about the top of the chart, so it opens upward from the centre
+- **AND** `wholeRounds: 4` SHALL draw the first four rounds entire and take the wedge only from the rounds after them
+- **AND** what the chart draws at its centre SHALL be kept whatever wedge is asked for
+- **AND** a chart that asks for no wedge SHALL be drawn entire, as before
+
+#### Scenario: A chart says it is lace
+- **WHEN** a chart's frontmatter sets `lace: on`
+- **THEN** the chart SHALL be drawn the way a pattern book prints lace: no lines drawn around its rounds, no round numbers, and its symbols drawn larger than their ordinary size
+- **AND** the round the numbers would have sat in SHALL not have room kept for them
+- **AND** a run of chains SHALL be turned out of the chart rather than laid along its round, and SHALL ask the ring for one stitch's room however many chains it is made of
+- **AND** the chain a round opens with SHALL be stacked across that round's band at its seam, standing for the stitch it replaces
+- **AND** the round worked into the ring at the middle SHALL stand on that ring rather than on a circle of its own outside it
+- **AND** what the chart is made of SHALL NOT change: the same stitches are drawn, in the same places, from the same pattern
+
 ## ADDED Requirements
 
 ### Requirement: Validate the crochet-dev chart contract

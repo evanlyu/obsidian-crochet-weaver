@@ -118,7 +118,8 @@ The system SHALL treat a round that uses typed `next` searches, `same` targets, 
 
 #### Scenario: R4 and later rounds turn
 - **WHEN** R4 and later joined rounds start with `turn`
-- **THEN** each such current round SHALL reverse traversal and drawing direction relative to the previous round
+- **THEN** each such current round SHALL read the round below it backwards — its cursor traversing that round's places in reverse — and SHALL toggle the side facing the maker
+- **AND** the way round the chart it is drawn SHALL follow from that and from the round below's own direction, because every stitch is drawn where the place it is worked into puts it: a round that reads the round below backwards runs the opposite way about the chart from it, and one that reads it forwards runs the same way
 - **AND** motif child order SHALL remain the order written inside each group
 
 #### Scenario: R15 through R22 expand from R11 through R14

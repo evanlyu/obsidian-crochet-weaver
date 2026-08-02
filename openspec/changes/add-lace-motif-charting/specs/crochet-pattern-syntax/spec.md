@@ -19,9 +19,17 @@ The system SHALL parse the bounded `crochet-dev` written-pattern grammar directl
 - **WHEN** a step is written as `sl st`, `slst`, `sl-st`, or `sl_st`
 - **THEN** the parser SHALL create a stitch node for the single normalized stitch name `sl st`
 
+#### Scenario: Digit-containing names do not collide with quantity prefixes
+- **WHEN** a step is written as `3 dc2tog`
+- **THEN** the parser SHALL create a stitch node for `dc2tog` with count `3`
+
 #### Scenario: Supported stitch names
 - **WHEN** a step uses `ch`, `sc`, `hdc`, `dc`, `tr`, `dtr`, `sl st`, `fpdc`, `bpdc`, `bobble`, `popcorn`, `inc`, `dec`, or `MR`
 - **THEN** the parser SHALL create a stitch node with the corresponding stitch name
+
+#### Scenario: Longer names are not consumed as shorter prefixes
+- **WHEN** a step uses a stitch name containing another supported name as a prefix (for example `sc2tog`, `dc3cl`, `hdc popcorn`, `tr popcorn`)
+- **THEN** the parser SHALL create a single stitch node for the longer name, not a node for the prefix followed by a parse error
 
 #### Scenario: Repeat block
 - **WHEN** a step is written as `[sc, inc] x 6`
@@ -65,7 +73,8 @@ The system SHALL parse the bounded `crochet-dev` written-pattern grammar directl
 #### Scenario: Current-round turn instruction
 - **WHEN** a round begins with `turn`
 - **THEN** the parser SHALL create a turn node on that current round
-- **AND** that current round SHALL toggle RS/WS state, reverse next-target traversal, and reverse round drawing direction relative to the previous round
+- **AND** that current round SHALL toggle RS/WS state and read the round below it backwards, its cursor traversing that round's places in reverse
+- **AND** the way round the chart it is drawn SHALL follow from that traversal and the round below's own direction, since every stitch is drawn where the place it is worked into puts it
 
 #### Scenario: Supported explicit targets
 - **WHEN** a stitch or group is written with `in same st`, `in same ch-1 sp`, `in next sc`, `in next dc`, `in next ch-1 sp`, `in next ch-2 sp`, `in next ch-3 sp`, `in next picot`, `in center dc of next 3-dc shell`, `in center dc of next 5-dc shell`, `in center dc of next 7-dc shell`, or `in center dc of next 9-dc shell`
