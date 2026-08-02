@@ -1520,3 +1520,32 @@ describe('how far apart a chart draws its rounds', () => {
 		expect(bandOf(short, { ringSpacing: 40 })).toBeCloseTo(40, 0);
 	});
 });
+
+describe('a chart that names its own round spacing', () => {
+	it('steps every round out by exactly that spacing where its symbols fit', () => {
+		const layout = calculateLayout(
+			parseChart(
+				'---\ntype: round\n---\nR1: 4 sc, dec, 10 sc, dec, 6 sc, sl st\nR2: [inc] x 22, sl st\nR3: [10 sc, inc] x 4, sl st\nR4: 5 sc, [inc, 11 sc] x 3, inc, 6 sc, sl st\n',
+			),
+			{ ringSpacing: 30, grid: false, roundStyle: 'japanese' },
+		);
+		const centre = { x: layout.width / 2, y: layout.height / 2 };
+		const radii = new Map<number, number[]>();
+		for (const drawn of [...layout.items, ...(layout.shapingMarks ?? [])]) {
+			if (drawn.rowIndex === undefined) continue;
+			radii.set(drawn.rowIndex, [
+				...(radii.get(drawn.rowIndex) ?? []),
+				Math.hypot(drawn.x - centre.x, drawn.y - centre.y),
+			]);
+		}
+		const ordered = [...radii.entries()]
+			.sort((a, b) => a[0] - b[0])
+			.map(([, rs]) => rs.reduce((sum, r) => sum + r, 0) / rs.length);
+
+		// A round that doubles its stitch count used to jump out past the spacing
+		// because every stitch was given an assumed 20px of ring whatever it drew.
+		for (let index = 1; index < ordered.length; index++) {
+			expect(ordered[index]! - ordered[index - 1]!).toBeCloseTo(30, 0);
+		}
+	});
+});

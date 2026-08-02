@@ -56,6 +56,11 @@ The system SHALL take every chart size from the symbols, motifs, curves, seam in
 - **WHEN** a flat chart contains stitches wider or taller than a single crochet
 - **THEN** its stitch pitch and row height SHALL grow to hold them, uniformly across the chart so its rows still line up in columns and aligned background geometry still has columns to draw
 
+#### Scenario: A chart that names a spacing gets that spacing
+- **WHEN** a chart or the settings name a spacing, and a round has more stitches than the round below it
+- **THEN** every round SHALL be stepped out by that spacing, so long as its own symbols fit on the ring that gives it
+- **AND** no round SHALL be given room for a stitch pitch it does not draw: the ring SHALL be measured from the symbols themselves, never floored at an assumed per-stitch width
+
 #### Scenario: Rounds sit as far apart as their stitches are tall
 - **WHEN** a chart names no spacing of its own
 - **THEN** each round SHALL be drawn as far from the round below it as that round's own stitches are tall, so a round of single crochets sits closer than a round of double trebles

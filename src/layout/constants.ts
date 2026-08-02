@@ -86,12 +86,20 @@ export function labelExtent(text: string): number {
 }
 
 
-// The room one symbol takes along a round, as arc length in px: the chart's
-// stitch pitch, or what this symbol really needs beside another of its kind,
-// whichever is larger. Ring radii are sized from this rather than from a flat
-// pitch per stitch, so a round of tall or wide symbols — a dc is 20px across
-// where an sc is 12 — is drawn on a ring long enough to hold what it draws
-// instead of being packed into one sized for single crochet.
+// The room one symbol takes along a round, as arc length in px: what this
+// symbol really needs beside another of its kind, and nothing more.
+//
+// It used to be floored at a flat stitch pitch, which is the one thing a chart
+// size must never be — a count times an assumed per-stitch size. A single
+// crochet is 12px across and was given 20, so a round of forty-eight of them
+// asked for a ring a third longer than it needed and jumped out past the round
+// below it while its neighbours stepped normally.
 export function symbolArc(symbol: string): number {
-	return Math.max(MIN_ARC, 2 * symbolExtent(symbol) + SYMBOL_CLEARANCE);
+	// Its own room, the gap to its neighbour, and one more gap's worth of slack.
+	// Where each stitch sits comes from what it is worked into, and the places
+	// below a round are not evenly spread — sized to the symbols exactly, a
+	// round has nothing to spend on lining them up and takes it out of the gaps
+	// between them instead. (Measured: two stitches of a round of increases
+	// drawn 3.6px into each other.)
+	return 2 * symbolExtent(symbol) + 2 * SYMBOL_CLEARANCE;
 }
