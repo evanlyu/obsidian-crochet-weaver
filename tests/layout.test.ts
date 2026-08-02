@@ -1527,7 +1527,7 @@ describe('a chart that names its own round spacing', () => {
 			parseChart(
 				'---\ntype: round\n---\nR1: 4 sc, dec, 10 sc, dec, 6 sc, sl st\nR2: [inc] x 22, sl st\nR3: [10 sc, inc] x 4, sl st\nR4: 5 sc, [inc, 11 sc] x 3, inc, 6 sc, sl st\n',
 			),
-			{ ringSpacing: 30, grid: false, roundStyle: 'japanese' },
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
 		);
 		const centre = { x: layout.width / 2, y: layout.height / 2 };
 		const radii = new Map<number, number[]>();
@@ -1545,7 +1545,7 @@ describe('a chart that names its own round spacing', () => {
 		// A round that doubles its stitch count used to jump out past the spacing
 		// because every stitch was given an assumed 20px of ring whatever it drew.
 		for (let index = 1; index < ordered.length; index++) {
-			expect(ordered[index]! - ordered[index - 1]!).toBeCloseTo(30, 0);
+			expect(ordered[index]! - ordered[index - 1]!).toBeCloseTo(20, 0);
 		}
 	});
 });

@@ -19,8 +19,8 @@ import {
 export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResult {
 	const style = options.roundStyle;
 	if (style === 'japanese' || style === 'continuous') {
-		return layoutRoundGraph(ast, options, style, (previousRadius, previousCount, circumference, step) =>
-			nextRadius(previousRadius, previousCount, circumference, step, innerRadiusOf(ast)),
+		return layoutRoundGraph(ast, options, style, (previousRadius, previousCount, circumference, step, roomy) =>
+			nextRadius(previousRadius, previousCount, circumference, step, innerRadiusOf(ast), roomy),
 		);
 	}
 	return layoutRoundStandard(ast, options);
@@ -146,8 +146,14 @@ export function nextRadius(
 	circumference: number,
 	step: number,
 	innerRadius: number,
+	roomy = circumference,
 ): number {
-	const fitRadius = circumference / (2 * Math.PI);
-	if (prevCount < 0) return Math.max(innerRadius, fitRadius);
-	return Math.max(prevRadius + step, fitRadius);
+	// A round sits a step out from the one below, unless its own symbols will
+	// not go round a ring that size — then it is given the ring they need and no
+	// more. The roomier ring is what a round would like, and it is taken only
+	// where the step does not already say otherwise: a chart asked for a spacing
+	// and gets it, rather than being pushed out by room nothing is drawn in.
+	const mustFit = circumference / (2 * Math.PI);
+	if (prevCount < 0) return Math.max(innerRadius, roomy / (2 * Math.PI));
+	return Math.max(prevRadius + step, mustFit);
 }

@@ -46,8 +46,8 @@ const CHAIN_CHORD_SHARE = 0.55;
 // that slack out of the motifs — closing up the fans, which are the one thing
 // lace is about. (Measured: a round of twelve five-double shells wants 372° of
 // a 360° ring when the ring is sized by width alone.)
-export function ringRoom(symbol: string): number {
-	return makesSpace(symbol) ? symbolArc(symbol) * CHAIN_CHORD_SHARE : symbolArc(symbol);
+export function ringRoom(symbol: string, room: (symbol: string) => number = symbolArc): number {
+	return makesSpace(symbol) ? room(symbol) * CHAIN_CHORD_SHARE : room(symbol);
 }
 
 // Stand every stitch of a motif on the place it is worked into: feet together

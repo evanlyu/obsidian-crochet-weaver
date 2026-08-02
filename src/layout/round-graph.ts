@@ -9,7 +9,7 @@ import type {
 	ShapingMark,
 } from '../types';
 import { arcToDegrees, closeSeam, enforceOrderAndGap, fitTurn, meanAngle, relaxSpacing } from './angles';
-import { symbolArc, symbolExtent, symbolHalfWidth, SYMBOL_CLEARANCE } from './constants';
+import { symbolArc, symbolArcRoomy, symbolExtent, symbolHalfWidth, SYMBOL_CLEARANCE } from './constants';
 import { buildShapingMark } from './shaping';
 import {
 	buildStitchGraph,
@@ -99,7 +99,13 @@ export function layoutRoundGraph(
 	ast: CrochetAst,
 	options: LayoutOptions,
 	style: 'japanese' | 'continuous',
-	nextRadius: (previousRadius: number, previousCount: number, circumference: number, step: number) => number,
+	nextRadius: (
+		previousRadius: number,
+		previousCount: number,
+		circumference: number,
+		step: number,
+		roomy: number,
+	) => number,
 ): LayoutResult {
 	const lace = options.lace === true;
 	const graph = buildStitchGraph(ast);
@@ -134,7 +140,12 @@ export function layoutRoundGraph(
 		// are tall, unless the chart asked for a spacing of its own.
 		const step = roundStep(round.stitches.map((stitch) => stitch.symbol), options.ringSpacing);
 		steps.push(step);
-		radius = nextRadius(radius, previousCount, roundCircumference(round, contents, reach, radius, lace, style), step);
+		// What must go round the ring — the symbols themselves, and the seam —
+		// and what the round would like: the same with room to spare between the
+		// stitches. The step wins over the second, never over the first.
+		const mustFit = roundCircumference(round, contents, reach, radius, lace, style, false);
+		const roomy = roundCircumference(round, contents, reach, radius, lace, style, true);
+		radius = nextRadius(radius, previousCount, mustFit, step, roomy);
 
 		// Where this round's stitches reach to: the far edge of its own band.
 		const topRadius = radius + step / 2;
@@ -509,8 +520,10 @@ function roundCircumference(
 	previousRadius: number,
 	lace: boolean,
 	style: 'japanese' | 'continuous',
+	roomy: boolean,
 ): number {
-	const stitches = lace ? placeRoom(round) : drawnRoom(round, style);
+	const room = roomy ? symbolArcRoomy : symbolArc;
+	const stitches = lace ? placeRoom(round, room) : drawnRoom(round, style, room);
 	// The reach is measured where it is drawn: on the round below's ring.
 	const reachArc = ((reach.start + reach.end) * Math.PI * previousRadius) / 180;
 	return stitches + seamArc(contents) + reachArc;
@@ -524,7 +537,7 @@ function roundCircumference(
 // stitches, a round of increases asks for twice the ring it needs and is pushed
 // out to a radius it never had to reach — which the minimum gaps already knew,
 // and only this did not.
-function drawnRoom(round: StitchRound, style: 'japanese' | 'continuous'): number {
+function drawnRoom(round: StitchRound, style: 'japanese' | 'continuous', room: (symbol: string) => number): number {
 	let total = 0;
 	for (const group of round.groups) {
 		const symbols = group.targetIds.map(
@@ -532,7 +545,7 @@ function drawnRoom(round: StitchRound, style: 'japanese' | 'continuous'): number
 		);
 		const marked = style === 'japanese' && group.mark !== undefined;
 		if (!marked) {
-			total += symbols.reduce((sum, symbol) => sum + ringRoom(symbol), 0);
+			total += symbols.reduce((sum, symbol) => sum + ringRoom(symbol, room), 0);
 			continue;
 		}
 		const symbol = symbols[0] ?? 'sc';
@@ -546,17 +559,17 @@ function drawnRoom(round: StitchRound, style: 'japanese' | 'continuous'): number
 // stands on it, counting a whole chain run as one — its chains are turned out
 // of the chart and hang on the curve that bridges the space, so the run is no
 // wider than a stitch however many chains it is made of.
-function placeRoom(round: StitchRound): number {
+function placeRoom(round: StitchRound, room: (symbol: string) => number): number {
 	let total = 0;
 	let chains = false;
 	for (const stitch of round.stitches) {
 		if (makesSpace(stitch.symbol)) {
-			if (!chains) total += ringRoom(stitch.symbol);
+			if (!chains) total += ringRoom(stitch.symbol, room);
 			chains = true;
 			continue;
 		}
 		chains = false;
-		total += ringRoom(stitch.symbol);
+		total += ringRoom(stitch.symbol, room);
 	}
 	return total;
 }

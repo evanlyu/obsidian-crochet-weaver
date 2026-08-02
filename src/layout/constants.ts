@@ -95,11 +95,14 @@ export function labelExtent(text: string): number {
 // asked for a ring a third longer than it needed and jumped out past the round
 // below it while its neighbours stepped normally.
 export function symbolArc(symbol: string): number {
-	// Its own room, the gap to its neighbour, and one more gap's worth of slack.
-	// Where each stitch sits comes from what it is worked into, and the places
-	// below a round are not evenly spread — sized to the symbols exactly, a
-	// round has nothing to spend on lining them up and takes it out of the gaps
-	// between them instead. (Measured: two stitches of a round of increases
-	// drawn 3.6px into each other.)
-	return 2 * symbolExtent(symbol) + 2 * SYMBOL_CLEARANCE;
+	return 2 * symbolExtent(symbol) + SYMBOL_CLEARANCE;
+}
+
+// The same, with room to spare: where each stitch sits comes from what it is
+// worked into, and the places below a round are not evenly spread, so a round
+// given exactly its symbols has nothing to spend on lining them up. A round
+// takes this much where it can — but never at the cost of the spacing a chart
+// asked for, which is why it is asked for separately from what must fit.
+export function symbolArcRoomy(symbol: string): number {
+	return symbolArc(symbol) + SYMBOL_CLEARANCE;
 }

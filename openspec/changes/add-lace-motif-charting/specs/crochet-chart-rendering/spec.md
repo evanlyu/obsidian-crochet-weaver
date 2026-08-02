@@ -60,6 +60,7 @@ The system SHALL take every chart size from the symbols, motifs, curves, seam in
 - **WHEN** a chart or the settings name a spacing, and a round has more stitches than the round below it
 - **THEN** every round SHALL be stepped out by that spacing, so long as its own symbols fit on the ring that gives it
 - **AND** no round SHALL be given room for a stitch pitch it does not draw: the ring SHALL be measured from the symbols themselves, never floored at an assumed per-stitch width
+- **AND** the room a round would like between its stitches, over and above what its symbols need, SHALL never push it past the spacing it was given — only what will not otherwise go round the ring may do that
 
 #### Scenario: Rounds sit as far apart as their stitches are tall
 - **WHEN** a chart names no spacing of its own
