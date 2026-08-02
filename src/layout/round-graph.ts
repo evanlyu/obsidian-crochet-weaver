@@ -8,7 +8,15 @@ import type {
 	RenderItem,
 	ShapingMark,
 } from '../types';
-import { arcToDegrees, closeSeam, enforceOrderAndGap, fitTurn, meanAngle, relaxSpacing } from './angles';
+import {
+	arcToDegrees,
+	closeSeam,
+	enforceOrderAndGap,
+	fitTurn,
+	meanAngle,
+	relaxSpacing,
+	shortestAngleDelta,
+} from './angles';
 import { symbolArc, symbolArcRoomy, symbolExtent, symbolHalfWidth, SYMBOL_CLEARANCE } from './constants';
 import { buildShapingMark } from './shaping';
 import {
@@ -131,6 +139,9 @@ export function layoutRoundGraph(
 	let radius = 0;
 	let previousRadius = 0;
 	let previousCount = -1;
+	// Where the round change sits, handed from one round to the next so it reads
+	// as one radial line rather than as a spiral (see alignSeam).
+	let seamCentre: number | undefined;
 
 	for (const round of graph.rounds) {
 		if (round.stitches.length === 0) continue;
@@ -149,7 +160,19 @@ export function layoutRoundGraph(
 
 		// Where this round's stitches reach to: the far edge of its own band.
 		const topRadius = radius + step / 2;
-		const angles = placeRound(graph, round, previousRound, radius, style, contents, reach, topRadius, lace);
+		const angles = placeRound(
+			graph,
+			round,
+			previousRound,
+			radius,
+			style,
+			contents,
+			reach,
+			topRadius,
+			lace,
+			seamCentre,
+		);
+		seamCentre = seamCentreOf(angles);
 		round.stitches.forEach((stitch, index) => {
 			const angle = angles[index] ?? -90;
 			const radians = (angle * Math.PI) / 180;
@@ -586,6 +609,7 @@ function placeRound(
 	reach: { start: number; end: number },
 	topRadius: number,
 	lace: boolean,
+	seamCentre: number | undefined,
 ): number[] {
 	// A round drawn the other way about the chart is laid out in the order it is
 	// drawn — outermost angle first — and handed back in working order, so
@@ -593,7 +617,15 @@ function placeRound(
 	// round goes on.
 	const drawn = round.direction === -1 ? [...round.stitches].reverse() : round.stitches;
 	const angles = placeDrawnOrder(graph, { ...round, stitches: drawn }, previous, radius, style, contents, reach, topRadius, lace);
-	return round.direction === -1 ? [...angles].reverse() : angles;
+	// The round change is one line across the chart, not a spiral. Where a round
+	// ends on an increase its last stitch sits half a spread short of the place
+	// below it, which moves the seam a degree or two; kept, that is handed to
+	// every round above and adds up — measured on a 41-round body, 37° by the
+	// last round. So the round is turned back onto the seam the round below
+	// left, which moves every stitch of it by the same fraction of a stitch and
+	// changes no gap inside it.
+	const turned = alignSeam(angles, seamCentre);
+	return round.direction === -1 ? [...turned].reverse() : turned;
 }
 
 function placeDrawnOrder(
@@ -650,6 +682,27 @@ function placeDrawnOrder(
 	//
 	if (!movable.includes(true)) return placed;
 	return relaxSpacing(placed, movable, step * MAX_DRIFT_SHARE, minGaps);
+}
+
+// Where a round's seam sits: the middle of the wrap-around gap between its last
+// stitch and its first.
+function seamCentreOf(angles: readonly number[]): number | undefined {
+	const first = angles[0];
+	const last = angles[angles.length - 1];
+	return first === undefined || last === undefined ? undefined : (last + first - 360) / 2;
+}
+
+// Turn a round onto the seam the round below left, keeping every gap inside it.
+// Never by more than half a stitch: a round whose seam really does belong
+// somewhere else — one that cannot follow its ancestry at all — is left where
+// it was placed rather than dragged into line.
+function alignSeam(angles: readonly number[], seamCentre: number | undefined): number[] {
+	const own = seamCentreOf(angles);
+	if (own === undefined || seamCentre === undefined || angles.length < 2) return [...angles];
+	const step = 360 / angles.length;
+	const turn = shortestAngleDelta(seamCentre, own);
+	if (Math.abs(turn) > step / 2) return [...angles];
+	return angles.map((angle) => angle - turn);
 }
 
 // The stitches of a round that the next round works something across: an

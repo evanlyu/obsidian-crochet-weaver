@@ -27,6 +27,11 @@ The system SHALL lay out `type: round` charts as concentric rounds, and SHALL of
 - **WHEN** a round chart is drawn in `japanese` style
 - **THEN** one continuous guide SHALL wind through the rounds, stepping outward at each starting seam, with each round numbered at that seam
 
+#### Scenario: The round change reads as one line
+- **WHEN** a chart has many rounds, and some of them end on an increase
+- **THEN** every round's change SHALL sit on the same line out from the centre, so the round numbers read as one radial baseline rather than as a spiral
+- **AND** a round SHALL be turned onto that line by no more than a fraction of a stitch, keeping every gap inside it, so no stitch leaves the place its ancestry gave it
+
 #### Scenario: Round-change step stays near radial
 - **WHEN** the guide steps from one round's band out to the next
 - **THEN** both ends of that step SHALL be anchored on the seam of the round it steps into, separated by a gap measured as a length of arc rather than as an angle, so the step reads as a near-radial jog at every radius instead of flattening into a slant on the outer rounds

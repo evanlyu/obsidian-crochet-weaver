@@ -1549,3 +1549,36 @@ describe('a chart that names its own round spacing', () => {
 		}
 	});
 });
+
+describe('where a chart changes rounds', () => {
+	it('keeps the round change on one line, however many rounds there are', () => {
+		// Forty rounds of a body: plain rounds with an increase round every
+		// fourth, each working into the round below exactly once, which is where
+		// the seam used to wander round the chart.
+		const rounds: string[] = [];
+		let count = 22;
+		for (let round = 1; round <= 40; round++) {
+			if (round % 4 === 0) {
+				const plain = count / 2 - 1;
+				rounds.push(`R${round}: [${plain} sc, inc] x 2, sl st`);
+				count += 2;
+			} else {
+				rounds.push(`R${round}: ${count} sc, sl st`);
+			}
+		}
+		const layout = calculateLayout(parseChart(`---\ntype: round\n---\n${rounds.join('\n')}\n`), {
+			ringSpacing: 20,
+			grid: false,
+			roundStyle: 'japanese',
+		});
+		const centre = { x: layout.width / 2, y: layout.height / 2 };
+		const angles = (layout.labels ?? []).map(
+			(label) => (Math.atan2(label.y - centre.y, label.x - centre.x) * 180) / Math.PI,
+		);
+
+		expect(angles.length).toBeGreaterThan(30);
+		// One radial line: every round's number within a stitch of the first.
+		const spread = Math.max(...angles) - Math.min(...angles);
+		expect(spread).toBeLessThan(360 / 22);
+	});
+});
