@@ -10,6 +10,7 @@ Crochet Weaver renders crochet stitch charts from text patterns inside Obsidian 
 - Support flat rows, concentric rounds, and continuous spirals.
 - Use common crochet symbols for chains, single crochet, half double crochet, double crochet, treble stitches, slip stitch, increases, decreases, bobbles, popcorns, and post stitches.
 - Add row-level `blo` / `flo` markers and round anchors such as magic ring or chain ring.
+- **Chart lace the way it is written**: say where a stitch goes (`5 dc in next ch-2 sp`, `sc in center dc of next 7-dc shell`), and shells fan from the space they are worked into, chain runs are drawn as the curve they hang in, and V-stitches, picots, joins, turns and "repeat R11-R14" rounds are read as written.
 - Show a configurable-color marker at the first stitch of the next round on concentric charts.
 - Render `crochet-tool` blocks as a readable row checklist with stitch counts, progress controls, and a per-row stitch counter.
 - **Embed the progress tool or a read-only pattern-text list directly next to a `crochet` chart** (`tool: on` / `text: on`), so you never have to paste the same pattern into two code blocks.
@@ -228,6 +229,59 @@ Groups use parentheses and render as a fan from one stitch position — this is 
 ```crochet
 R3: (dc, ch, dc), sc, (5 dc)
 ```
+
+### Lace and motifs
+
+A lace pattern says where each stitch goes instead of counting along the round below, and Crochet Weaver reads that directly:
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: MR, ch 3 (counts as dc), 23 dc in MR,
+    sl st to top of beginning ch-3. (24 dc)
+
+R2: ch 1 (does not count as a st),
+    sc in same st, ch 1,
+    [sc in next dc, ch 1] x23,
+    sl st to first sc.
+    (24 sc + 24 ch-1 sp = 48 sts)
+
+R3: sl st into next ch-1 sp,
+    ch 3, 2 dc in same ch-1 sp,
+    sc in next ch-1 sp,
+    [3 dc in next ch-1 sp,
+     sc in next ch-1 sp] x11,
+    sl st to top of beginning ch-3.
+    (12 reps, 4 sts per rep)
+
+R4: turn,
+    [V2 in next sc, ch 1,
+     sc in center dc of next 3-dc shell,
+     picot, ch 1] x12,
+    sl st to join.
+```
+
+| Written | What it means |
+| --- | --- |
+| `in next dc` / `in next ch-2 sp` / `in next picot` | the next place of that kind, passing over whatever is in between |
+| `in same st` / `in same ch-1 sp` | the place the step before used — its stitches join that motif |
+| `in center dc of next 7-dc shell` | the middle stitch of the next 7-double shell |
+| `5 dc in next ch-2 sp` | one shell of five, worked into one space and drawn as a fan |
+| `V2` / `V3` | `(dc, ch 2, dc)` / `(dc, ch 3, dc)` into one place, with a space of its own |
+| `ch 3 (counts as dc)` | the beginning chain stands in for a stitch |
+| `sl st into next ch-1 sp` | move across to that space; nothing is worked into it yet |
+| `turn` | written first: this round is worked the other way round |
+| `R15-R18: repeat R11-R14.` | expands into real rounds before the chart is drawn |
+
+Add `lace: on` to the frontmatter to have the chart printed the way a book prints lace: no lines drawn around the rounds, no round numbers, and the symbols drawn larger against the openwork. It changes only what is drawn around the pattern, never what the pattern is.
+
+Add `wholeRounds: 4` alongside it to draw the first four rounds entire and fan out only after them — the middle of a piece is where the pattern is still being set up, so a book draws it whole. Add `sector: 90` (or `sector: on`, which means 90) to draw **one wedge of the chart instead of the whole circle** — a round of twelve identical motifs says everything it has to say in one slice of itself, which is how a book prints it. The whole chart is still worked out; the wedge is what gets drawn, starting at the seam, and a motif that falls on the edge is kept whole rather than sliced in half.
+
+A run of chains between two stitches becomes one chain space the next round can work into, and every chain of it is still drawn and countable. An unannotated beginning chain counts as the stitch it replaces when the round closes to the top of it — so a pattern written this way needs nothing added to it.
+
+Lace is drawn by the `japanese` and `continuous` round styles, which place every stitch from what it is worked into; `radial` spreads a round evenly, as it always has.
 
 ### Color changes
 

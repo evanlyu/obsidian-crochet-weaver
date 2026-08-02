@@ -1,7 +1,7 @@
-import type { AstNode, ChartHighlight, CrochetAst, PatternTextStyle, RowNode } from '../types';
+import type { AstNode, ChartHighlight, CrochetAst, PatternTextStyle, RowNode, StitchNode, TargetSpec } from '../types';
 import { parseChart } from '../pattern/parse-chart';
 import { validateChartBudget } from '../pattern/budget';
-import { roundStitchCount, unitStitchCounts } from '../layout';
+import { rowWrittenCount, writtenUnitWeights } from '../pattern/count';
 import { renderCrochetError } from '../pattern/errors';
 import { stitchName, t, type Locale } from '../i18n';
 import { progressIdFromConfig } from '../panel/progress-id';
@@ -37,7 +37,7 @@ export function renderCrochetPatternText(
 	const list = root.createDiv({ cls: 'crochet-pattern-text-list' });
 	ast.rows.forEach((row) => {
 		const stepsText = rowStepsText(row, locale, textStyle);
-		const stitchCount = roundStitchCount(row);
+		const stitchCount = rowWrittenCount(row);
 		const item = list.createDiv({ cls: 'crochet-pattern-text-row' });
 		item.createSpan({ cls: 'crochet-pattern-text-badge', text: `R${row.num}` });
 		item.createSpan({ cls: 'crochet-pattern-text-steps', text: stepsText });
@@ -80,11 +80,18 @@ export function renderCrochetTool(
 		root.empty();
 		const done = clamp(store.getProgress(id), 0, total);
 		const currentRow = rows[done];
-		const unitWeights = currentRow ? unitStitchCounts(currentRow) : [];
+		const unitWeights = currentRow ? writtenUnitWeights(currentRow) : [];
 		const totalUnits = unitWeights.length;
 		const unitsDone = currentRow ? clamp(store.getStitchProgress(id), 0, totalUnits) : 0;
-		const stitchesDone = unitWeights.slice(0, unitsDone).reduce((sum, weight) => sum + weight, 0);
-		const rowTotal = currentRow ? roundStitchCount(currentRow) : 0;
+		const rowTotal = currentRow ? rowWrittenCount(currentRow) : 0;
+		// A position stored before this row's total changed — a round whose
+		// ordinary chains now count, say — is read back against what the row is
+		// worth now, rather than left pointing past the end of it.
+		const stitchesDone = clamp(
+			unitWeights.slice(0, unitsDone).reduce((sum, weight) => sum + weight, 0),
+			0,
+			rowTotal,
+		);
 
 		const header = root.createDiv({ cls: 'crochet-tool-header' });
 		header.createDiv({
@@ -185,7 +192,7 @@ export function renderCrochetTool(
 			if (n <= done) cls.push('is-done');
 			else if (n === done + 1) cls.push('is-current');
 			const stepsText = rowStepsText(row, locale, textStyle);
-			const stitchCount = roundStitchCount(row);
+			const stitchCount = rowWrittenCount(row);
 			const item = list.createEl('button', { cls });
 			item.type = 'button';
 			item.setAttribute(
@@ -241,17 +248,70 @@ function serializeSteps(steps: AstNode[], locale: Locale, style: PatternTextStyl
 }
 
 function serializeNode(node: AstNode, locale: Locale, style: PatternTextStyle): string {
-	if (node.type === 'StitchNode') {
-		if (style === 'readable') return `${stitchName(locale, node.stitch)}${node.count}`;
-		return node.count > 1 ? `${node.count} ${node.stitch}` : node.stitch;
+	switch (node.type) {
+		case 'StitchNode': {
+			const stitch = style === 'readable'
+				? `${stitchName(locale, node.stitch)}${node.count}`
+				: node.count > 1 ? `${node.count} ${node.stitch}` : node.stitch;
+			return withBeginning(withTarget(stitch, node.target, locale, style), node, locale, style);
+		}
+		case 'GroupNode': {
+			// A V-stitch is written back as the shorthand it was written as; the
+			// stitches it stands for are still what the chart draws.
+			const group = node.alias ?? `(${serializeSteps(node.children, locale, style)})`;
+			return withTarget(group, node.target, locale, style);
+		}
+		case 'ColorChangeNode':
+			return t(locale, 'tool.colorChange', { color: node.color });
+		case 'TurnNode':
+			return style === 'readable' ? t(locale, 'tool.turn') : 'turn';
+		case 'JoinNode':
+			return style === 'readable' ? t(locale, 'tool.join') : 'sl st to join';
+		case 'RepositionNode':
+			return style === 'readable'
+				? t(locale, 'tool.reposition', { target: targetText(node.target, locale, style) })
+				: `sl st into ${rawTarget(node.target)}`;
+		case 'SkipNode':
+			return style === 'readable' ? t(locale, 'tool.skip', { count: node.count }) : `skip ${node.count}`;
+		case 'RepeatNode':
+			return `[${serializeSteps(node.children, locale, style)}] × ${node.count}`;
 	}
-	if (node.type === 'GroupNode') {
-		return `(${serializeSteps(node.children, locale, style)})`;
+}
+
+function withTarget(step: string, target: TargetSpec | undefined, locale: Locale, style: PatternTextStyle): string {
+	if (target === undefined) return step;
+	if (style === 'raw') return `${step} in ${rawTarget(target)}`;
+	return t(locale, 'tool.into', { step, target: targetText(target, locale, style) });
+}
+
+// A beginning chain is written back with what it is worth, so the panel says
+// the same thing the pattern did.
+function withBeginning(step: string, node: StitchNode, locale: Locale, style: PatternTextStyle): string {
+	if (node.beginning === undefined) return step;
+	if (style === 'raw') return `${step} (${node.beginning.counts ? `counts as ${node.beginning.as ?? 'a st'}` : 'does not count as a st'})`;
+	return t(locale, node.beginning.counts ? 'tool.beginning.counts' : 'tool.beginning.free', { step });
+}
+
+// What the pattern wrote, back as it was written.
+function rawTarget(target: TargetSpec): string {
+	if (target.kind === 'shell-center') return `center dc of next ${target.size}-dc shell`;
+	return `${target.kind} ${target.type}`;
+}
+
+function targetText(target: TargetSpec, locale: Locale, style: PatternTextStyle): string {
+	if (target.kind === 'shell-center') {
+		return t(locale, 'tool.target.shellCenter', { size: target.size });
 	}
-	if (node.type === 'ColorChangeNode') {
-		return t(locale, 'tool.colorChange', { color: node.color });
-	}
-	return `[${serializeSteps(node.children, locale, style)}] × ${node.count}`;
+	const type = placeName(target.type, locale, style);
+	return t(locale, target.kind === 'same' ? 'tool.target.same' : 'tool.target.next', { type });
+}
+
+function placeName(type: string, locale: Locale, style: PatternTextStyle): string {
+	const chains = /^ch-(\d+) sp$/.exec(type);
+	if (chains !== null) return t(locale, 'tool.chainSpace', { chains: Number(chains[1]) });
+	if (type === 'st') return t(locale, 'tool.place.st');
+	if (type === 'sp') return t(locale, 'tool.place.sp');
+	return style === 'readable' ? stitchName(locale, type) : type;
 }
 
 // Readable style leads with the anchor and wraps the row's steps in

@@ -4,14 +4,51 @@ export interface CrochetConfig {
 	[key: string]: string;
 }
 
+// What a step says it is worked into. Written patterns name the place rather
+// than counting to it — "in next ch-2 sp" means "pass whatever is in between
+// and use the next chain space" — so the target is kept as written and
+// resolved against the round below when the graph is built.
+//
+// `same` reuses the place the previous step selected; `next` searches forward
+// in the current working direction for the next place of that type;
+// `shell-center` picks the middle stitch of the next shell of that size.
+export type TargetSpec =
+	| { kind: 'same'; type: string }
+	| { kind: 'next'; type: string }
+	| { kind: 'shell-center'; size: number };
+
+// What a round's opening chain is worth. Resolved before anything reads the
+// chart: a pattern says it outright ("ch 3 (counts as dc)"), or leaves it to
+// the round's own join — closing to the top of the beginning chain means the
+// chain stood in for a stitch.
+export interface BeginningChain {
+	counts: boolean;
+	// The stitch it replaces, where the pattern named one.
+	as?: string;
+}
+
 export interface StitchNode {
 	type: 'StitchNode';
 	stitch: string;
 	count: number;
+	// Set on the chain a round opens with. A chain is still a chain — it is
+	// drawn as the chains it is — so this rides along rather than replacing it
+	// with a node of its own.
+	beginning?: BeginningChain;
 	// Yarn color in effect at this stitch, set by unroll() from the nearest
 	// preceding ColorChangeNode (in this row or an earlier one). Not set by
 	// the parser itself.
 	color?: string;
+	// Where this step is worked, when the pattern says so.
+	target?: TargetSpec;
+	// Set on the slip stitches that are instructions rather than fabric: the
+	// one a round closes with, and the one worked only to move to where the
+	// round starts. Both are drawn; neither is worked into.
+	instruction?: 'join' | 'reposition';
+	// Set when a quantity and a target were written as one instruction ("5 dc in
+	// next ch-2 sp"): the whole quantity shares one source and is drawn as one
+	// motif, so unrolling must not split it into five independent stitches.
+	motif?: boolean;
 }
 
 export interface GroupNode {
@@ -19,6 +56,36 @@ export interface GroupNode {
 	children: AstNode[];
 	// See StitchNode.color.
 	color?: string;
+	// See StitchNode.target.
+	target?: TargetSpec;
+	// The shorthand this group was written as, kept so the chart can name it
+	// back ("V2") even though the graph works from the stitches it expands to.
+	alias?: string;
+}
+
+// The slip stitch a round closes with, and what it closes to. Drawn, worth
+// nothing, and the place the next round starts from.
+export interface JoinNode {
+	type: 'JoinNode';
+	target: 'beginning-ch' | 'first-sc' | 'join';
+}
+
+// A slip stitch worked only to get to where the round really starts. It moves
+// the working place and consumes nothing.
+export interface RepositionNode {
+	type: 'RepositionNode';
+	target: TargetSpec;
+}
+
+// Turning the work over. Written at the start of the round it applies to.
+export interface TurnNode {
+	type: 'TurnNode';
+}
+
+// Explicitly passing over places of the round below.
+export interface SkipNode {
+	type: 'SkipNode';
+	count: number;
 }
 
 export interface RepeatNode {
@@ -37,7 +104,36 @@ export interface ColorChangeNode {
 	color: string;
 }
 
-export type AstNode = StitchNode | GroupNode | RepeatNode | ColorChangeNode;
+export type AstNode =
+	| StitchNode
+	| GroupNode
+	| RepeatNode
+	| ColorChangeNode
+	| JoinNode
+	| RepositionNode
+	| TurnNode
+	| SkipNode;
+
+// A round's written stitch count, as the pattern states it: "(24 dc)",
+// "(24 sc + 24 ch-1 sp = 48 sts)", "(12 reps, 4 sts per rep)". Checked against
+// what the round is actually worth, which is why it is kept rather than
+// discarded as prose.
+export interface CountAnnotation {
+	total: number;
+	reps?: number;
+	perRep?: number;
+	text: string;
+}
+
+// A round written as "R13: repeat R11." — a source convenience, expanded into a
+// real round before anything reads the chart.
+export interface RowRepeatNode {
+	type: 'RowRepeat';
+	from: number;
+	to: number;
+	sourceFrom: number;
+	sourceTo: number;
+}
 
 export interface RowNode {
 	type: 'Row';
@@ -45,12 +141,25 @@ export interface RowNode {
 	loop?: 'blo' | 'flo';
 	steps: AstNode[];
 	anchor?: 'MR' | 'ch ring';
+	// Set when the round opens by turning the work.
+	turn?: boolean;
+	count?: CountAnnotation;
+	// Where an expanded round was copied from.
+	source?: { repeatOf: number };
 }
 
 export interface CrochetAst {
 	type: 'CrochetChart';
 	config: CrochetConfig;
 	rows: RowNode[];
+}
+
+// What the parser returns before source repeats are expanded (see
+// pattern/expand.ts). Nothing outside that step sees a RowRepeatNode.
+export interface RawCrochetAst {
+	type: 'CrochetChart';
+	config: CrochetConfig;
+	rows: (RowNode | RowRepeatNode)[];
 }
 
 // Where an embedded tool/text panel sits relative to its chart.
@@ -95,7 +204,27 @@ export interface LayoutOptions {
 	// Explicit override for the guide's cross-axis (spokes/columns) count.
 	// Undefined means "match the chart's real extent."
 	gridColumns?: number;
+	// Draw only a wedge of a round chart, in degrees, instead of the whole
+	// circle. A pattern whose rounds are the same motif twelve times over says
+	// everything it has to say in one slice of itself, which is how a book
+	// prints it: the piece is drawn as a fan, not as a full disc.
+	sector?: number;
+	// How many rounds a chart draws entire before it starts showing only that
+	// wedge. The middle of a piece is where the pattern is set up and every
+	// round is different, so a book draws it whole and fans out only once the
+	// rounds have settled into the same motif over and over.
+	wholeRounds?: number;
+	// Draw the chart the way a pattern book prints lace: no band lines around
+	// the rounds, no round numbers, and the symbols drawn larger against the
+	// openwork so the motifs read at a glance. What the chart is made of does
+	// not change — only what is drawn around it.
+	lace?: boolean;
 }
+
+// How much bigger than its own size a symbol is drawn in lace charts. Book
+// charts print lace open and its symbols large; at their ordinary size they
+// disappear into the space around a motif.
+export const LACE_SYMBOL_SCALE = 1.45;
 
 // Render item list emitted by the layout engine.
 //
@@ -124,6 +253,12 @@ export interface RenderItem {
 	// accented as shaping even though they render as ordinary stitch symbols
 	// (the shaping itself is drawn by the matching ShapingConnector).
 	shaping?: 'increase' | 'decrease';
+	// How big this symbol is drawn against its own size. 1 everywhere except
+	// where several symbols have to share the room of one: the chains a round
+	// opens with stand one above the next inside that round's band, standing in
+	// for the one stitch they replace, so they are drawn to fit it.
+	scale?: number;
+
 }
 
 // The V of an increase or the ∧ of a decrease: a stitch symbol of its own
@@ -150,6 +285,33 @@ export interface ShapingMark {
 	// Which pattern step drew this, so it highlights with that step.
 	rowIndex: number;
 	unitIndex: number;
+}
+
+// One stitch of a fan, drawn as the lines it is made of rather than stamped
+// from the shared symbol library.
+//
+// A group worked into one place — a shell, a V-stitch — is not a row of
+// stitches side by side: every stitch of it starts at that one place and
+// reaches out to its own head, so each is a different length and leans a
+// different way. A stamped symbol is one fixed size and cannot do that, so
+// these are drawn: the stem from foot to head, and the bars that say which
+// stitch it is. Each is still one stitch — its own id, its own step, its own
+// place in the count — so it highlights and counts like any other.
+export interface MotifStitch {
+	symbol: string;
+	// Stem first, then its bars, in chart coordinates.
+	segments: readonly (readonly GridPoint[])[];
+	// Where the stitch's head is, and which way it leans there, so a loop
+	// marker sits on it the way it sits on a stamped stitch.
+	x: number;
+	y: number;
+	rotation: number;
+	rowIndex: number;
+	unitIndex: number;
+	stitchId?: string;
+	sourceStitchIds?: readonly string[];
+	color?: string;
+	loop?: 'blo' | 'flo';
 }
 
 // Which row/unit an embedded progress tool wants highlighted on its paired chart.
@@ -225,6 +387,7 @@ export interface LayoutResult {
 	colorMarkers?: ColorMarker[];
 	labels?: ChartLabel[];
 	shapingMarks?: ShapingMark[];
+	motifStitches?: MotifStitch[];
 }
 
 // Render options resolved from global settings and per-chart frontmatter.
@@ -235,4 +398,7 @@ export interface RenderOptions {
 	// Color the increase and decrease symbols take when highlightIncDec is on.
 	highlightColor: string;
 	chartMarkerColor: string;
+	// How big the stamped symbols are drawn, as a multiple of their own size.
+	// Matches what the layout measured them at (see layout/constants.ts).
+	symbolScale?: number;
 }

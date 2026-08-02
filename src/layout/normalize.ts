@@ -3,6 +3,7 @@ import type {
 	ChartLabel,
 	ColorMarker,
 	LayoutResult,
+	MotifStitch,
 	RenderItem,
 	RowConnector,
 	ShapingMark,
@@ -16,8 +17,9 @@ export function normalize(
 	colorMarkers?: ColorMarker[],
 	labels?: ChartLabel[],
 	shapingMarks?: ShapingMark[],
+	motifStitches?: MotifStitch[],
 ): LayoutResult {
-	if (items.length === 0) {
+	if (items.length === 0 && (motifStitches?.length ?? 0) === 0) {
 		return {
 			items,
 			width: PADDING * 2,
@@ -27,6 +29,7 @@ export function normalize(
 			colorMarkers: emptyToUndefined(colorMarkers),
 			labels: emptyToUndefined(labels),
 			shapingMarks: emptyToUndefined(shapingMarks),
+			motifStitches: emptyToUndefined(motifStitches),
 		};
 	}
 	let minX = Infinity;
@@ -73,7 +76,7 @@ export function normalize(
 		minY = Math.min(minY, label.y - extent);
 		maxY = Math.max(maxY, label.y + extent);
 	}
-	for (const mark of shapingMarks ?? []) {
+	for (const mark of [...(shapingMarks ?? []), ...(motifStitches ?? [])]) {
 		for (const segment of mark.segments) {
 			for (const point of segment) {
 				minX = Math.min(minX, point.x);
@@ -106,6 +109,12 @@ export function normalize(
 	};
 	const shiftedMarkers = colorMarkers?.map((marker) => ({ ...marker, x: marker.x + dx, y: marker.y + dy }));
 	const shiftedLabels = labels?.map((label) => ({ ...label, x: label.x + dx, y: label.y + dy }));
+	const shiftedMotifs = motifStitches?.map((stitch) => ({
+		...stitch,
+		x: stitch.x + dx,
+		y: stitch.y + dy,
+		segments: stitch.segments.map((segment) => segment.map((point) => ({ x: point.x + dx, y: point.y + dy }))),
+	}));
 	const shiftedShaping = shapingMarks?.map((mark) => ({
 		...mark,
 		x: mark.x + dx,
@@ -121,6 +130,7 @@ export function normalize(
 		colorMarkers: emptyToUndefined(shiftedMarkers),
 		labels: emptyToUndefined(shiftedLabels),
 		shapingMarks: emptyToUndefined(shiftedShaping),
+		motifStitches: emptyToUndefined(shiftedMotifs),
 	};
 }
 

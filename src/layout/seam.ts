@@ -1,5 +1,5 @@
 import { arcToDegrees } from './angles';
-import { labelExtent, ROUND_CHANGE_ARC, symbolExtent, SYMBOL_CLEARANCE } from './constants';
+import { labelExtent, ROUND_CHANGE_ARC, symbolExtent, symbolHalfWidth, SYMBOL_CLEARANCE } from './constants';
 
 // The seam of a round: the wrap-around gap between its last stitch and its
 // first, where one round becomes the next.
@@ -54,6 +54,11 @@ export interface SeamContents {
 	start: readonly string[];
 	end: readonly string[];
 	label?: string;
+	// Set on a lace round, where what sits at the seam is measured across rather
+	// than along. A double crochet is a tall thin stem: given a seam slot as
+	// wide as it is tall, a round of them hands the seam three stitches' worth
+	// of itself and the round is drawn with a bite out of it.
+	lace?: boolean;
 }
 
 // Where each thing drawn at the seam goes. Angles are continuous degrees in the
@@ -72,13 +77,14 @@ export interface SeamRegion {
 
 // How much arc the seam wants for what this round draws there, in px.
 export function seamArc(contents: SeamContents): number {
+	const lace = contents.lace === true;
 	return (
-		clearanceOf(contents.lastStitch) +
-		instructionArcs(contents.end).reduce(sum, 0) +
+		clearanceOf(contents.lastStitch, lace) +
+		instructionArcs(contents.end, lace).reduce(sum, 0) +
 		STEP_ARC +
 		labelArc(contents.label) +
-		instructionArcs(contents.start).reduce(sum, 0) +
-		clearanceOf(contents.firstStitch)
+		instructionArcs(contents.start, lace).reduce(sum, 0) +
+		clearanceOf(contents.firstStitch, lace)
 	);
 }
 
@@ -134,15 +140,17 @@ export function placeSeam(
 // which its angle is the middle of, and air after it. Whatever that stitch's own
 // shaping reaches past it is handled by the caller, which knows what the round
 // below it looks like (see seamReachOf in layout/round-graph.ts).
-function clearanceOf(symbol: string): number {
-	return symbolExtent(symbol) + SEAM_AIR;
+function clearanceOf(symbol: string, lace = false): number {
+	return (lace ? symbolHalfWidth(symbol) : symbolExtent(symbol)) + SEAM_AIR;
 }
 
 // A chain or a slip stitch at the seam takes the width its own symbol is drawn
 // at, beside the next thing drawn there — not a stitch's slot of the round: it is
 // an instruction squeezed into the seam, not a stitch of the ring.
-function instructionArcs(symbols: readonly string[]): number[] {
-	return symbols.map((symbol) => 2 * symbolExtent(symbol) + SYMBOL_CLEARANCE);
+function instructionArcs(symbols: readonly string[], lace = false): number[] {
+	return symbols.map((symbol) =>
+		lace ? 2 * symbolHalfWidth(symbol) + SYMBOL_CLEARANCE : 2 * symbolExtent(symbol) + SYMBOL_CLEARANCE,
+	);
 }
 
 function labelArc(text: string | undefined): number {

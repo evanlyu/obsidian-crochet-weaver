@@ -157,8 +157,15 @@ function estimateNode(
 			}
 			return count * estimateSteps(node.children, depth + 1, budget);
 		}
+		// Instructions of the round rather than stitches of it: worked, and in
+		// two cases drawn, but each is one item at most.
 		case 'ColorChangeNode':
+		case 'TurnNode':
+		case 'SkipNode':
 			return 0;
+		case 'JoinNode':
+		case 'RepositionNode':
+			return 1;
 	}
 }
 

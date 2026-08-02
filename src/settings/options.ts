@@ -1,3 +1,4 @@
+import { LACE_SYMBOL_SCALE } from '../types';
 import type {
 	CrochetAst,
 	LayoutOptions,
@@ -33,9 +34,24 @@ export function resolveOptions(
 		highlightColor: settings.highlightColor,
 		chartMarkerColor: settings.chartMarkerColor,
 		grid: boolOption(config.grid) ?? settings.showGrid,
+		lace: boolOption(config.lace) ?? false,
+		sector: sectorDegrees(config.sector),
+		wholeRounds: positiveInt(config.wholeRounds ?? config.whole),
+		symbolScale: boolOption(config.lace) === true ? LACE_SYMBOL_SCALE : 1,
 		gridCount: positiveInt(gridCountKey),
 		gridColumns: positiveInt(config.columns),
 	};
+}
+
+// "sector: 90" draws a ninety-degree wedge; "sector: on" draws a quarter, which
+// is what a book usually prints. Anything else leaves the chart whole.
+const DEFAULT_SECTOR = 90;
+
+function sectorDegrees(value: string | undefined): number | undefined {
+	if (value === undefined) return undefined;
+	if (boolOption(value) === true) return DEFAULT_SECTOR;
+	const degrees = positiveFloat(value);
+	return degrees !== undefined && degrees > 0 && degrees < 360 ? degrees : undefined;
 }
 
 export function resolvePanelOptions(

@@ -1,6 +1,23 @@
-import type { AstNode, CrochetAst, GroupNode, RenderItem, RowNode, StitchNode } from '../types';
+import type {
+	AstNode,
+	CrochetAst,
+	GroupNode,
+	JoinNode,
+	RenderItem,
+	RepositionNode,
+	RowNode,
+	SkipNode,
+	StitchNode,
+	TurnNode,
+} from '../types';
 
 export type LayoutUnit = StitchNode | GroupNode;
+
+// One written instruction, with repeats and quantities spread out into the
+// order they are worked. Everything a round says is here, including the
+// instructions that draw nothing (turning, skipping) — the stitch graph reads
+// this, while drawing reads the narrower LayoutUnit list below.
+export type UnrolledStep = LayoutUnit | JoinNode | RepositionNode | TurnNode | SkipNode;
 
 // Tracks the yarn color a ColorChangeNode set, threaded through one or more
 // unroll() calls. Pass the same object across a chart's rows so a color set
@@ -13,25 +30,60 @@ export interface ColorState {
 // ColorChangeNode carries no width of its own: it sets colorState.current
 // and is dropped, tagging every StitchNode/GroupNode unit produced from here
 // on (in this call and, via a shared colorState, later rows) with .color.
-export function unroll(steps: AstNode[], colorState: ColorState = {}): LayoutUnit[] {
-	const result: LayoutUnit[] = [];
+export function unrollAll(steps: readonly AstNode[], colorState: ColorState = {}): UnrolledStep[] {
+	const result: UnrolledStep[] = [];
 	for (const step of steps) {
 		if (step.type === 'ColorChangeNode') {
 			colorState.current = step.color;
 		} else if (step.type === 'RepeatNode') {
 			// count is filled in by resolveRepeats before the chart is read.
 			for (let i = 0; i < (step.count ?? 1); i++) {
-				result.push(...unroll(step.children, colorState));
+				result.push(...unrollAll(step.children, colorState));
 			}
 		} else if (step.type === 'StitchNode') {
-			for (let i = 0; i < step.count; i++) {
-				result.push({ ...step, count: 1, color: colorState.current });
+			// A quantity worked into one place ("5 dc in next ch-2 sp") is one
+			// instruction making one motif, so it is not spread out.
+			if (step.motif === true || step.beginning !== undefined) {
+				result.push({ ...step, color: colorState.current });
+			} else {
+				for (let i = 0; i < step.count; i++) {
+					result.push({ ...step, count: 1, color: colorState.current });
+				}
 			}
-		} else {
+		} else if (step.type === 'GroupNode') {
 			result.push({ ...step, color: colorState.current });
+		} else {
+			result.push(step);
 		}
 	}
 	return result;
+}
+
+// The same round, narrowed to what the chart draws. The slip stitch a round
+// closes with and the one worked to move to its start are drawn as the slip
+// stitches they are; turning and skipping are worked but draw nothing.
+export function unroll(steps: readonly AstNode[], colorState: ColorState = {}): LayoutUnit[] {
+	const units: LayoutUnit[] = [];
+	for (const step of unrollAll(steps, colorState)) {
+		const unit = drawnUnit(step);
+		if (unit !== undefined) units.push(unit);
+	}
+	return units;
+}
+
+function drawnUnit(step: UnrolledStep): LayoutUnit | undefined {
+	switch (step.type) {
+		case 'StitchNode':
+		case 'GroupNode':
+			return step;
+		case 'JoinNode':
+			return { type: 'StitchNode', stitch: 'sl st', count: 1, instruction: 'join' };
+		case 'RepositionNode':
+			return { type: 'StitchNode', stitch: 'sl st', count: 1, instruction: 'reposition', target: step.target };
+		case 'TurnNode':
+		case 'SkipNode':
+			return undefined;
+	}
 }
 
 // The stitch symbols one unit draws, in order. A group draws one per stitch it
@@ -72,7 +124,7 @@ export function outputStitches(unit: LayoutUnit): number {
 // else is worked into a single stitch.
 export function consumedStitches(unit: LayoutUnit): number {
 	if (unit.type === 'GroupNode') return 1;
-	if (NO_FABRIC_STITCH.has(unit.stitch)) return 0;
+	if (WORKED_INTO_NOTHING_BELOW.has(unit.stitch)) return 0;
 	if (unit.stitch === 'dec') return 2;
 	const together = /(\d)tog$/.exec(unit.stitch);
 	return together ? Number(together[1]) : 1;
@@ -119,11 +171,13 @@ export function roundInstructions(units: readonly LayoutUnit[]): RoundInstructio
 	};
 }
 
-// The chain that starts a round, and the magic ring a first round is worked
-// into when it is written as a step ("R1: mr, ch, sc6, slst") rather than as
-// an anchor ("R1: 6 sc in MR").
+// The chain that starts a round, the magic ring a first round is worked into
+// when it is written as a step ("R1: mr, ch, sc6, slst") rather than as an
+// anchor ("R1: 6 sc in MR"), and the slip stitch worked only to move to where
+// the round really begins.
 function opensRound(unit: LayoutUnit | undefined): boolean {
-	return unit?.type === 'StitchNode' && (unit.stitch === 'ch' || unit.stitch === 'MR');
+	if (unit?.type !== 'StitchNode') return false;
+	return unit.stitch === 'ch' || unit.stitch === 'MR' || unit.instruction === 'reposition';
 }
 
 function poppedUnits(row: RowNode): LayoutUnit[] {
@@ -144,6 +198,12 @@ export function tagLoop(items: RenderItem[], start: number, loop?: 'blo' | 'flo'
 // nothing is worked into them and they add nothing for the next round to work
 // into.
 const NO_FABRIC_STITCH = new Set(['ch', 'sl st', 'MR']);
+
+// ...and the stitches that are worked into nothing of the round below: the
+// chains that run between anchors, and a picot, which is an embellishment
+// worked on top of the stitch just made. A picot is still something the next
+// round can work into, which is why it is not simply weightless.
+const WORKED_INTO_NOTHING_BELOW = new Set([...NO_FABRIC_STITCH, 'picot']);
 
 function stitchWeight(stitch: string): number {
 	if (stitch === 'inc') return 2;

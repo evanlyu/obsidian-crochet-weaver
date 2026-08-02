@@ -229,6 +229,59 @@ R2: ch, [2 sc, inc] rep, slst
 R3: (dc, ch, dc), sc, (5 dc)
 ```
 
+### 蕾丝与花样
+
+蕾丝织图不是数着前一圈钩过去，而是直接说明每一针钩在哪里；Crochet Weaver 就照这个写法读：
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: MR, ch 3 (counts as dc), 23 dc in MR,
+    sl st to top of beginning ch-3. (24 dc)
+
+R2: ch 1 (does not count as a st),
+    sc in same st, ch 1,
+    [sc in next dc, ch 1] x23,
+    sl st to first sc.
+    (24 sc + 24 ch-1 sp = 48 sts)
+
+R3: sl st into next ch-1 sp,
+    ch 3, 2 dc in same ch-1 sp,
+    sc in next ch-1 sp,
+    [3 dc in next ch-1 sp,
+     sc in next ch-1 sp] x11,
+    sl st to top of beginning ch-3.
+    (12 reps, 4 sts per rep)
+
+R4: turn,
+    [V2 in next sc, ch 1,
+     sc in center dc of next 3-dc shell,
+     picot, ch 1] x12,
+    sl st to join.
+```
+
+| 写法 | 意思 |
+| --- | --- |
+| `in next dc`／`in next ch-2 sp`／`in next picot` | 下一个該种類的位置，中间的东西自動略过 |
+| `in same st`／`in same ch-1 sp` | 上一步用过的同一个位置──钩在那里的针会并成同一个花样 |
+| `in center dc of next 7-dc shell` | 下一组 7 長针贝壳的正中央那一针 |
+| `5 dc in next ch-2 sp` | 一组五针贝壳，钩入同一个空间，画成扇形 |
+| `V2`／`V3` | `(dc, ch 2, dc)`／`(dc, ch 3, dc)` 钩入同一位置，内部自成一个空间 |
+| `ch 3 (counts as dc)` | 起始锁针代替一针 |
+| `sl st into next ch-1 sp` | 引拔移動到该空间；此时还没钩入任何针 |
+| `turn` | 写在最前面：这一圈翻面往反方向钩 |
+| `R15-R18: repeat R11-R14.` | 画图前会展开成真正的圈数 |
+
+在 frontmatter 加上 `lace: on`，就会照钩织书印制蕾丝的样子画：不画每一圈的框线、不标圈数，针目也画得更大以衬托镂空。它只改变织图周围画了什么，完全不影响织图本身。
+
+再加 `wholeRounds: 4` 可以让前四圈完整画出、之后才开始只画扇形——中心那几圈花样还在成形，钩织书也是完整画出来的。加上 `sector: 90`（或 `sector: on`，即 90 度）则**只画整圈的一块扇形，而不是完整的圆**——一圈由十二个相同花样组成时，一块切片就把该说的都说完了，钩织书也是这样印的。整张织图仍然会完整算出，只是从换圈接缝开始画出那一块；落在边界上的花样会整组保留，不会被切一半。
+
+两针之间的连续锁针会形成一个空间，让下一圈钩入，而每一针锁针仍然会画出来、可以数。没有加注的起始锁针，只要该圈接合到它的顶端就算一针──所以照原文写就好，不必补注记。
+
+蕾丝由 `japanese` 与 `continuous` 两种圈织画法绘制，它们会依照每一针钩入的位置来摆放；`radial` 一如既往地平均分布。
+
 ## 织图类型
 
 ### 平织（Flat）

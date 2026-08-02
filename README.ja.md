@@ -229,6 +229,59 @@ R2: ch, [2 sc, inc] rep, slst
 R3: (dc, ch, dc), sc, (5 dc)
 ```
 
+### レースとモチーフ
+
+レースの編み図は前段を数えながら進むのではなく、1目ずつ「どこに編み入れるか」を書きます。Crochet Weaver はその書き方をそのまま読みます。
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: MR, ch 3 (counts as dc), 23 dc in MR,
+    sl st to top of beginning ch-3. (24 dc)
+
+R2: ch 1 (does not count as a st),
+    sc in same st, ch 1,
+    [sc in next dc, ch 1] x23,
+    sl st to first sc.
+    (24 sc + 24 ch-1 sp = 48 sts)
+
+R3: sl st into next ch-1 sp,
+    ch 3, 2 dc in same ch-1 sp,
+    sc in next ch-1 sp,
+    [3 dc in next ch-1 sp,
+     sc in next ch-1 sp] x11,
+    sl st to top of beginning ch-3.
+    (12 reps, 4 sts per rep)
+
+R4: turn,
+    [V2 in next sc, ch 1,
+     sc in center dc of next 3-dc shell,
+     picot, ch 1] x12,
+    sl st to join.
+```
+
+| 書き方 | 意味 |
+| --- | --- |
+| `in next dc`／`in next ch-2 sp`／`in next picot` | その種類の次の場所。途中にあるものは自動的に通り越します |
+| `in same st`／`in same ch-1 sp` | 直前のステップと同じ場所。そこに編んだ目は同じモチーフになります |
+| `in center dc of next 7-dc shell` | 次の7長編みシェルの中央の目 |
+| `5 dc in next ch-2 sp` | 1か所に編み入れる5目のシェル。扇として描かれます |
+| `V2`／`V3` | `(dc, ch 2, dc)`／`(dc, ch 3, dc)` を同じ場所に。内側の鎖はそれ自体が空間になります |
+| `ch 3 (counts as dc)` | 立ち上がりの鎖が1目の代わりになります |
+| `sl st into next ch-1 sp` | 引き抜きでその空間まで移動。まだ何も編み入れません |
+| `turn` | 段の先頭に書く：この段は逆向きに編みます |
+| `R15-R18: repeat R11-R14.` | チャートを描く前に実際の段へ展開されます |
+
+frontmatter に `lace: on` を加えると、編み物本がレースを印刷するように描かれます。段を囲む線を引かず、段数も書かず、透かしに映えるよう記号を大きめに描きます。変わるのはパターンの周りに何を描くかだけで、パターンそのものは変わりません。
+
+`wholeRounds: 4` を併せて指定すると、最初の4段は丸ごと描き、その先から扇形になります。中心の数段は模様がまだ決まっていく途中なので、本も丸ごと描きます。`sector: 90`（または 90 度を意味する `sector: on`）を加えると、**円全体ではなく扇形の一区画だけ**を描きます。同じモチーフが12個並ぶ段は、その一切れで言うべきことをすべて言っており、本もそう印刷します。チャート全体は変わらず計算され、描かれるのは段の変わり目から始まる一区画だけです。境界にかかったモチーフは半分に切らず、まるごと残します。
+
+2つの針目のあいだの鎖のひと続きは、次の段が編み入れられる1つの空間になり、その鎖は1目ずつ描かれて数えられます。注記のない立ち上がりの鎖は、その段が鎖の頭にとじていれば1目として数えます──原文のままで、注記を足す必要はありません。
+
+レースは `japanese` と `continuous` の輪編みスタイルで描かれます。どちらも「どこに編み入れたか」から目の位置を決めます。`radial` は従来どおり、段を均等に配置します。
+
 ### 配色の変更
 
 `color <色>` ステップ（CSS の色名か `#hex` コード）は、糸を切り替える位置を示します。段の途中でも、段・周の先頭でも書けます：

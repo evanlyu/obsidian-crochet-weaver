@@ -147,6 +147,49 @@ export function symbolExtent(symbol: string): number {
 	return SYMBOLS[symbol]?.extent ?? DEFAULT_EXTENT;
 }
 
+// How far a symbol reaches across, and how far along itself, measured from what
+// it is actually drawn as.
+//
+// A stitch is not square. A double crochet is a tall thin stem; a chain is a
+// wide flat oval. Sized by one number, the tall stitches ask a round for as much
+// width as they have height, and a round of them is pushed out until the fabric
+// it draws has come apart. So the two are measured separately, off the shapes
+// themselves rather than kept by hand beside them.
+const SPANS = new Map<string, { across: number; along: number }>();
+
+export function symbolHalfWidth(symbol: string): number {
+	return spanOf(symbol).across;
+}
+
+export function symbolHalfHeight(symbol: string): number {
+	return spanOf(symbol).along;
+}
+
+function spanOf(symbol: string): { across: number; along: number } {
+	const known = SPANS.get(symbol);
+	if (known !== undefined) return known;
+
+	const spec = SYMBOLS[symbol];
+	const extent = spec?.extent ?? DEFAULT_EXTENT;
+	let span = { across: extent, along: extent };
+	if (spec?.ellipse !== undefined) {
+		span = { across: spec.ellipse.rx, along: spec.ellipse.ry };
+	} else if (spec?.circle !== undefined) {
+		span = { across: spec.circle.r, along: spec.circle.r };
+	} else if (spec?.paths !== undefined) {
+		const numbers = spec.paths.flatMap((path) => path.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+		let across = 0;
+		let along = 0;
+		for (let index = 0; index + 1 < numbers.length; index += 2) {
+			across = Math.max(across, Math.abs(numbers[index] ?? 0));
+			along = Math.max(along, Math.abs(numbers[index + 1] ?? 0));
+		}
+		if (across > 0 || along > 0) span = { across: across || extent, along: along || extent };
+	}
+	SPANS.set(symbol, span);
+	return span;
+}
+
 // Every stitch name that has a chart glyph. Tests sweep this list through the
 // parser and the renderer to keep the grammar and the symbol library in sync.
 export function supportedSymbolNames(): readonly string[] {

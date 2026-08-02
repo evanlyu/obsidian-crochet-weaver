@@ -1,9 +1,40 @@
-import { symbolExtent } from '../render/symbols';
+import {
+	symbolExtent as baseSymbolExtent,
+	symbolHalfHeight as baseSymbolHalfHeight,
+	symbolHalfWidth as baseSymbolHalfWidth,
+} from '../render/symbols';
 
-// The extent of a symbol belongs with the symbol itself (see src/symbols.ts);
-// re-exported here because sizing a chart is what the rest of the layout uses it
-// for.
-export { symbolExtent };
+// How big the symbols of the chart being laid out are drawn, as a multiple of
+// their own size. One chart at a time is laid out, and every part of sizing it
+// — ring lengths, minimum gaps, seam room, the bars of a drawn stitch — has to
+// agree on this, so it is set once around the whole layout rather than passed
+// through every function that measures anything.
+let symbolScale = 1;
+
+export function withSymbolScale<T>(scale: number, run: () => T): T {
+	const previous = symbolScale;
+	symbolScale = scale;
+	try {
+		return run();
+	} finally {
+		symbolScale = previous;
+	}
+}
+
+// The extent of a symbol belongs with the symbol itself (see render/symbols.ts);
+// this is that size at the scale the current chart draws it.
+export function symbolExtent(symbol: string): number {
+	return baseSymbolExtent(symbol) * symbolScale;
+}
+
+// How far across, and how far along, a symbol really reaches at that scale.
+export function symbolHalfWidth(symbol: string): number {
+	return baseSymbolHalfWidth(symbol) * symbolScale;
+}
+
+export function symbolHalfHeight(symbol: string): number {
+	return baseSymbolHalfHeight(symbol) * symbolScale;
+}
 
 export const STITCH_WIDTH = 20;
 export const ROW_HEIGHT = 30;

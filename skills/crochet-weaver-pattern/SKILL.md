@@ -181,6 +181,57 @@ It has no width of its own (it doesn't count as a stitch). It applies to every s
 
 Use the exact color word or hex code the source gives (`white`, `black`, `#ff8800`, …) — don't invent or normalize colors the source doesn't state, and don't add `color` steps at all if the source never specifies yarn color for that piece.
 
+### Lace: saying where a stitch goes
+
+A lace pattern does not count its way along the round below — it says where each stitch goes. Write that the way the source does, with `in` and the place:
+
+```
+sc in next dc                          → the next double crochet below
+5 dc in next ch-2 sp                   → five doubles, all worked into the next chain space
+dc in same st                          → the same place the step before used
+sc in center dc of next 7-dc shell     → the middle stitch of the next 7-double shell
+sl st into next ch-1 sp                → move across to that space; nothing is worked into it yet
+skip 2                                 → pass two places over on purpose
+```
+
+The places a round offers the next round are its stitches (`st`, `sc`, `dc`, `picot`, …) **and the chain spaces between them**: any run of chains written between two stitches becomes one `ch-N sp`. Looking for `next <place>` passes over whatever is in between, so you never have to write the skips out — exactly as the source does not.
+
+**Shells and V-stitches.** A quantity with a target is one motif worked into one place, and it is drawn as a fan opening from that place:
+
+```
+5 dc in next ch-2 sp                   → one five-double shell
+V2 in next sc                          → (dc, ch 2, dc) into one stitch; V3 is the ch-3 version
+(dc, ch 2, dc) in next sc              → the same thing written out
+```
+
+The chain run inside a V is a space of its own, so the next round can work `in next ch-2 sp`. An odd shell has a centre a later round can name: `in center dc of next 5-dc shell`.
+
+**Beginning chains, joins, turns.**
+
+```
+ch 3 (counts as dc)                    → the chain stands in for the round's first double
+ch 1 (does not count as a st)          → height only
+sl st to top of beginning ch-3         → close the round to that chain
+sl st to first sc
+sl st to join
+turn                                   → written first: this round is worked the other way round
+```
+
+A beginning chain written **without** a note is decided by the round's own join: closing to the top of that chain means it stands in for a stitch, and closing anywhere else means it does not. So a pattern that writes a bare `ch 3` and joins to `top of beginning ch-3` needs no annotation added — keep it as written.
+
+**Rounds written as a repeat of earlier rounds.** Either dash works, and each expands into a real round before the chart is drawn:
+
+```
+R13: repeat R11.
+R15-R18: repeat R11-R14.
+```
+
+**Printing it the way a book does.** Add `lace: on` to the frontmatter of a lace chart: no lines are drawn around the rounds, no round numbers are printed, and the symbols are drawn larger against the openwork. It changes only what is drawn around the pattern, never what the pattern is — so add it when the user wants the pattern-book look, and leave it off when they want the rounds marked out and numbered.
+
+**One wedge instead of the whole circle.** `sector: 90` (or `sector: on`) — with `wholeRounds: 4` to keep the first rounds entire — draws one slice of a round chart rather than all of it — which is how a book prints a round of twelve identical motifs. Add it when the user wants the chart to read as a fan rather than a full disc, or when a whole round would be too big to see; leave it off when they want every repeat drawn.
+
+**A round may be written over several lines.** An indented line belongs to the round above it, and a blank line ends the round — so a long round can be kept in the shape the source printed it, commas, final period and count annotation included.
+
 ## Phrase → token cheat sheet
 
 Use this to translate common written-pattern phrasing. When in doubt, prefer `inc`/`dec` (which are chart-meaningful, weighted stitches) over spelling out "2 sc in next st" as two separate `sc`s — that would double-count stitches and throw off every round after it.
@@ -252,8 +303,10 @@ Crochet Weaver computes a row's stitch count the same way real patterns annotate
 - Every other stitch name = 1 output stitch — this includes every N-together decrease (`dc3tog` still counts as 1, same as `dec`), every post/crossed stitch, every cluster/puff, and every popcorn, not just the original basic set.
 - A group `(...)` = sum of its children's weights.
 - A repeat `[...] x N` = N × (sum of its children's weights).
-- **The chain a round opens with, a `mr` written as a step, and the `sl st` that closes the round are all excluded from the count** — they are drawn, but they are instructions rather than stitches of the fabric, and the next round works into neither. `R1: mr, ch, sc6, slst` counts 6.
-- A chain or slip stitch **in the middle** of a row is a real stitch and does count — only the round's opening and its closing join are treated this way.
+- **A chain a round opens with counts only if the pattern says it does**: `ch 3 (counts as dc)` counts as the one stitch it replaces, `ch 1 (does not count as a st)` counts nothing, and an unannotated beginning chain counts as a stitch when the round closes to the top of it and nothing otherwise. A `mr` written as a step and the `sl st` that closes a round always count nothing — they are drawn, but they are instructions rather than stitches of the fabric.
+- A chain **in the middle** of a row is a real stitch and counts one each, even though the next round works into the space the run makes rather than into the chains. `R2: ch 1 (does not count as a st), sc in same st, ch 1, [sc in next dc, ch 1] x23, sl st to first sc` counts 48: twenty-four single crochets and twenty-four chains.
+- A picot, a repositioning `sl st into next ch-1 sp`, a `turn` and a `skip` all count nothing.
+- A chain space is not a stitch of its own: it counts only as the chains that made it.
 
 After converting, add up each row's stitches and compare to the source pattern's own "(N sc)" annotations. A mismatch almost always means an increase/decrease got flattened into plain stitches (or vice versa) somewhere.
 

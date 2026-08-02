@@ -177,8 +177,40 @@ export function renderSVG(
 		}
 	}
 
+	// The stitches of a fan, drawn rather than stamped: each stands on the one
+	// place its group is worked into and reaches out to its own head, so no two
+	// are the same length or lean the same way (see layout/lace.ts).
+	for (const stitch of layout.motifStitches ?? []) {
+		for (const segment of stitch.segments) {
+			if (segment.length < 2) continue;
+			const path = doc.createElementNS(SVG_NS, 'path');
+			path.classList.add('crochet-weaver-motif-stitch');
+			path.setAttribute('d', polylinePath(segment));
+			path.setAttribute('fill', 'none');
+			path.setAttribute('stroke', 'currentColor');
+			path.setAttribute('stroke-width', String(options.strokeWidth));
+			path.setAttribute('stroke-linejoin', 'round');
+			path.setAttribute('stroke-linecap', 'round');
+			applyCurrentPositionHighlight(path, stitch.rowIndex, stitch.unitIndex, highlight, options.chartMarkerColor);
+			svg.appendChild(path);
+		}
+		if (stitch.loop) {
+			const loopMark = doc.createElementNS(SVG_NS, 'path');
+			loopMark.setAttribute('d', stitch.loop === 'blo' ? BLO_MARK : FLO_MARK);
+			loopMark.setAttribute('transform', `translate(${stitch.x} ${stitch.y}) rotate(${stitch.rotation})`);
+			loopMark.setAttribute('stroke', 'currentColor');
+			loopMark.setAttribute('stroke-width', String(options.strokeWidth));
+			loopMark.setAttribute('fill', 'none');
+			loopMark.setAttribute('stroke-linecap', 'round');
+			applyCurrentPositionHighlight(loopMark, stitch.rowIndex, stitch.unitIndex, highlight, options.chartMarkerColor);
+			svg.appendChild(loopMark);
+		}
+	}
+
+	const symbolScale = options.symbolScale ?? 1;
 	for (const item of layout.items) {
-		const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation})`;
+		const own = (item.scale ?? 1) * symbolScale;
+		const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation})${own === 1 ? '' : ` scale(${own})`}`;
 
 		const symbolEl = doc.createElementNS(SVG_NS, 'use');
 		symbolEl.setAttribute('href', `#${symbolId(uid, item.symbol)}`);
@@ -195,7 +227,7 @@ export function renderSVG(
 		if (item.loop) {
 			const mark = doc.createElementNS(SVG_NS, 'path');
 			mark.setAttribute('d', item.loop === 'blo' ? BLO_MARK : FLO_MARK);
-			mark.setAttribute('transform', transform);
+			mark.setAttribute('transform', `translate(${item.x} ${item.y}) rotate(${item.rotation})`);
 			applyCurrentPositionHighlight(mark, item.rowIndex, item.unitIndex, highlight, options.chartMarkerColor);
 			mark.setAttribute('stroke', 'currentColor');
 			mark.setAttribute('stroke-width', String(options.strokeWidth));

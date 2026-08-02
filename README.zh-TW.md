@@ -229,6 +229,59 @@ R2: ch, [2 sc, inc] rep, slst
 R3: (dc, ch, dc), sc, (5 dc)
 ```
 
+### 蕾絲與花樣
+
+蕾絲織圖不是數著前一圈鉤過去，而是直接說明每一針鉤在哪裡；Crochet Weaver 就照這個寫法讀：
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: MR, ch 3 (counts as dc), 23 dc in MR,
+    sl st to top of beginning ch-3. (24 dc)
+
+R2: ch 1 (does not count as a st),
+    sc in same st, ch 1,
+    [sc in next dc, ch 1] x23,
+    sl st to first sc.
+    (24 sc + 24 ch-1 sp = 48 sts)
+
+R3: sl st into next ch-1 sp,
+    ch 3, 2 dc in same ch-1 sp,
+    sc in next ch-1 sp,
+    [3 dc in next ch-1 sp,
+     sc in next ch-1 sp] x11,
+    sl st to top of beginning ch-3.
+    (12 reps, 4 sts per rep)
+
+R4: turn,
+    [V2 in next sc, ch 1,
+     sc in center dc of next 3-dc shell,
+     picot, ch 1] x12,
+    sl st to join.
+```
+
+| 寫法 | 意思 |
+| --- | --- |
+| `in next dc`／`in next ch-2 sp`／`in next picot` | 下一個該種類的位置，中間的東西自動略過 |
+| `in same st`／`in same ch-1 sp` | 上一步用過的同一個位置──鉤在那裡的針會併成同一個花樣 |
+| `in center dc of next 7-dc shell` | 下一組 7 長針貝殼的正中央那一針 |
+| `5 dc in next ch-2 sp` | 一組五針貝殼，鉤入同一個空間，畫成扇形 |
+| `V2`／`V3` | `(dc, ch 2, dc)`／`(dc, ch 3, dc)` 鉤入同一位置，內部自成一個空間 |
+| `ch 3 (counts as dc)` | 起始鎖針代替一針 |
+| `sl st into next ch-1 sp` | 引拔移動到該空間；此時還沒鉤入任何針 |
+| `turn` | 寫在最前面：這一圈翻面往反方向鉤 |
+| `R15-R18: repeat R11-R14.` | 畫圖前會展開成真正的圈數 |
+
+在 frontmatter 加上 `lace: on`，就會照鉤織書印製蕾絲的樣子畫：不畫每一圈的框線、不標圈數，針目也畫得更大以襯托鏤空。它只改變織圖周圍畫了什麼，完全不影響織圖本身。
+
+再加 `wholeRounds: 4` 可以讓前四圈完整畫出、之後才開始只畫扇形——中心那幾圈花樣還在成形，鉤織書也是完整畫出來的。加上 `sector: 90`（或 `sector: on`，即 90 度）則**只畫整圈的一塊扇形，而不是完整的圓**——一圈由十二個相同花樣組成時，一塊切片就把該說的都說完了，鉤織書也是這樣印的。整張織圖仍然會完整算出，只是從換圈接縫開始畫出那一塊；落在邊界上的花樣會整組保留，不會被切一半。
+
+兩針之間的連續鎖針會形成一個空間，讓下一圈鉤入，而每一針鎖針仍然會畫出來、可以數。沒有加註的起始鎖針，只要該圈接合到它的頂端就算一針──所以照原文寫就好，不必補註記。
+
+蕾絲由 `japanese` 與 `continuous` 兩種圈織畫法繪製，它們會依照每一針鉤入的位置來擺放；`radial` 一如既往地平均分布。
+
 ### 換色
 
 `color <顏色>` 步驟（CSS 顏色名稱或 `#hex` 色碼）用來標記換線的位置──可以寫在行中間，也可以放在行首／圈首：
