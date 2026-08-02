@@ -32,17 +32,26 @@ export interface CrochetWeaverSettings {
 
 export const SCALE_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3] as const;
 export const STROKE_WIDTH_OPTIONS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5, 4] as const;
-export const RING_SPACING_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80] as const;
+export const RING_SPACING_OPTIONS = [0, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80] as const;
 export const GRID_ROUNDS_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20] as const;
 export const GRID_COLUMNS_OPTIONS = [4, 6, 8, 10, 12, 16, 18, 20, 24, 32, 36, 48] as const;
 export const GRID_ROWS_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20] as const;
+
+// The one setting that may be zero: zero is not "no spacing", it is "whatever
+// the stitches need".
+function parseRingSpacing(value: unknown): number | undefined {
+	const spacing = typeof value === 'number' ? value : Number(value);
+	return Number.isFinite(spacing) && spacing >= 0 ? spacing : undefined;
+}
 
 export const DEFAULT_SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
 	roundChartStyle: 'radial',
 	scale: 1,
 	strokeWidth: 1.5,
-	ringSpacing: 30,
+	// 0: each round sits as far from the one below as its own stitches are
+	// tall, which is what a pattern book draws (see layout/round.ts).
+	ringSpacing: 0,
 	highlightIncDec: false,
 	highlightColor: '#8b5cf6',
 	chartMarkerColor: '#f1c40f',
@@ -343,7 +352,7 @@ export function normalizeSettings(raw: unknown): CrochetWeaverSettings {
 		roundChartStyle: parseRoundStyle(record.roundChartStyle) ?? DEFAULT_SETTINGS.roundChartStyle,
 		scale: parsePositiveNumber(record.scale) ?? DEFAULT_SETTINGS.scale,
 		strokeWidth: parsePositiveNumber(record.strokeWidth) ?? DEFAULT_SETTINGS.strokeWidth,
-		ringSpacing: parsePositiveNumber(record.ringSpacing) ?? DEFAULT_SETTINGS.ringSpacing,
+		ringSpacing: parseRingSpacing(record.ringSpacing) ?? DEFAULT_SETTINGS.ringSpacing,
 		highlightIncDec: parseBoolean(record.highlightIncDec) ?? DEFAULT_SETTINGS.highlightIncDec,
 		chartMarkerColor: parseHexColor(record.chartMarkerColor) ?? DEFAULT_SETTINGS.chartMarkerColor,
 		highlightColor: parseHexColor(record.highlightColor) ?? DEFAULT_SETTINGS.highlightColor,

@@ -61,7 +61,7 @@ export const es: Record<TranslationKey, string> = {
 	'settings.stroke.name': 'Grosor del trazo de los símbolos',
 	'settings.stroke.desc': 'Grosor del trazo de los símbolos de punto. Se sobrescribe con stroke: 2 en el frontmatter.',
 	'settings.spacing.name': 'Separación entre vueltas',
-	'settings.spacing.desc': 'Separación entre vueltas o anillos de la espiral, en píxeles (también es el tamaño de anillo y celda de crochet-grid). Se sobrescribe con spacing: 40 en el frontmatter.',
+	'settings.spacing.desc': 'Distancia entre vueltas en gráficos redondos o en espiral, en píxeles (también el tamaño de anillo/celda de crochet-grid). 0 significa lo que midan de alto los puntos de cada vuelta, que es como lo dibuja un libro de patrones. Sobrescríbelo con spacing: 40 en el frontmatter.',
 	'settings.highlight.name': 'Resaltar aumentos y disminuciones',
 	'settings.highlight.desc': 'Dibuja inc y dec en el color de acento. Se sobrescribe con highlight: on en el frontmatter.',
 	'settings.highlightColor.name': 'Color de aumentos y disminuciones',

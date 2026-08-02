@@ -61,7 +61,7 @@ export const zh_TW: Record<TranslationKey, string> = {
 	'settings.stroke.name': '符號線條粗細',
 	'settings.stroke.desc': '針目符號的筆畫寬度。可在 frontmatter 以 stroke: 2 覆蓋。',
 	'settings.spacing.name': '環織圈距',
-	'settings.spacing.desc': '環織／螺旋每圈之間的間距（像素，同時也是 crochet-grid 的圈距／格距）。可在 frontmatter 以 spacing: 40 覆蓋。',
+	'settings.spacing.desc': '圈織／螺旋每圈之間的距離（也是 crochet-grid 的環／格大小），單位為像素。0 表示依每一圈自己針目的高度決定，也就是鉤織書的畫法。可在 frontmatter 用 spacing: 40 覆蓋。',
 	'settings.highlight.name': '強調加減針',
 	'settings.highlight.desc': '用主題強調色標示加針／減針，方便一眼看出。可在 frontmatter 以 highlight: on 覆蓋。',
 	'settings.highlightColor.name': '加減針顯示顏色',

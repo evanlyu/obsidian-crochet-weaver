@@ -129,6 +129,9 @@ describe('plugin settings', () => {
 		expect(SCALE_OPTIONS).toEqual([0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]);
 		expect(STROKE_WIDTH_OPTIONS).toContain(1.75);
 		expect(STROKE_WIDTH_OPTIONS).toContain(3.5);
-		expect(RING_SPACING_OPTIONS).toEqual([10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80]);
+		// Zero first: a round sits as far from the one below as its stitches are
+		// tall unless a number is picked.
+		expect(RING_SPACING_OPTIONS).toEqual([0, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80]);
+		expect(DEFAULT_SETTINGS.ringSpacing).toBe(0);
 	});
 });

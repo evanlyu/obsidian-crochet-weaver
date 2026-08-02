@@ -198,7 +198,12 @@ export type RoundStyle = 'radial' | 'japanese' | 'continuous';
 
 // Layout options resolved from global settings and per-chart frontmatter.
 export interface LayoutOptions {
-	ringSpacing: number;
+	// How far apart consecutive rounds are drawn, in px. Undefined means "as far
+	// as the stitches need" — a round of single crochets sits a single crochet's
+	// height from the round below it, a round of trebles a treble's — which is
+	// how a pattern book draws them and the only chart size that was still a
+	// fixed number rather than read off what the chart draws.
+	ringSpacing?: number;
 	// See RoundStyle; undefined behaves as 'standard'. Ignored by flat and
 	// spiral charts.
 	roundStyle?: RoundStyle;

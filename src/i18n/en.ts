@@ -61,7 +61,7 @@ export const en = {
 	'settings.stroke.name': 'Symbol stroke width',
 	'settings.stroke.desc': 'Stroke width for stitch symbols. Override with stroke: 2 in frontmatter.',
 	'settings.spacing.name': 'Round spacing',
-	'settings.spacing.desc': 'Spacing between round or spiral rings in pixels (also used as the crochet-grid ring/cell size). Override with spacing: 40 in frontmatter.',
+	'settings.spacing.desc': 'How far apart round or spiral rings are drawn, in pixels (also the crochet-grid ring/cell size). 0 means as far as each round\'s own stitches are tall, which is how a pattern book draws them. Override with spacing: 40 in frontmatter.',
 	'settings.highlight.name': 'Highlight increases and decreases',
 	'settings.highlight.desc': 'Use the theme accent color for inc and dec stitches. Override with highlight: on in frontmatter.',
 	'settings.highlightColor.name': 'Increase and decrease color',

@@ -61,7 +61,7 @@ export const ko: Record<TranslationKey, string> = {
 	'settings.stroke.name': '기호 선 굵기',
 	'settings.stroke.desc': '뜨기 기호의 선 굵기입니다. frontmatter에 stroke: 2로 덮어쓸 수 있습니다.',
 	'settings.spacing.name': '단 간격',
-	'settings.spacing.desc': '원형 또는 나선 도안의 단 간격(픽셀)이며, crochet-grid의 링/칸 크기로도 쓰입니다. frontmatter에 spacing: 40으로 덮어쓸 수 있습니다.',
+	'settings.spacing.desc': '원형·나선 차트에서 단 사이의 거리(픽셀). crochet-grid의 고리/칸 크기이기도 합니다. 0은 각 단의 코 높이에 맞춘다는 뜻으로, 패턴북이 그리는 방식입니다. frontmatter의 spacing: 40으로 덮어쓸 수 있습니다.',
 	'settings.highlight.name': '늘리기·줄이기 강조',
 	'settings.highlight.desc': 'inc와 dec 뜨기를 강조 색으로 그립니다. frontmatter에 highlight: on으로 덮어쓸 수 있습니다.',
 	'settings.highlightColor.name': '늘리기·줄이기 색',

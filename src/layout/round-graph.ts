@@ -24,6 +24,7 @@ import { curveChainRuns, fanMotifs, fanSpread, ringRoom } from './lace';
 import { CENTER_RING, CHAIN, makesSpace } from '../render/symbols';
 import { buildStitchLink } from './links';
 import { normalize } from './normalize';
+import { MIN_ROUND_STEP, roundStep } from './round';
 import { cropToSector } from './sector';
 import { centerExtent, placeUnitPolar, pushCenterAnchor, symbolAngle } from './polar';
 import { placeSeam, seamArc, seamGapDegrees, type SeamContents, type SeamRegion } from './seam';
@@ -98,7 +99,7 @@ export function layoutRoundGraph(
 	ast: CrochetAst,
 	options: LayoutOptions,
 	style: 'japanese' | 'continuous',
-	nextRadius: (previousRadius: number, previousCount: number, circumference: number) => number,
+	nextRadius: (previousRadius: number, previousCount: number, circumference: number, step: number) => number,
 ): LayoutResult {
 	const lace = options.lace === true;
 	const graph = buildStitchGraph(ast);
@@ -114,6 +115,9 @@ export function layoutRoundGraph(
 	const motifStitches: MotifStitch[] = [];
 	const labels: ChartLabel[] = [];
 	const roundRadii: number[] = [];
+	// What each round was stepped out by, so the band around it is measured the
+	// same way it was placed.
+	const steps: number[] = [];
 	const seamAngles: number[] = [];
 	const placed: StitchRound[] = [];
 	let previousRound: StitchRound | undefined;
@@ -126,10 +130,14 @@ export function layoutRoundGraph(
 		if (round.stitches.length === 0) continue;
 		const contents = seamContentsOf(round, options.lace !== true, lace);
 		const reach = seamReachOf(graph, round, previousRound);
-		radius = nextRadius(radius, previousCount, roundCircumference(round, contents, reach, radius, lace, style));
+		// How far this round sits from the one below: as far as its own stitches
+		// are tall, unless the chart asked for a spacing of its own.
+		const step = roundStep(round.stitches.map((stitch) => stitch.symbol), options.ringSpacing);
+		steps.push(step);
+		radius = nextRadius(radius, previousCount, roundCircumference(round, contents, reach, radius, lace, style), step);
 
 		// Where this round's stitches reach to: the far edge of its own band.
-		const topRadius = radius + options.ringSpacing / 2;
+		const topRadius = radius + step / 2;
 		const angles = placeRound(graph, round, previousRound, radius, style, contents, reach, topRadius, lace);
 		round.stitches.forEach((stitch, index) => {
 			const angle = angles[index] ?? -90;
@@ -169,12 +177,12 @@ export function layoutRoundGraph(
 				// middle of the chart, so its opening chain has all the room
 				// between the ring and the round to stand in — which is where it
 				// really is, and is why it need not be drawn small there.
-				const bandInner = previousRadius > 0 ? radius - options.ringSpacing / 2 : center;
+				const bandInner = previousRadius > 0 ? radius - step / 2 : center;
 				items.push(
 					standingChain(
 						unit,
 						bandInner,
-						radius + options.ringSpacing / 2 - bandInner,
+						radius + step / 2 - bandInner,
 						index - opening.from,
 						opening.length,
 						angle,
@@ -248,7 +256,7 @@ export function layoutRoundGraph(
 	// Shaping is drawn last, from the angles every round finally settled on and
 	// from the bands the guide really draws, so a mark can never point at where
 	// a stitch used to be or drift off its round.
-	const boundaries = bandBoundaries(roundRadii, options.ringSpacing, center);
+	const boundaries = bandBoundaries(roundRadii, steps[steps.length - 1] ?? MIN_ROUND_STEP, center);
 	const shapingMarks: ShapingMark[] = [];
 	placed.forEach((round, index) => {
 		const band = {
@@ -278,7 +286,9 @@ export function layoutRoundGraph(
 	// A lace chart draws none: the openwork is the picture, and lines around
 	// each round would read as part of the fabric.
 	const gridGuide =
-		options.lace === true ? undefined : buildBandGuide(roundRadii, options.ringSpacing, seamAngles, center);
+		options.lace === true
+			? undefined
+			: buildBandGuide(roundRadii, steps[steps.length - 1] ?? MIN_ROUND_STEP, seamAngles, center);
 
 	// ...and a chart asked for one wedge of itself keeps what falls in it.
 	const drawn =

@@ -1485,3 +1485,38 @@ describe('sizing a round by what it draws', () => {
 		}
 	});
 });
+
+describe('how far apart a chart draws its rounds', () => {
+	function bandOf(source: string, options: { ringSpacing?: number } = {}): number {
+		const layout = calculateLayout(parseChart(source), { grid: false, roundStyle: 'japanese', ...options });
+		const centre = { x: layout.width / 2, y: layout.height / 2 };
+		const radii = new Map<number, number>();
+		for (const drawn of [...layout.items, ...(layout.shapingMarks ?? [])]) {
+			if (drawn.rowIndex === undefined) continue;
+			const radius = Math.hypot(drawn.x - centre.x, drawn.y - centre.y);
+			radii.set(drawn.rowIndex, Math.max(radii.get(drawn.rowIndex) ?? 0, radius));
+		}
+		const ordered = [...radii.entries()].sort((a, b) => a[0] - b[0]).map(([, radius]) => radius);
+		return (ordered[2] ?? 0) - (ordered[1] ?? 0);
+	}
+
+	const short = '---\ntype: round\n---\nR1: 12 sc in MR\nR2: 12 sc\nR3: 12 sc\n';
+	const tall = '---\ntype: round\n---\nR1: 12 dtr in MR\nR2: 12 dtr\nR3: 12 dtr\n';
+
+	it('steps a round out by what its own stitches are tall', () => {
+		// A round of single crochets sits closer to the round below than a round
+		// of double trebles does, because that is what the stitches are.
+		expect(bandOf(short)).toBeLessThan(bandOf(tall));
+		expect(bandOf(short)).toBeLessThan(2 * symbolExtent('sc') + 8);
+	});
+
+	it('gives a round of short stitches a band it nearly fills', () => {
+		// The band was three times the height of the stitches in it before this
+		// was read off the stitches themselves.
+		expect(bandOf(short)).toBeGreaterThan(symbolExtent('sc'));
+	});
+
+	it('uses the spacing a chart asks for instead', () => {
+		expect(bandOf(short, { ringSpacing: 40 })).toBeCloseTo(40, 0);
+	});
+});

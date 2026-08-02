@@ -61,7 +61,7 @@ export const de: Record<TranslationKey, string> = {
 	'settings.stroke.name': 'Linienstärke der Symbole',
 	'settings.stroke.desc': 'Linienstärke der Maschensymbole. Mit stroke: 2 im Frontmatter überschreibbar.',
 	'settings.spacing.name': 'Rundenabstand',
-	'settings.spacing.desc': 'Abstand zwischen Runden bzw. Spiralringen in Pixeln (auch die Ring- und Kästchengröße von crochet-grid). Mit spacing: 40 im Frontmatter überschreibbar.',
+	'settings.spacing.desc': 'Abstand zwischen den Runden einer Runden- oder Spiralkarte in Pixeln (zugleich Ring-/Zellengröße des crochet-grid). 0 bedeutet: so weit, wie die Maschen der jeweiligen Runde hoch sind — so zeichnet es ein Anleitungsbuch. Mit spacing: 40 im Frontmatter überschreibbar.',
 	'settings.highlight.name': 'Zunahmen und Abnahmen hervorheben',
 	'settings.highlight.desc': 'Zeichnet inc und dec in der Akzentfarbe. Mit highlight: on im Frontmatter überschreibbar.',
 	'settings.highlightColor.name': 'Farbe für Zunahmen und Abnahmen',

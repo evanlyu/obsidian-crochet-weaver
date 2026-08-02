@@ -61,7 +61,7 @@ export const zh_CN: Record<TranslationKey, string> = {
 	'settings.stroke.name': '符号线条粗细',
 	'settings.stroke.desc': '针目符号的笔画宽度。可在 frontmatter 中用 stroke: 2 覆盖。',
 	'settings.spacing.name': '环织圈距',
-	'settings.spacing.desc': '环织／螺旋每圈之间的间距（像素，同时也是 crochet-grid 的圈距／格距）。可在 frontmatter 中用 spacing: 40 覆盖。',
+	'settings.spacing.desc': '圈织／螺旋每圈之间的距离（也是 crochet-grid 的环／格大小），单位为像素。0 表示依每一圈自己针目的高度决定，也就是钩织书的画法。可在 frontmatter 用 spacing: 40 覆盖。',
 	'settings.highlight.name': '强调加减针',
 	'settings.highlight.desc': '用主题强调色标示加针／减针，方便快速辨识。可在 frontmatter 中用 highlight: on 覆盖。',
 	'settings.highlightColor.name': '加减针显示颜色',

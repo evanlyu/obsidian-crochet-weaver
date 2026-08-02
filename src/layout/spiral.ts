@@ -3,6 +3,7 @@ import { arcToDegrees } from './angles';
 import { BASE_RADIUS, symbolArc, symbolExtent, SYMBOL_CLEARANCE } from './constants';
 import { buildRingGuide } from './grid-guide';
 import { normalize } from './normalize';
+import { roundStep } from './round';
 import { centerExtent, placeUnitPolar, pushCenterAnchor } from './polar';
 import { firstDrawnSymbol, tagLoop, unitSymbols, unroll, type ColorState, type LayoutUnit } from './steps';
 
@@ -37,9 +38,12 @@ export function layoutSpiral(ast: CrochetAst, options: LayoutOptions): LayoutRes
 	ast.rows.forEach((row, rowIndex) => {
 		const start = items.length;
 		const units = unroll(row.steps, colorState);
+		// One turn of the spiral advances by what this row's stitches are tall,
+		// unless the chart asked for an advance of its own.
+		const advance = roundStep(units.flatMap(unitSymbols), options.ringSpacing);
 		let radius = innerRadius;
 		units.forEach((unit, unitIndex) => {
-			radius = innerRadius + (swept / 360) * options.ringSpacing;
+			radius = innerRadius + (swept / 360) * advance;
 			const itemStart = items.length;
 			placeUnitPolar(items, unit, radius, phi, rowIndex, unitIndex);
 			if (unit.color !== undefined && unit.color !== previousColor) {
@@ -59,7 +63,7 @@ export function layoutSpiral(ast: CrochetAst, options: LayoutOptions): LayoutRes
 	});
 
 	const gridGuide = options.grid
-		? buildRingGuide(rowEndRadii, lastRowUnitCount, options.ringSpacing, options.gridCount, options.gridColumns)
+		? buildRingGuide(rowEndRadii, lastRowUnitCount, roundStep([], options.ringSpacing), options.gridCount, options.gridColumns)
 		: undefined;
 	return normalize(items, undefined, gridGuide, colorMarkers);
 }

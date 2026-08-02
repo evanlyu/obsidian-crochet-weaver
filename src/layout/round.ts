@@ -1,5 +1,5 @@
 import type { ColorMarker, CrochetAst, LayoutOptions, LayoutResult, RenderItem } from '../types';
-import { BASE_RADIUS, symbolArc, symbolExtent, SYMBOL_CLEARANCE } from './constants';
+import { BASE_RADIUS, symbolArc, symbolExtent, symbolHalfHeight, SYMBOL_CLEARANCE } from './constants';
 import { buildRingGuide } from './grid-guide';
 import { normalize } from './normalize';
 import { centerExtent, placeUnitPolar, pushCenterAnchor } from './polar';
@@ -19,12 +19,25 @@ import {
 export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResult {
 	const style = options.roundStyle;
 	if (style === 'japanese' || style === 'continuous') {
-		return layoutRoundGraph(ast, options, style, (previousRadius, previousCount, circumference) =>
-			nextRadius(previousRadius, previousCount, circumference, options.ringSpacing, innerRadiusOf(ast)),
+		return layoutRoundGraph(ast, options, style, (previousRadius, previousCount, circumference, step) =>
+			nextRadius(previousRadius, previousCount, circumference, step, innerRadiusOf(ast)),
 		);
 	}
 	return layoutRoundStandard(ast, options);
 }
+
+// How far a round sits from the one below it: as far as its own stitches are
+// tall, plus air, so a round of single crochets is a single crochet from the
+// round below and a round of trebles is a treble. A chart that asks for a
+// spacing gets that instead.
+export function roundStep(symbols: readonly string[], asked: number | undefined): number {
+	if (asked !== undefined) return asked;
+	const tallest = symbols.reduce((most, symbol) => Math.max(most, 2 * symbolHalfHeight(symbol)), 0);
+	return Math.max(MIN_ROUND_STEP, tallest + SYMBOL_CLEARANCE);
+}
+
+// A round of nothing but chains and joins still has to sit somewhere.
+export const MIN_ROUND_STEP = 12;
 
 // Closest the first round may sit to the middle: the chart's own base radius, or
 // far enough out to clear whatever its center anchor is drawn as, whichever is
@@ -73,7 +86,13 @@ function layoutRoundStandard(ast: CrochetAst, options: LayoutOptions): LayoutRes
 			start: symbolsOf(opening),
 			end: symbolsOf(end),
 		};
-		radius = nextRadius(radius, prevCount, unitsArc(units) + seamArc(seam), options.ringSpacing, innerRadius);
+		radius = nextRadius(
+			radius,
+			prevCount,
+			unitsArc(units) + seamArc(seam),
+			roundStep(symbolsOf(units), options.ringSpacing),
+			innerRadius,
+		);
 
 		const angleStep = 360 / units.length;
 		const start = items.length;
@@ -107,7 +126,7 @@ function layoutRoundStandard(ast: CrochetAst, options: LayoutOptions): LayoutRes
 	// slots), not the stitch-weighted count nextRadius uses — an inc occupies
 	// one slot even though it outputs 2 stitches.
 	const gridGuide = options.grid
-		? buildRingGuide(roundRadii, lastUnitCount, options.ringSpacing, options.gridCount, options.gridColumns)
+		? buildRingGuide(roundRadii, lastUnitCount, roundStep([], options.ringSpacing), options.gridCount, options.gridColumns)
 		: undefined;
 	return normalize(items, undefined, gridGuide, colorMarkers);
 }

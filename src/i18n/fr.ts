@@ -61,7 +61,7 @@ export const fr: Record<TranslationKey, string> = {
 	'settings.stroke.name': 'Épaisseur du trait des symboles',
 	'settings.stroke.desc': 'Épaisseur du trait des symboles de mailles. Redéfinissable avec stroke: 2 dans le frontmatter.',
 	'settings.spacing.name': 'Écart entre les tours',
-	'settings.spacing.desc': 'Écart entre les tours ou les anneaux de la spirale, en pixels (sert aussi de taille d\'anneau et de case pour crochet-grid). Redéfinissable avec spacing: 40 dans le frontmatter.',
+	'settings.spacing.desc': 'Écart entre les tours d’un diagramme en rond ou en spirale, en pixels (également la taille d’anneau/case du crochet-grid). 0 signifie : autant que la hauteur des mailles de chaque tour, comme le dessine un livre de modèles. Remplacez par spacing: 40 dans le frontmatter.',
 	'settings.highlight.name': 'Mettre en évidence augmentations et diminutions',
 	'settings.highlight.desc': 'Dessine inc et dec dans la couleur d\'accentuation. Redéfinissable avec highlight: on dans le frontmatter.',
 	'settings.highlightColor.name': 'Couleur des augmentations et diminutions',

@@ -61,7 +61,7 @@ export const ja: Record<TranslationKey, string> = {
 	'settings.stroke.name': '記号の線幅',
 	'settings.stroke.desc': '編み目記号の線幅です。frontmatter の stroke: 2 で上書きできます。',
 	'settings.spacing.name': '輪の間隔',
-	'settings.spacing.desc': '輪編み／スパイラルの各輪の間隔（px）です（crochet-grid の輪／マスの間隔にも使われます）。frontmatter の spacing: 40 で上書きできます。',
+	'settings.spacing.desc': '輪編み・スパイラルの段の間隔（crochet-grid の輪／マスの大きさも兼ねます）。ピクセル単位。0 は各段の針目自身の高さに合わせるという意味で、編み物本の描き方です。frontmatter の spacing: 40 で上書きできます。',
 	'settings.highlight.name': '増し目と減らし目を強調',
 	'settings.highlight.desc': 'inc と dec をテーマのアクセント色で表示します。frontmatter の highlight: on で上書きできます。',
 	'settings.highlightColor.name': '増し目・減らし目の色',

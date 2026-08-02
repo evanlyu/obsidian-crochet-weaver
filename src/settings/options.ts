@@ -27,7 +27,10 @@ export function resolveOptions(
 	const gridCountKey = config.type === 'flat' ? config.rows : config.rounds;
 	return {
 		roundStyle: parseRoundStyle(style) ?? settings.roundChartStyle,
-		ringSpacing: positiveFloat(config.spacing) ?? settings.ringSpacing,
+		// A spacing the chart or the settings name wins; zero, and the default,
+		// mean each round is stepped out by what its own stitches are tall (see
+		// layout/round.ts).
+		ringSpacing: positiveFloat(config.spacing) ?? (settings.ringSpacing > 0 ? settings.ringSpacing : undefined),
 		scale: positiveFloat(config.scale) ?? settings.scale,
 		strokeWidth: positiveFloat(config.stroke) ?? settings.strokeWidth,
 		highlightIncDec: boolOption(config.highlight) ?? settings.highlightIncDec,
