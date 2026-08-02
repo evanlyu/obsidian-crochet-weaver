@@ -172,13 +172,13 @@ TurnStep = 'turn'i ![a-zA-Z] { return { type: 'TurnNode' }; }
 // The slip stitch a round closes with, and what it closes to.
 JoinStep
 	= SlSt S 'to'i ![a-zA-Z] S target:JoinTarget {
-			return { type: 'JoinNode', target: target };
+			return { type: 'JoinNode', ...target };
 		}
 
 JoinTarget
-	= 'top'i S 'of'i S ('beginning'i / 'beg'i) S 'ch'i '-'? _ [0-9]* { return 'beginning-ch'; }
-	/ 'first'i S name:StitchName { return name === 'sc' ? 'first-sc' : 'join'; }
-	/ 'join'i ![a-zA-Z] { return 'join'; }
+	= 'top'i S 'of'i S ('beginning'i / 'beg'i) S 'ch'i '-'? _ [0-9]* { return { target: 'beginning-ch' }; }
+	/ 'first'i S name:StitchName { return { target: 'first', stitch: name }; }
+	/ 'join'i ![a-zA-Z] { return { target: 'join' }; }
 
 // A slip stitch worked only to move to where the round starts.
 RepositionStep

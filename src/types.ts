@@ -67,7 +67,14 @@ export interface GroupNode {
 // nothing, and the place the next round starts from.
 export interface JoinNode {
 	type: 'JoinNode';
-	target: 'beginning-ch' | 'first-sc' | 'join';
+	// What the round closes to: the top of the chain it opened with, the first
+	// stitch of a named kind ("sl st to first sc" — `stitch` says which), or
+	// simply its own start.
+	target: 'beginning-ch' | 'first' | 'join';
+	// The stitch a "first ..." join names. Any stitch the pattern can write:
+	// a round closed to its first double crochet says so, and is read as it
+	// is written rather than as the one spelling the parser happened to know.
+	stitch?: string;
 }
 
 // A slip stitch worked only to get to where the round really starts. It moves

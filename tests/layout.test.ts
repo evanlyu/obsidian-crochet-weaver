@@ -437,10 +437,11 @@ describe('traditional-Japanese round layout', () => {
 		});
 	});
 
-	// Spec sections 3 and 4: a shaping symbol belongs to its round's band — the
-	// pointed end on the edge it is worked up from, the open end on the edge the
-	// next round is worked up from. Nothing reaches into a neighbouring round.
-	it('draws the increase V inside its own round, spanning that round only', () => {
+	// Spec sections 3 and 4: a shaping symbol belongs to its round — pointed end
+	// toward the stitch below, open end toward the round above, drawn the height
+	// of a stitch rather than the height of the band, and never reaching into a
+	// neighbouring round.
+	it('draws the increase V inside its own round, at a stitch\'s own height', () => {
 		const layout = calculateLayout(
 			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: inc, 5 sc\nR3: 8 sc\n'),
 			BOOK,
@@ -459,21 +460,22 @@ describe('traditional-Japanese round layout', () => {
 		const inner = (roundRadius(layout, center, 0) + roundRadius(layout, center, 1)) / 2;
 		const outer = (roundRadius(layout, center, 1) + roundRadius(layout, center, 2)) / 2;
 
-		// The point lines up with the stitch below and reaches this round's inner
-		// edge — pointing at that stitch without crossing into its band.
-		const band = outer - inner;
+		// The point lines up with the stitch below, and the whole mark sits
+		// inside this round's band — pointing the right way without crossing
+		// into a neighbouring round.
 		expect(angleDiff(angleOf(center, apex), angleOf(center, parent))).toBeLessThan(0.01);
-		expect(radiusOf(center, apex)).toBeGreaterThan(roundRadius(layout, center, 0));
-		// Near the edge but a little short of it, so the stroke stays clear of
-		// the guide line drawn there.
-		expect(radiusOf(center, apex) - inner).toBeGreaterThan(0);
-		expect(radiusOf(center, apex) - inner).toBeLessThan(band * 0.25);
-		// The arms open out to this round's outer edge, where round 3 is worked.
+		expect(radiusOf(center, apex)).toBeGreaterThan(inner);
+		expect(radiusOf(center, apex)).toBeLessThan(roundRadius(layout, center, 1));
 		for (const arm of arms) {
-			expect(outer - radiusOf(center, arm)).toBeGreaterThan(0);
-			expect(outer - radiusOf(center, arm)).toBeLessThan(band * 0.25);
+			expect(radiusOf(center, arm)).toBeGreaterThan(roundRadius(layout, center, 1));
+			expect(radiusOf(center, arm)).toBeLessThan(outer);
 			expect(radiusOf(center, arm)).toBeLessThan(roundRadius(layout, center, 2));
 		}
+		// ...and it is a stitch's symbol, so it is a stitch tall rather than a
+		// band tall: a round of increases must not be drawn taller than a round
+		// of plain stitches beside it.
+		const height = Math.abs(radiusOf(center, apex) - radiusOf(center, arms[0]!));
+		expect(height).toBeLessThanOrEqual(2 * symbolExtent('sc') + 0.01);
 	});
 
 	// Spec test 3 / section 5.5: the ∧ is the reverse — two ends on the stitches
@@ -772,10 +774,10 @@ describe('traditional-Japanese round layout', () => {
 		});
 	});
 
-	// However far apart the stitches a mark belongs to are, the mark itself
-	// stays a compact symbol — a decrease merging two stitches a whole slot
-	// apart on a big round must not flatten into two long lines.
-	it('keeps every shaping symbol close to its own proportions, however far its stitches are apart', () => {
+	// A mark reaches its stitches sideways rather than by growing: however far
+	// apart they are, it opens no wider than the room those stitches themselves
+	// take, and stays the height of one stitch.
+	it('reaches its stitches by opening, never by growing taller', () => {
 		for (const source of [
 			'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: [2 sc, dec] x 4\n',
 			'---\ntype: round\n---\nR1: 24 sc in MR\nR2: [dec] x 12\nR3: [dec] x 6\n',
@@ -793,13 +795,12 @@ describe('traditional-Japanese round layout', () => {
 				if (!first || !last) throw new Error('expected two open ends');
 				const width = distance(first, last);
 				const height = Math.abs(radiusOf(center, apex) - radiusOf(center, first));
-				// Open enough to reach across the stitches it belongs to, never so
-				// open that it stops reading as a V — whatever the round's size. The
-				// width it is allowed follows the stitches it spans: one stitch's
-				// worth of the round each, so a 3-together may open wider than a
-				// 2-together but neither may sprawl.
-				expect(width / height).toBeLessThan(2.5);
+				// It reaches sideways as far as the stitches it spans take up —
+				// one stitch's worth of the round each, so a 3-together may open
+				// wider than a 2-together — and no further.
 				expect(width).toBeLessThanOrEqual(20 * arms.length);
+				// Its height is a stitch's height, whatever it had to reach.
+				expect(height).toBeLessThanOrEqual(2 * symbolExtent('sc') + 0.01);
 			}
 		}
 	});
@@ -1430,5 +1431,57 @@ describe('color changes', () => {
 
 		expect(layout.items.every((item) => item.color === undefined)).toBe(true);
 		expect(layout.colorMarkers).toBeUndefined();
+	});
+});
+
+describe('sizing a round by what it draws', () => {
+	function radiiOf(source: string, roundStyle: 'japanese' | 'continuous'): number[] {
+		const layout = calculateLayout(parseChart(source), { ringSpacing: 30, grid: false, roundStyle });
+		const centre = { x: layout.width / 2, y: layout.height / 2 };
+		const byRound = new Map<number, number[]>();
+		// A round whose stitches are all drawn as the V that stands for them has
+		// no symbols of its own, so its marks are what says where it is.
+		for (const drawn of [...layout.items, ...(layout.shapingMarks ?? [])]) {
+			if (drawn.rowIndex === undefined) continue;
+			const radius = Math.hypot(drawn.x - centre.x, drawn.y - centre.y);
+			byRound.set(drawn.rowIndex, [...(byRound.get(drawn.rowIndex) ?? []), radius]);
+		}
+		return [...byRound.entries()]
+			.sort((a, b) => a[0] - b[0])
+			.map(([, radii]) => radii.reduce((sum, radius) => sum + radius, 0) / radii.length);
+	}
+
+	const doubling = '---\ntype: round\n---\nR1: 22 sc\nR2: [inc] x 22\n';
+
+	it('does not push a round of increases out for stitches it does not draw', () => {
+		// R2 doubles the stitch count but draws twenty-two V marks, not
+		// forty-four symbols, so it grows by a ring spacing rather than by what
+		// forty-four symbols would need.
+		const [first, second] = radiiOf(doubling, 'japanese');
+
+		expect(second! - first!).toBeLessThan(40);
+	});
+
+	it('still gives that round room for every symbol where every symbol is drawn', () => {
+		const [, japanese] = radiiOf(doubling, 'japanese');
+		const [, continuous] = radiiOf(doubling, 'continuous');
+
+		expect(continuous!).toBeGreaterThan(japanese!);
+	});
+
+	it('keeps neighbouring stitches clear of each other either way', () => {
+		for (const style of ['japanese', 'continuous'] as const) {
+			const layout = calculateLayout(parseChart(doubling), { ringSpacing: 30, grid: false, roundStyle: style });
+			// Book style draws this round entirely as marks, so what is checked
+			// there is the round below it.
+			const round = layout.items.filter((item) => item.rowIndex === (style === 'japanese' ? 0 : 1));
+			for (let index = 1; index < round.length; index++) {
+				const previous = round[index - 1];
+				const current = round[index];
+				const gap =
+					distance(previous!, current!) - symbolExtent(previous!.symbol) - symbolExtent(current!.symbol);
+				expect(`${style} gap ${gap > 0}`).toBe(`${style} gap true`);
+			}
+		}
 	});
 });

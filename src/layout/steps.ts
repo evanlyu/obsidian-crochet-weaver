@@ -1,3 +1,4 @@
+import { CENTER_RING, JOINING_STITCH, makesSpace } from '../render/symbols';
 import type {
 	AstNode,
 	CrochetAst,
@@ -77,9 +78,9 @@ function drawnUnit(step: UnrolledStep): LayoutUnit | undefined {
 		case 'GroupNode':
 			return step;
 		case 'JoinNode':
-			return { type: 'StitchNode', stitch: 'sl st', count: 1, instruction: 'join' };
+			return { type: 'StitchNode', stitch: JOINING_STITCH, count: 1, instruction: 'join' };
 		case 'RepositionNode':
-			return { type: 'StitchNode', stitch: 'sl st', count: 1, instruction: 'reposition', target: step.target };
+			return { type: 'StitchNode', stitch: JOINING_STITCH, count: 1, instruction: 'reposition', target: step.target };
 		case 'TurnNode':
 		case 'SkipNode':
 			return undefined;
@@ -177,7 +178,7 @@ export function roundInstructions(units: readonly LayoutUnit[]): RoundInstructio
 // the round really begins.
 function opensRound(unit: LayoutUnit | undefined): boolean {
 	if (unit?.type !== 'StitchNode') return false;
-	return unit.stitch === 'ch' || unit.stitch === 'MR' || unit.instruction === 'reposition';
+	return makesSpace(unit.stitch) || unit.stitch === CENTER_RING || unit.instruction === 'reposition';
 }
 
 function poppedUnits(row: RowNode): LayoutUnit[] {
@@ -185,7 +186,7 @@ function poppedUnits(row: RowNode): LayoutUnit[] {
 }
 
 export function isSlSt(unit: LayoutUnit | undefined): boolean {
-	return unit?.type === 'StitchNode' && unit.stitch === 'sl st';
+	return unit?.type === 'StitchNode' && unit.stitch === JOINING_STITCH;
 }
 
 export function tagLoop(items: RenderItem[], start: number, loop?: 'blo' | 'flo') {

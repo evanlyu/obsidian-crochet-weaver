@@ -1,4 +1,5 @@
 import {
+	CHAIN,
 	symbolExtent as baseSymbolExtent,
 	symbolHalfHeight as baseSymbolHalfHeight,
 	symbolHalfWidth as baseSymbolHalfWidth,
@@ -63,7 +64,7 @@ export const ROUND_CHANGE_ARC = 5;
 export const CH_RING_COUNT = 6;
 
 export function chRingRadius(): number {
-	return (CH_RING_COUNT * symbolArc('ch')) / (2 * Math.PI);
+	return (CH_RING_COUNT * symbolArc(CHAIN)) / (2 * Math.PI);
 }
 
 // Radius of the hollow ring drawn around the first stitch worked in a new

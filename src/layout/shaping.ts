@@ -1,6 +1,6 @@
 import type { GridPoint, ShapingMark } from '../types';
 import { arcToDegrees, shortestAngleDelta } from './angles';
-import { symbolArc } from './constants';
+import { symbolArc, symbolHalfHeight } from './constants';
 import type { GraphStitch, StitchMappingGroup } from './graph';
 import { symbolAngle } from './polar';
 
@@ -13,23 +13,18 @@ export interface RoundBand {
 	radius: number;
 }
 
-// How much of the band a mark leaves free at each end. It still reads as
-// spanning its round — reaching the edge it is worked up from and the edge the
-// next round is worked from — but stops short of the guide lines, so a stack of
-// increases on consecutive rounds reads as separate symbols instead of merging
-// into one long zigzag across the chart.
+// How much of the band a mark leaves free at each end, where it is drawn across
+// the band at all.
 const BAND_INSET_SHARE = 0.16;
 const MIN_BAND_INSET = 1.5;
 
-// How far a mark opens, at most, relative to its own height — and never wider
-// than the stitches it is drawn across take up between them. A decrease has to
-// open far enough to reach across the two stitches it closed over, or it says
-// nothing about which two they were; but left to reach any distance, one merging
-// stitches a whole slot apart on a large round would flatten into two long,
-// nearly straight lines that no longer read as a symbol. Between those, an
-// opening of about twice the mark's height still reads as a V. It never opens
-// wider than the stitches themselves are apart.
-const MARK_ASPECT = 2.4;
+// A mark is a stitch symbol of its round, so it is drawn the height of one —
+// the same as the stitches beside it, not the height of the whole band. Where
+// it has to reach two stitches that are far apart it reaches sideways: a chart
+// says which stitches a V joins by where its arms end, and saying it by growing
+// taller instead would make one round's symbols taller than another's for no
+// reason a reader could see.
+const MARK_HEIGHT_SHARE = 1;
 
 // Builds the V of an increase or the ∧ of a decrease.
 //
@@ -65,8 +60,14 @@ export function buildShapingMark(
 	// next round is worked into them); a decrease opens inward, onto the
 	// stitches of the round below that it closed over.
 	const inset = Math.max(MIN_BAND_INSET, (band.outer - band.inner) * BAND_INSET_SHARE);
-	const apexRadius = kind === 'increase' ? band.inner + inset : band.outer - inset;
-	const openRadius = kind === 'increase' ? band.outer - inset : band.inner + inset;
+	// As tall as the stitch it stands for, centred on the round, and never
+	// taller than the band has room for.
+	const own = Math.min(
+		2 * symbolHalfHeight(point.symbol) * MARK_HEIGHT_SHARE,
+		band.outer - band.inner - 2 * inset,
+	);
+	const apexRadius = band.radius + (kind === 'increase' ? -own / 2 : own / 2);
+	const openRadius = band.radius + (kind === 'increase' ? own / 2 : -own / 2);
 
 	// Draw the opening no wider than the symbol wants to be, closing it around
 	// the pointed end — which keeps its exact angle, since that is what says
@@ -77,11 +78,11 @@ export function buildShapingMark(
 	// the chart however far apart their angles count.
 	const apexAngle = point.layout.angle;
 	const offsets = openAngles.map((angle) => shortestAngleDelta(apexAngle, angle));
-	const height = Math.abs(apexRadius - openRadius);
 	// The widest a mark may open, in px: one stitch's room for each stitch on its
-	// open side, taken from those stitches' own symbols.
+	// open side, taken from those stitches' own symbols. Its height does not come
+	// into it — reaching further is how a mark says which stitches it joins.
 	const widest = open.reduce((total, stitch) => total + symbolArc(stitch.symbol), 0);
-	const maxSpan = arcToDegrees(Math.min(height * MARK_ASPECT, widest), openRadius);
+	const maxSpan = arcToDegrees(widest, openRadius);
 	const span = Math.max(...offsets) - Math.min(...offsets);
 	const squeeze = span > maxSpan ? maxSpan / span : 1;
 	// Closing the opening is not enough on its own: where a round cannot follow

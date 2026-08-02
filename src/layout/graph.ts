@@ -1,4 +1,5 @@
 import { PatternError } from '../pattern/pattern-error';
+import { CENTER_RING, CHAIN, JOINING_STITCH, makesSpace } from '../render/symbols';
 import type { CrochetAst, RowNode, TargetSpec } from '../types';
 import { isShellCenter, placeMatches, placesOf, RoundCursor, type GraphPlace } from './places';
 import {
@@ -367,13 +368,17 @@ function splitRound(steps: readonly UnrolledStep[]): {
 function opensRound(step: UnrolledStep | undefined): boolean {
 	if (step === undefined) return false;
 	if (step.type === 'RepositionNode' || step.type === 'TurnNode') return true;
-	return step.type === 'StitchNode' && (step.stitch === 'ch' || step.stitch === 'MR') && step.target === undefined;
+	return (
+		step.type === 'StitchNode' &&
+		(makesSpace(step.stitch) || step.stitch === CENTER_RING) &&
+		step.target === undefined
+	);
 }
 
 function closesRound(step: UnrolledStep | undefined): boolean {
 	if (step === undefined) return false;
 	if (step.type === 'JoinNode') return true;
-	return step.type === 'StitchNode' && step.stitch === 'sl st' && step.target === undefined;
+	return step.type === 'StitchNode' && step.stitch === JOINING_STITCH && step.target === undefined;
 }
 
 // Where the next round starts from: the place this round's join closes to.
@@ -381,8 +386,8 @@ function entryIndexOf(places: readonly GraphPlace[], stitches: readonly GraphSti
 	const join = end.find((step): step is Extract<UnrolledStep, { type: 'JoinNode' }> => step.type === 'JoinNode');
 	if (join === undefined) return 0;
 	const wanted =
-		join.target === 'first-sc'
-			? stitches.find((stitch) => stitch.symbol === 'sc')
+		join.target === 'first'
+			? stitches.find((stitch) => stitch.symbol === join.stitch)
 			: join.target === 'beginning-ch'
 				? stitches.find((stitch) => stitch.drawn === false)
 				: undefined;
@@ -467,9 +472,9 @@ function drawnUnits(steps: readonly UnrolledStep[]): LayoutUnit[] {
 		}
 		switch (step.type) {
 			case 'JoinNode':
-				return [{ type: 'StitchNode', stitch: 'sl st', count: 1, instruction: 'join' }];
+				return [{ type: 'StitchNode', stitch: JOINING_STITCH, count: 1, instruction: 'join' }];
 			case 'RepositionNode':
-				return [{ type: 'StitchNode', stitch: 'sl st', count: 1, instruction: 'reposition', target: step.target }];
+				return [{ type: 'StitchNode', stitch: JOINING_STITCH, count: 1, instruction: 'reposition', target: step.target }];
 			case 'TurnNode':
 			case 'SkipNode':
 				return [];
@@ -554,7 +559,7 @@ export function validateStitchGraph(graph: StitchGraph): GraphIssue[] {
 			if (
 				stitch.targetStitchIds.length === 0 &&
 				roundIndex < lastRoundIndex &&
-				stitch.symbol !== 'ch' &&
+				!makesSpace(stitch.symbol) &&
 				!passedOver(graph, roundIndex, stitch.id)
 			) {
 				issues.push({
@@ -654,7 +659,7 @@ function makeFoundation(ast: CrochetAst): GraphStitch {
 		roundIndex: -1,
 		stitchIndex: 0,
 		unitIndex: 0,
-		symbol: anchor === 'ch ring' ? 'ch' : 'MR',
+		symbol: anchor === 'ch ring' ? CHAIN : CENTER_RING,
 		sourceStitchIds: [],
 		targetStitchIds: [],
 		sourceSlots: [],

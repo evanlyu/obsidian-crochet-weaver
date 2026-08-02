@@ -16,25 +16,39 @@ export interface SymbolSpec {
 	paths?: string[];
 	ellipse?: { rx: number; ry: number };
 	circle?: { r: number; filled?: boolean };
+	// What the stitch is made of, for the charts that draw it rather than stamp
+	// it: a fan's stitches each reach a different length, so they are drawn as
+	// the lines they are (see layout/lace.ts). Said here, beside the paths that
+	// draw the same thing at a fixed size, so the two cannot disagree.
+	stem?: {
+		// Bars across the stem — how a chart says how tall the stitch is.
+		bars: number;
+		// What is drawn where the next round works into it.
+		head: 'bar' | 'cross';
+	};
+	// Whether a run of these between two anchors makes a space the next round
+	// can work into, rather than stitches it works into one at a time.
+	space?: boolean;
 }
 
 export const SYMBOLS: Record<string, SymbolSpec> = {
 	// Chain: hollow ellipse.
-	ch: { extent: 6, ellipse: { rx: 6, ry: 3 } },
+	ch: { extent: 6, ellipse: { rx: 6, ry: 3 }, space: true },
 	// Single crochet: X.
-	sc: { extent: 6, paths: ['M -4 -4 L 4 4 M 4 -4 L -4 4'] },
+	sc: { extent: 6, paths: ['M -4 -4 L 4 4 M 4 -4 L -4 4'], stem: { bars: 0, head: 'cross' } },
 	// Half double crochet: T shape.
-	hdc: { extent: 9, paths: ['M -5 -7 L 5 -7 M 0 -7 L 0 7'] },
+	hdc: { extent: 9, paths: ['M -5 -7 L 5 -7 M 0 -7 L 0 7'], stem: { bars: 0, head: 'bar' } },
 	// Double crochet: T shape with one yarn-over slash.
-	dc: { extent: 10, paths: ['M -5 -8 L 5 -8 M 0 -8 L 0 8 M -3 0 L 3 -4'] },
+	dc: { extent: 10, paths: ['M -5 -8 L 5 -8 M 0 -8 L 0 8 M -3 0 L 3 -4'], stem: { bars: 1, head: 'bar' } },
 	// Treble crochet: T shape with two yarn-over slashes.
-	tr: { extent: 11, paths: ['M -5 -10 L 5 -10 M 0 -10 L 0 10 M -3 -1 L 3 -5 M -3 5 L 3 1'] },
+	tr: { extent: 11, paths: ['M -5 -10 L 5 -10 M 0 -10 L 0 10 M -3 -1 L 3 -5 M -3 5 L 3 1'], stem: { bars: 2, head: 'bar' } },
 	// Double treble crochet: T shape with three yarn-over slashes.
 	dtr: {
 		extent: 13,
 		paths: [
 			'M -5 -12 L 5 -12 M 0 -12 L 0 12 M -3 -3 L 3 -7 M -3 3 L 3 -1 M -3 9 L 3 5',
 		],
+		stem: { bars: 3, head: 'bar' },
 	},
 	// Slip stitch: filled dot.
 	'sl st': { extent: 3, circle: { r: 2.5, filled: true } },
@@ -145,6 +159,32 @@ const DEFAULT_EXTENT = 8;
 
 export function symbolExtent(symbol: string): number {
 	return SYMBOLS[symbol]?.extent ?? DEFAULT_EXTENT;
+}
+
+// The ring a piece is started from. Not a stitch of any round — it is what the
+// first round is worked into — so the one place its name is written down is
+// here, beside the symbol that draws it.
+export const CENTER_RING = 'MR';
+
+// The chain: what a run of them makes a space out of, and what a chain ring is
+// drawn from.
+export const CHAIN = 'ch';
+
+// The stitch a round is closed and moved about with. It is an ordinary stitch
+// worked mid-round; what makes it an instruction is where it sits, which is the
+// layout's business — but which stitch it is, is this file's.
+export const JOINING_STITCH = 'sl st';
+
+// What a stitch is made of, for a chart that draws it rather than stamps it.
+// A stitch the library says nothing about is drawn as a plain stem topped with
+// a bar, which is what most of them are.
+export function symbolStem(symbol: string): { bars: number; head: 'bar' | 'cross' } {
+	return SYMBOLS[symbol]?.stem ?? { bars: 1, head: 'bar' };
+}
+
+// Whether a run of this stitch between two anchors makes a space.
+export function makesSpace(symbol: string): boolean {
+	return SYMBOLS[symbol]?.space === true;
 }
 
 // How far a symbol reaches across, and how far along itself, measured from what

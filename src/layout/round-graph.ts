@@ -21,6 +21,7 @@ import {
 } from './graph';
 import { bandBoundaries, buildBandGuide } from './grid-guide';
 import { curveChainRuns, fanMotifs, fanSpread, ringRoom } from './lace';
+import { CENTER_RING, CHAIN, makesSpace } from '../render/symbols';
 import { buildStitchLink } from './links';
 import { normalize } from './normalize';
 import { cropToSector } from './sector';
@@ -125,7 +126,7 @@ export function layoutRoundGraph(
 		if (round.stitches.length === 0) continue;
 		const contents = seamContentsOf(round, options.lace !== true, lace);
 		const reach = seamReachOf(graph, round, previousRound);
-		radius = nextRadius(radius, previousCount, roundCircumference(round, contents, reach, radius, lace));
+		radius = nextRadius(radius, previousCount, roundCircumference(round, contents, reach, radius, lace, style));
 
 		// Where this round's stitches reach to: the far edge of its own band.
 		const topRadius = radius + options.ringSpacing / 2;
@@ -159,7 +160,7 @@ export function layoutRoundGraph(
 		// rather than assumed to match the round's opening one for one.
 		let slot = 0;
 		round.start.forEach((unit, index) => {
-			if (unit.type === 'StitchNode' && unit.stitch === 'MR') return;
+			if (unit.type === 'StitchNode' && unit.stitch === CENTER_RING) return;
 			const inRun = opening !== undefined && index >= opening.from && index < opening.from + opening.length;
 			const angle = seam.start[slot] ?? seam.step;
 			if (inRun) {
@@ -319,17 +320,21 @@ const MIN_CHAIN_SCALE = 0.72;
 // ring or a slip stitch across to where the round starts may come first, so the
 // run is looked for rather than assumed to be at the front.
 function standingChainRun(start: readonly LayoutUnit[]): { from: number; length: number } | undefined {
-	const from = start.findIndex((unit) => unit.type === 'StitchNode' && unit.stitch === 'ch');
+	const opens = (unit: LayoutUnit | undefined): boolean =>
+		unit?.type === 'StitchNode' && makesSpace(unit.stitch);
+	const from = start.findIndex((unit) => opens(unit));
 	if (from < 0) return undefined;
 	let length = 0;
-	while (start[from + length]?.type === 'StitchNode' && (start[from + length] as { stitch: string }).stitch === 'ch') {
-		length++;
-	}
+	while (opens(start[from + length])) length++;
 	return { from, length };
 }
 
 // One chain of that run, standing out of the chart and stacked across the
 // round's band with the rest of it.
+function chainSymbol(unit: LayoutUnit): string {
+	return unit.type === 'StitchNode' ? unit.stitch : CHAIN;
+}
+
 function standingChain(
 	unit: LayoutUnit,
 	inner: number,
@@ -344,7 +349,7 @@ function standingChain(
 	// A round with room to spare leaves the rest of it empty; a round without
 	// enough shares out what it has and draws the chains smaller, so the run
 	// never reaches past the round it opens into the round above.
-	const own = 2 * symbolHalfWidth('ch');
+	const own = 2 * symbolHalfWidth(chainSymbol(unit));
 	const step = Math.min(own + CHAIN_GAP, depth / run);
 	const scale = Math.max(MIN_CHAIN_SCALE, Math.min(1, (step - CHAIN_GAP) / own));
 	// The run is hung from the top of the round, not stood on the bottom of it:
@@ -354,7 +359,7 @@ function standingChain(
 	const radius = inner + depth - step * (run - index - 0.5);
 	const radians = (angle * Math.PI) / 180;
 	return {
-		symbol: 'ch',
+		symbol: chainSymbol(unit),
 		scale,
 		x: radius * Math.cos(radians),
 		y: radius * Math.sin(radians),
@@ -411,7 +416,7 @@ function instructionSymbols(units: readonly LayoutUnit[]): string[] {
 // What a round's opening asks the seam to keep clear. The ring is drawn at the
 // middle of the chart, not here, so it asks for nothing.
 function seamStart(start: readonly LayoutUnit[], lace: boolean): string[] {
-	const symbols = instructionSymbols(start).filter((symbol) => symbol !== 'MR');
+	const symbols = instructionSymbols(start).filter((symbol) => symbol !== CENTER_RING);
 	return lace ? collapseChainRun(symbols) : symbols;
 }
 
@@ -419,7 +424,7 @@ function seamStart(start: readonly LayoutUnit[], lace: boolean): string[] {
 function collapseChainRun(symbols: readonly string[]): string[] {
 	const kept: string[] = [];
 	for (const symbol of symbols) {
-		if (symbol === 'ch' && kept[kept.length - 1] === 'ch') continue;
+		if (makesSpace(symbol) && kept[kept.length - 1] === symbol) continue;
 		kept.push(symbol);
 	}
 	return kept;
@@ -493,11 +498,38 @@ function roundCircumference(
 	reach: { start: number; end: number },
 	previousRadius: number,
 	lace: boolean,
+	style: 'japanese' | 'continuous',
 ): number {
-	const stitches = lace ? placeRoom(round) : round.stitches.reduce((total, s) => total + ringRoom(s.symbol), 0);
+	const stitches = lace ? placeRoom(round) : drawnRoom(round, style);
 	// The reach is measured where it is drawn: on the round below's ring.
 	const reachArc = ((reach.start + reach.end) * Math.PI * previousRadius) / 180;
 	return stitches + seamArc(contents) + reachArc;
+}
+
+// How much ring a round needs for what it actually draws.
+//
+// A stitch an increase or a decrease stands for has no symbol of its own in
+// japanese style: the V or the ∧ is drawn across the pair, so the round needs
+// room for that one mark rather than for the stitches it replaces. Sized by the
+// stitches, a round of increases asks for twice the ring it needs and is pushed
+// out to a radius it never had to reach — which the minimum gaps already knew,
+// and only this did not.
+function drawnRoom(round: StitchRound, style: 'japanese' | 'continuous'): number {
+	let total = 0;
+	for (const group of round.groups) {
+		const symbols = group.targetIds.map(
+			(id) => round.stitches.find((stitch) => stitch.id === id)?.symbol ?? 'sc',
+		);
+		const marked = style === 'japanese' && group.mark !== undefined;
+		if (!marked) {
+			total += symbols.reduce((sum, symbol) => sum + ringRoom(symbol), 0);
+			continue;
+		}
+		const symbol = symbols[0] ?? 'sc';
+		total +=
+			(group.mark === 'increase' ? markOpening(symbol) : 2 * markHalfWidth(symbol)) + SYMBOL_CLEARANCE;
+	}
+	return total;
 }
 
 // How much ring a lace round needs: one stitch's room for each thing that
@@ -508,8 +540,8 @@ function placeRoom(round: StitchRound): number {
 	let total = 0;
 	let chains = false;
 	for (const stitch of round.stitches) {
-		if (stitch.symbol === 'ch') {
-			if (!chains) total += ringRoom('ch');
+		if (makesSpace(stitch.symbol)) {
+			if (!chains) total += ringRoom(stitch.symbol);
 			chains = true;
 			continue;
 		}
@@ -634,7 +666,7 @@ function minStitchGaps(
 	const runStarts = new Set<string>();
 	let inRun = false;
 	for (const stitch of round.stitches) {
-		if (stitch.symbol !== 'ch') {
+		if (!makesSpace(stitch.symbol)) {
 			inRun = false;
 			continue;
 		}
@@ -648,9 +680,9 @@ function minStitchGaps(
 		// lace the whole run asks once: given nothing at all its chains would
 		// share one angle and be drawn over each other, and given a share each
 		// the round would be spent on chains laid end to end.
-		if (stitch.symbol === 'ch') {
-			if (!lace) return ringRoom('ch') / 2;
-			return runStarts.has(stitch.id) ? ringRoom('ch') / 2 : 0;
+		if (makesSpace(stitch.symbol)) {
+			if (!lace) return ringRoom(stitch.symbol) / 2;
+			return runStarts.has(stitch.id) ? ringRoom(stitch.symbol) / 2 : 0;
 		}
 		if (style === 'continuous' || round.groups[stitch.unitIndex]?.mark === undefined) {
 			return symbolExtent(stitch.symbol);
@@ -727,7 +759,7 @@ function ancestryTargets(
 // The stitches of a group that stand on the round: everything but its chains.
 function standingChildren(round: StitchRound, targetIds: readonly string[] | undefined): string[] {
 	if (targetIds === undefined) return [];
-	return targetIds.filter((id) => round.stitches.find((stitch) => stitch.id === id)?.symbol !== 'ch');
+	return targetIds.filter((id) => !makesSpace(round.stitches.find((stitch) => stitch.id === id)?.symbol ?? ''));
 }
 
 // Rotation for an evenly spread round that still wants to line up with its

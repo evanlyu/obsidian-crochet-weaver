@@ -266,7 +266,9 @@ function serializeNode(node: AstNode, locale: Locale, style: PatternTextStyle): 
 		case 'TurnNode':
 			return style === 'readable' ? t(locale, 'tool.turn') : 'turn';
 		case 'JoinNode':
-			return style === 'readable' ? t(locale, 'tool.join') : 'sl st to join';
+			if (style === 'readable') return t(locale, 'tool.join');
+			if (node.target === 'beginning-ch') return 'sl st to top of beginning ch';
+			return node.target === 'first' ? `sl st to first ${node.stitch ?? 'st'}` : 'sl st to join';
 		case 'RepositionNode':
 			return style === 'readable'
 				? t(locale, 'tool.reposition', { target: targetText(node.target, locale, style) })

@@ -1,3 +1,4 @@
+import { CHAIN, makesSpace } from '../render/symbols';
 import type { GraphStitch } from './graph';
 
 // What a round leaves for the next round to work into, in working order.
@@ -35,14 +36,14 @@ export function placesOf(roundIndex: number, stitches: readonly GraphStitch[]): 
 			roundIndex,
 			index: places.length,
 			kind: 'space',
-			type: `ch-${chains.length} sp`,
+			type: `${chains[0]?.symbol ?? CHAIN}-${chains.length} sp`,
 			stitchIds: chains.map((chain) => chain.id),
 		});
 		chains = [];
 	};
 
 	for (const stitch of stitches) {
-		if (stitch.symbol === 'ch') {
+		if (makesSpace(stitch.symbol)) {
 			chains.push(stitch);
 			continue;
 		}

@@ -1,5 +1,6 @@
 import type { GridPoint, MotifStitch, RenderItem } from '../types';
 import { symbolArc, symbolHalfHeight, symbolHalfWidth, SYMBOL_CLEARANCE } from './constants';
+import { makesSpace, symbolStem } from '../render/symbols';
 import { FOUNDATION_ID, type GraphStitch, type StitchGraph, type StitchRound } from './graph';
 import { symbolAngle } from './polar';
 
@@ -46,7 +47,7 @@ const CHAIN_CHORD_SHARE = 0.55;
 // lace is about. (Measured: a round of twelve five-double shells wants 372° of
 // a 360° ring when the ring is sized by width alone.)
 export function ringRoom(symbol: string): number {
-	return symbol === 'ch' ? symbolArc(symbol) * CHAIN_CHORD_SHARE : symbolArc(symbol);
+	return makesSpace(symbol) ? symbolArc(symbol) * CHAIN_CHORD_SHARE : symbolArc(symbol);
 }
 
 // Stand every stitch of a motif on the place it is worked into: feet together
@@ -71,7 +72,7 @@ export function fanMotifs(
 	// rather than sitting on a circle of their own well outside it.
 	if (round.groups.every((group) => group.sourceIds[0] === FOUNDATION_ID)) {
 		for (const stitch of round.stitches) {
-			if (stitch.layout === undefined || stitch.drawn === false || stitch.symbol === 'ch') continue;
+			if (stitch.layout === undefined || stitch.drawn === false || makesSpace(stitch.symbol)) continue;
 			const radians = (stitch.layout.angle * Math.PI) / 180;
 			const reach = Math.max(bandOuter, stitch.layout.radius + symbolHalfHeight(stitch.symbol));
 			const head = { x: reach * Math.cos(radians), y: reach * Math.sin(radians) };
@@ -108,7 +109,7 @@ export function fanMotifs(
 		// row of shells read as a row of shells rather than as a drift of them.
 		const standing = group.targetIds
 			.map((id) => graph.byId.get(id))
-			.filter((stitch): stitch is GraphStitch => stitch?.layout !== undefined && stitch.symbol !== 'ch');
+			.filter((stitch): stitch is GraphStitch => stitch?.layout !== undefined && !makesSpace(stitch.symbol));
 		const upright = (Math.atan2(foot.y, foot.x) * 180) / Math.PI;
 		const opening = degreesOf(fanSpread(standing[0]?.symbol ?? 'dc'), bandOuter);
 
@@ -152,17 +153,6 @@ export function fanMotifs(
 // height.
 const BAR_SPACING_SHARE = 0.45;
 
-// How many bars a stitch carries across its stem, which is how a chart says how
-// tall it is: none for a single crochet, one for a half double, and one more
-// for every step up from there.
-const STITCH_BARS: Record<string, number> = {
-	sc: 0,
-	hdc: 0,
-	dc: 1,
-	tr: 2,
-	dtr: 3,
-};
-
 // A stitch drawn as the lines it is made of: the stem it stands on, the head it
 // is worked into from above, and the bars that say how tall it is. Read off the
 // same symbol sizes everything else on the chart is drawn at.
@@ -184,19 +174,20 @@ function stitchSegments(symbol: string, foot: Point, head: Point): GridPoint[][]
 		y: head.y + along.y * down + across.y * offset,
 	});
 
+	// What this stitch is made of is a fact about the stitch, kept beside the
+	// symbol that draws the same thing at a fixed size (see render/symbols.ts).
+	const { bars, head: headMark } = symbolStem(symbol);
+
 	const segments: GridPoint[][] = [[foot, head]];
-	if (symbol === 'sc') {
-		// A single crochet is its cross, drawn at the head.
+	if (headMark === 'cross') {
 		const arm = own / 3;
 		segments.push([at(-arm, -half), at(arm, half)], [at(-arm, half), at(arm, -half)]);
 		return segments;
 	}
 
-	// The bar every taller stitch is topped with.
+	// The bar the stitch is topped with, then the bars down it that say how tall
+	// it is, close under the head and never further down than the stitch is long.
 	segments.push([at(0, -half), at(0, half)]);
-	// ...and the bars down it that say how tall it is, close under the head and
-	// never further down than the stitch itself is long.
-	const bars = STITCH_BARS[symbol] ?? 1;
 	const spacing = Math.min(own * BAR_SPACING_SHARE, length / (bars + 1));
 	for (let bar = 0; bar < bars; bar++) {
 		const down = spacing * (bar + 1);

@@ -1,3 +1,4 @@
+import { CENTER_RING, makesSpace } from '../render/symbols';
 import type { AstNode, BeginningChain, CrochetAst, RawCrochetAst, RowNode, RowRepeatNode } from '../types';
 import { CHART_BUDGET, ChartBudgetError } from './budget';
 import { PatternError } from './pattern-error';
@@ -98,8 +99,8 @@ function openingChainIndex(steps: readonly AstNode[]): number {
 	for (const [index, step] of steps.entries()) {
 		if (step.type === 'TurnNode' || step.type === 'RepositionNode') continue;
 		if (step.type !== 'StitchNode') return -1;
-		if (step.stitch === 'MR') continue;
-		return step.stitch === 'ch' && step.target === undefined ? index : -1;
+		if (step.stitch === CENTER_RING) continue;
+		return makesSpace(step.stitch) && step.target === undefined ? index : -1;
 	}
 	return -1;
 }

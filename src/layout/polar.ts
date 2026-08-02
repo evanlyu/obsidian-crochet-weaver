@@ -1,11 +1,12 @@
 import type { CrochetAst, RenderItem } from '../types';
+import { CENTER_RING } from '../render/symbols';
 import { arcToDegrees } from './angles';
 import { CH_RING_COUNT, chRingRadius, symbolExtent, SYMBOL_CLEARANCE } from './constants';
 import { flattenGroup, type LayoutUnit } from './steps';
 
 export function pushCenterAnchor(ast: CrochetAst, items: RenderItem[]) {
 	const anchor = ast.rows[0]?.anchor ?? writtenAnchor(ast);
-	if (anchor === 'MR') {
+	if (anchor === CENTER_RING) {
 		items.push({ symbol: 'MR', x: 0, y: 0, rotation: 0 });
 	} else if (anchor === 'ch ring') {
 		const ringRadius = chRingRadius();
@@ -65,7 +66,7 @@ function fanStep(children: readonly string[], radius: number): number {
 // What is drawn around the center is kept outside it.
 export function centerExtent(ast: CrochetAst): number {
 	const anchor = ast.rows[0]?.anchor ?? writtenAnchor(ast);
-	if (anchor === 'MR') return symbolExtent('MR');
+	if (anchor === CENTER_RING) return symbolExtent(CENTER_RING);
 	if (anchor === 'ch ring') return chRingRadius() + symbolExtent('ch');
 	return 0;
 }
@@ -98,7 +99,7 @@ export // A first round may name its centre as a step ("R1: mr, ch, sc6, slst")
 // instead of as an anchor ("R1: 6 sc in MR"); both mean the same ring.
 function writtenAnchor(ast: CrochetAst): 'MR' | undefined {
 	const opens = ast.rows[0]?.steps[0];
-	return opens?.type === 'StitchNode' && opens.stitch === 'MR' ? 'MR' : undefined;
+	return opens?.type === 'StitchNode' && opens.stitch === CENTER_RING ? CENTER_RING : undefined;
 }
 
 export function symbolAngle(phiDeg: number): number {

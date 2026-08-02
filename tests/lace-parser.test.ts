@@ -83,13 +83,19 @@ describe('lace pattern parsing: beginning chains, joins, and repositioning', () 
 		expect(parsed.steps[0]).toMatchObject({ type: 'StitchNode', stitch: 'ch', count: 1, beginning: { counts: false } });
 	});
 
+	it('closes to whichever stitch the pattern names, not only to a single crochet', () => {
+		const firstDc = round(chart('R1: ch 3, 5 dc, sl st to first dc.'), 1);
+
+		expect(firstDc.steps.at(-1)).toMatchObject({ type: 'JoinNode', target: 'first', stitch: 'dc' });
+	});
+
 	it('parses the three written join forms', () => {
 		const beginning = round(chart('R1: ch 3, 5 dc, sl st to top of beginning ch-3.'), 1);
 		const firstSc = round(chart('R1: ch 1, 6 sc, sl st to first sc.'), 1);
 		const generic = round(chart('R1: ch 1, 6 sc, sl st to join.'), 1);
 
 		expect(beginning.steps.at(-1)).toMatchObject({ type: 'JoinNode', target: 'beginning-ch' });
-		expect(firstSc.steps.at(-1)).toMatchObject({ type: 'JoinNode', target: 'first-sc' });
+		expect(firstSc.steps.at(-1)).toMatchObject({ type: 'JoinNode', target: 'first', stitch: 'sc' });
 		expect(generic.steps.at(-1)).toMatchObject({ type: 'JoinNode', target: 'join' });
 	});
 

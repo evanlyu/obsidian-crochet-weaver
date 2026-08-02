@@ -56,6 +56,11 @@ The system SHALL take every chart size from the symbols, motifs, curves, seam in
 - **WHEN** a flat chart contains stitches wider or taller than a single crochet
 - **THEN** its stitch pitch and row height SHALL grow to hold them, uniformly across the chart so its rows still line up in columns and aligned background geometry still has columns to draw
 
+#### Scenario: A round sized by what it draws, not by what the drawing stands for
+- **WHEN** a round's increases or decreases are drawn as the V or ∧ that stands for the stitches they make, rather than as those stitches
+- **THEN** the ring SHALL be long enough for the marks it draws, not for the stitches they replace — a round of increases SHALL NOT be pushed out to a radius sized for twice the symbols it draws
+- **AND** the same round drawn in a style that keeps every stitch's own symbol SHALL still be given a ring long enough for all of them
+
 #### Scenario: Nothing is drawn over the center anchor
 - **WHEN** a round or spiral chart is worked into a magic ring or a chain ring
 - **THEN** the first stitches and the innermost guide line SHALL be placed outside what that anchor is drawn as, measured from it rather than from a fixed radius
