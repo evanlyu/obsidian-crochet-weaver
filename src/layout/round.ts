@@ -1,12 +1,20 @@
 import type { ColorMarker, CrochetAst, LayoutOptions, LayoutResult, RenderItem } from '../types';
-import { BASE_RADIUS, symbolArc, symbolExtent, symbolHalfHeight, SYMBOL_CLEARANCE } from './constants';
+import {
+	BASE_RADIUS,
+	OPENING_SLIP_STITCH_OFFSET,
+	symbolArc,
+	symbolExtent,
+	symbolHalfHeight,
+	SYMBOL_CLEARANCE,
+} from './constants';
 import { buildRingGuide } from './grid-guide';
 import { normalize } from './normalize';
 import { centerExtent, placeUnitPolar, pushCenterAnchor } from './polar';
 import { layoutRoundGraph } from './round-graph';
-import { placeSeam, seamArc, seamGapDegrees, type SeamContents } from './seam';
+import { openingSeamSymbols, placeSeam, seamArc, seamGapDegrees, type SeamContents } from './seam';
 import {
 	firstDrawnSymbol,
+	isStackedOpeningSlipStitch,
 	outputStitches,
 	roundInstructions,
 	tagLoop,
@@ -83,7 +91,7 @@ function layoutRoundStandard(ast: CrochetAst, options: LayoutOptions): LayoutRes
 		const seam: SeamContents = {
 			lastStitch: drawn[drawn.length - 1] ?? 'sc',
 			firstStitch: drawn[0] ?? 'sc',
-			start: symbolsOf(opening),
+			start: openingSeamSymbols(symbolsOf(opening)),
 			end: symbolsOf(end),
 		};
 		radius = nextRadius(
@@ -108,8 +116,20 @@ function layoutRoundStandard(ast: CrochetAst, options: LayoutOptions): LayoutRes
 		// there by the same rules the graph-driven styles use (layout/seam.ts) so
 		// neither lands on a stitch or on the other.
 		const region = placeSeam(seam, -90 - (units.length - 1) * stitchStep, -90 - 360, radius);
+		let openingSlot = 0;
 		opening.forEach((unit, index) => {
-			placeUnitPolar(items, unit, radius, region.start[index] ?? region.step, rowIndex, undefined, true);
+			const stacked = isStackedOpeningSlipStitch(opening, index);
+			placeUnitPolar(
+				items,
+				unit,
+				radius,
+				region.start[openingSlot] ?? region.step,
+				rowIndex,
+				undefined,
+				true,
+				stacked ? { x: OPENING_SLIP_STITCH_OFFSET, y: -OPENING_SLIP_STITCH_OFFSET } : undefined,
+			);
+			if (!stacked) openingSlot++;
 		});
 		units.forEach((unit, i) => {
 			const itemStart = items.length;

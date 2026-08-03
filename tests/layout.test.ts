@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { calculateLayout, roundStitchCount, unitStitchCounts } from '../src/layout';
-import { symbolExtent, symbolHalfHeight } from '../src/layout/constants';
+import { labelExtent, ROUND_CHANGE_ARC, symbolExtent, symbolHalfHeight } from '../src/layout/constants';
 import { rowWrittenCount, writtenUnitWeights } from '../src/pattern/count';
 import { parse } from '../src/pattern/parser';
 import { parseChart as parsePattern } from '../src/pattern/parse-chart';
+import { placeSeam, seamArc, type SeamContents } from '../src/layout/seam';
 import type { CrochetAst, GridPoint, LayoutResult, RenderItem, RowNode, ShapingMark } from '../src/types';
 
 const OPTIONS = {
@@ -157,8 +158,19 @@ R1: 6 sc, sl st in MR
 				const firstStitch = stitches[0];
 				const secondStitch = stitches[1];
 				if (!firstStitch || !secondStitch) throw new Error('expected stitches');
+				if (opening.symbols.length === 2) {
+					const slipStitch = instructions[0];
+					const chain = instructions[1];
+					if (!slipStitch || !chain) throw new Error('expected opening slip stitch and chain');
+					expect(slipStitch.x - chain.x).toBeCloseTo(5, 6);
+					expect(slipStitch.y - chain.y).toBeCloseTo(-5, 6);
+					expect(distance(chain, center)).toBeCloseTo(distance(firstStitch, center), 9);
+				} else {
+					for (const instruction of instructions) {
+						expect(distance(instruction, center)).toBeCloseTo(distance(firstStitch, center), 9);
+					}
+				}
 				for (const instruction of instructions) {
-					expect(distance(instruction, center)).toBeCloseTo(distance(firstStitch, center), 9);
 					expect(distance(instruction, firstStitch)).toBeLessThan(distance(instruction, secondStitch));
 				}
 			}
@@ -657,9 +669,10 @@ describe('traditional-Japanese round layout', () => {
 			return Math.max(...pitches) / Math.min(...pitches);
 		}
 
-		// A plain round starts on its first parent, then uses the arc that would
-		// otherwise make its inherited seam wider at this larger radius.
-		it('keeps a plain round anchored while sharing released seam room across its stitches', () => {
+		// A plain round uses the arc that would otherwise make its inherited seam
+		// wider at this larger radius. Aligning the round number may turn the round
+		// by a fraction of a stitch, but it must remain close to its ancestry.
+		it('keeps a plain round with its parents while sharing released seam room across its stitches', () => {
 			const layout = calculateLayout(
 				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: 18 sc\n'),
 				LINKED,
@@ -674,11 +687,9 @@ describe('traditional-Japanese round layout', () => {
 				if (!parent) throw new Error('expected the stitch below');
 				return angleDiff(angleOf(center, stitch), angleOf(center, parent));
 			});
-			expect(drifts[0]).toBeCloseTo(0, 9);
-			expect(drifts.at(-1)).toBeGreaterThan(0);
-			for (let index = 1; index < drifts.length; index++) {
-				expect(drifts[index]).toBeGreaterThanOrEqual((drifts[index - 1] ?? 0) - 1e-9);
-			}
+			expect(drifts[0]).toBeLessThan(driftDegrees(18));
+			expect(drifts.at(-1)).toBeGreaterThan(drifts[0] ?? 0);
+			for (const drift of drifts) expect(drift).toBeLessThan(driftDegrees(18));
 		});
 
 		it('keeps a run of plain rounds anchored while letting their stitch pitches grow', () => {
@@ -690,8 +701,8 @@ describe('traditional-Japanese round layout', () => {
 			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
 
 			// Each larger ring has more usable circumference after reserving the
-			// same physical seam width. Its first stitch remains the radial anchor;
-			// the closing side moves into the released room.
+			// same physical seam width. Number alignment may turn its opening by a
+			// fraction of a stitch; the closing side also uses the released room.
 			for (let rowIndex = 3; rowIndex <= 7; rowIndex++) {
 				const stitches = round(layout, rowIndex);
 				const first = stitches[0];
@@ -700,7 +711,7 @@ describe('traditional-Japanese round layout', () => {
 				const firstParent = byId.get(first.sourceStitchIds?.[0]);
 				const lastParent = byId.get(last.sourceStitchIds?.[0]);
 				if (!firstParent || !lastParent) throw new Error('expected parent stitches');
-				expect(angleDiff(angleOf(center, first), angleOf(center, firstParent))).toBeCloseTo(0, 9);
+				expect(angleDiff(angleOf(center, first), angleOf(center, firstParent))).toBeLessThan(driftDegrees(18));
 				expect(angleDiff(angleOf(center, last), angleOf(center, lastParent))).toBeGreaterThan(0);
 				const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
 				expect(average(pitchesOf(layout, rowIndex))).toBeGreaterThan(average(pitchesOf(layout, rowIndex - 1)));
@@ -1243,6 +1254,27 @@ describe('traditional-Japanese round layout', () => {
 			}
 		});
 
+		it('leaves the same readable margin before the number and after the round-change line', () => {
+			const contents: SeamContents = {
+				lastStitch: 'sc',
+				firstStitch: 'sc',
+				start: [],
+				end: [],
+				label: '1',
+			};
+
+			for (const radius of [22, 42, 100]) {
+				const first = -450;
+				const last = first + (seamArc(contents) / radius) * 180 / Math.PI;
+				const seam = placeSeam(contents, last, first, radius);
+				const arc = (from: number, to: number) => Math.abs(to - from) * Math.PI * radius / 180;
+				const beforeLabel = arc(first, seam.label) - symbolExtent('sc') - labelExtent('1');
+				const afterStep = arc(seam.step, last) - ROUND_CHANGE_ARC / 2 - symbolExtent('sc');
+				expect(beforeLabel).toBeCloseTo(10, 6);
+				expect(afterStep).toBeCloseTo(10, 6);
+			}
+		});
+
 		// A decrease is drawn down onto the stitches it closed over, and those sit
 		// either side of the one it makes — so a round that opens or closes with one
 		// draws out past its own first or last stitch. That reach is part of what
@@ -1589,12 +1621,30 @@ describe('a chart that names its own round spacing', () => {
 });
 
 describe('where a chart changes rounds', () => {
-	// Every round starts where the round below started — its first stitch is
-	// worked into the first stitch of the round below — so the starts stand on
-	// one radial line. Shaping a round re-spaces it, and closing its seam spreads
-	// it, and neither of those knows where the round began; unanchored, the line
-	// of round starts curved away round the chart.
-	it('starts every round on the same line, shaping or not', () => {
+	it('offsets the first round number while keeping its first stitch near twelve o’clock', () => {
+		const layout = calculateLayout(
+			parsePattern('---\ntype: round\n---\nR1: sl st, ch, 6 sc in MR\n'),
+			{ ringSpacing: 20, grid: false, roundStyle: 'continuous' },
+		);
+		const center = layout.items.find((item) => item.symbol === 'MR');
+		const label = layout.labels?.[0];
+		if (!center || !label) throw new Error('expected center and first round number');
+
+		const bearing = (Math.atan2(label.y - center.y, label.x - center.x) * 180) / Math.PI;
+		const first = layout.items.find((item) => item.rowIndex === 0 && item.stitchId !== undefined);
+		if (!first) throw new Error('expected first stitch');
+		const firstBearing = (Math.atan2(first.y - center.y, first.x - center.x) * 180) / Math.PI;
+		expect(bearing).toBeCloseTo(-55, 6);
+		expect(firstBearing).toBeGreaterThan(-105);
+		expect(firstBearing).toBeLessThan(-85);
+	});
+
+	// A number is a fixed distance from its first stitch in px, which is a
+	// smaller angle on every larger radius. Anchoring the stitches therefore
+	// bends the numbers into a J; turn each ordinary round by that small
+	// difference so the numbers, rather than their adjacent stitches, share the
+	// radial guide.
+	it('keeps round numbers on one radial line through increases and plain rounds', () => {
 		const layout = calculateLayout(
 			parseChart(
 				'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [sc, inc] x 3\nR3: [2 sc, inc] x 3\nR4: [3 sc, inc] x 3\nR5: 15 sc\nR6: 15 sc\n',
@@ -1606,14 +1656,12 @@ describe('where a chart changes rounds', () => {
 		const bearing = (item: { x: number; y: number }) =>
 			(Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
 
-		const starts = [0, 1, 2, 3, 4, 5].map((rowIndex) => {
-			const first = layout.items.find((item) => item.rowIndex === rowIndex);
-			if (!first) throw new Error(`expected a first stitch on round ${rowIndex + 1}`);
-			return bearing(first);
-		});
+		const labels = layout.labels ?? [];
+		expect(labels).toHaveLength(6);
+		const numbers = labels.map(bearing);
 
-		for (const start of starts) {
-			expect(((start - starts[0]! + 540) % 360) - 180).toBeCloseTo(0, 9);
+		for (const number of numbers) {
+			expect(((number - numbers[0]! + 540) % 360) - 180).toBeCloseTo(0, 9);
 		}
 	});
 
@@ -1678,6 +1726,14 @@ describe('where a chart changes rounds', () => {
 			});
 
 			expect(Math.max(...seamWidths) - Math.min(...seamWidths)).toBeLessThan(1);
+			const labels = layout.labels ?? [];
+			const firstLabel = labels[0];
+			const secondLabel = labels[1];
+			if (!firstLabel || !secondLabel) throw new Error('expected two round numbers');
+			const firstAngle = Math.atan2(firstLabel.y - center.y, firstLabel.x - center.x);
+			const secondAngle = Math.atan2(secondLabel.y - center.y, secondLabel.x - center.x);
+			const labelDelta = Math.abs(Math.atan2(Math.sin(firstAngle - secondAngle), Math.cos(firstAngle - secondAngle)));
+			expect(labelDelta).toBeLessThan(Math.PI / 360);
 		}
 	});
 
@@ -1723,6 +1779,16 @@ R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
 		for (const side of ['width', 'openingSide', 'closingSide'] as const) {
 			const widths = seams.map((seam) => seam[side]);
 			expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(1);
+		}
+		const labelAngles = (layout.labels ?? []).map((label) =>
+			Math.atan2(label.y - center.y, label.x - center.x),
+		);
+		const labelOffsets = labelAngles.map((angle) =>
+			Math.atan2(Math.sin(angle - (labelAngles[0] ?? angle)), Math.cos(angle - (labelAngles[0] ?? angle))),
+		);
+		expect(Math.max(...labelOffsets) - Math.min(...labelOffsets)).toBeLessThan(Math.PI / 360);
+		for (const angle of labelAngles) {
+			expect((angle * 180) / Math.PI).toBeCloseTo(-55, 6);
 		}
 	});
 });

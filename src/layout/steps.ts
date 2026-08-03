@@ -1,4 +1,4 @@
-import { CENTER_RING, JOINING_STITCH, makesSpace } from '../render/symbols';
+import { CENTER_RING, CHAIN, JOINING_STITCH, makesSpace } from '../render/symbols';
 import type {
 	AstNode,
 	CrochetAst,
@@ -187,6 +187,14 @@ function poppedUnits(row: RowNode): LayoutUnit[] {
 
 export function isSlSt(unit: LayoutUnit | undefined): boolean {
 	return unit?.type === 'StitchNode' && unit.stitch === JOINING_STITCH;
+}
+
+// A repositioning slip stitch followed by the chain that opens the round is
+// printed as one stacked pair: the dot sits above-right of the chain rather
+// than taking another place around the seam.
+export function isStackedOpeningSlipStitch(units: readonly LayoutUnit[], index: number): boolean {
+	const next = units[index + 1];
+	return isSlSt(units[index]) && next?.type === 'StitchNode' && next.stitch === CHAIN;
 }
 
 export function tagLoop(items: RenderItem[], start: number, loop?: 'blo' | 'flo') {

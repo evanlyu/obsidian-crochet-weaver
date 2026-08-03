@@ -1,4 +1,4 @@
-import type { CrochetAst, RenderItem } from '../types';
+import type { CrochetAst, GridPoint, RenderItem } from '../types';
 import { CENTER_RING } from '../render/symbols';
 import { arcToDegrees } from './angles';
 import { CH_RING_COUNT, chRingRadius, OPENING_TURN_SCALE, symbolExtent, SYMBOL_CLEARANCE } from './constants';
@@ -33,17 +33,20 @@ export function placeUnitPolar(
 	// What the round opens with, rather than a stitch of it: drawn a quarter
 	// turn round, lying across the ring instead of along it, and a little
 	// smaller than the stitches — it is the turn up to the first stitch, not a
-	// stitch standing in the ring (see placeStart in layout/seam.ts).
+	// stitch standing in the ring (see placeSeam in layout/seam.ts).
 	opening = false,
+	offset?: GridPoint,
 ) {
 	if (unit.type === 'StitchNode') {
-		items.push(polarItem(unit.stitch, radius, phiDeg, rowIndex, unitIndex, unit.color, opening));
+		items.push(polarItem(unit.stitch, radius, phiDeg, rowIndex, unitIndex, unit.color, opening, offset));
 	} else {
 		const children = flattenGroup(unit);
 		const mid = (children.length - 1) / 2;
 		const fan = fanStep(children, radius);
 		children.forEach((stitch, i) => {
-			items.push(polarItem(stitch, radius, phiDeg - (i - mid) * fan, rowIndex, unitIndex, unit.color, opening));
+			items.push(
+				polarItem(stitch, radius, phiDeg - (i - mid) * fan, rowIndex, unitIndex, unit.color, opening, offset),
+			);
 		});
 	}
 }
@@ -84,12 +87,13 @@ function polarItem(
 	unitIndex?: number,
 	color?: string,
 	opening = false,
+	offset?: GridPoint,
 ): RenderItem {
 	const rad = (phiDeg * Math.PI) / 180;
 	return {
 		symbol,
-		x: radius * Math.cos(rad),
-		y: radius * Math.sin(rad),
+		x: radius * Math.cos(rad) + (offset?.x ?? 0),
+		y: radius * Math.sin(rad) + (offset?.y ?? 0),
 		rotation: symbolAngle(phiDeg) + (opening ? QUARTER_TURN : 0),
 		rowIndex,
 		unitIndex,

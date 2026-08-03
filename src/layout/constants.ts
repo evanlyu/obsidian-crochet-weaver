@@ -56,6 +56,11 @@ export const SYMBOL_CLEARANCE = 2;
 // the seam, the symbol itself — reads it from here.
 export const OPENING_TURN_SCALE = 0.75;
 
+// A repositioning slip stitch immediately before an opening chain is drawn
+// above and to the right of that chain, the way Japanese charts stack the pair.
+// They share one angular seam slot; this screen-space offset separates them.
+export const OPENING_SLIP_STITCH_OFFSET = 5;
+
 // How wide the round change at a seam is drawn, as arc length in px: the gap each
 // band boundary leaves for the step out to the next round (layout/grid-guide.ts),
 // which is also the room the seam reserves for it (layout/seam.ts). One constant

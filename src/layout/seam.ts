@@ -7,6 +7,7 @@ import {
 	symbolHalfHeight,
 	symbolHalfWidth,
 } from './constants';
+import { CHAIN, JOINING_STITCH } from '../render/symbols';
 
 // The seam of a round: the wrap-around gap between its last stitch and its
 // first, where one round becomes the next.
@@ -38,6 +39,12 @@ import {
 // gap, and the stitches either side of the seam with a gap, and that is all the
 // room the seam takes beyond what it draws.
 const SEAM_AIR = 2;
+
+// Extra breathing room around the round-change pair: before the red round
+// number on its opening side, and after the step on its closing side. Equal on
+// both sides so the pair reads as one balanced marker rather than leaning into
+// either neighbouring instruction or stitch.
+const ROUND_CHANGE_SIDE_AIR = 8;
 
 // The step out to the next round's band: the width it is drawn at. It is drawn
 // nearly radially, so it needs no more than that.
@@ -84,10 +91,21 @@ export interface SeamRegion {
 	step: number;
 	// The round number, just past the step on the side the round opens.
 	label: number;
-	// One angle per closing slip stitch and one per opening chain, in the order
-	// they are worked — the joins before the step, the chains after the number.
+	// One angle per closing slip stitch and one per angular opening slot, in the
+	// order they are worked — the joins before the step, the openings after the
+	// number. A slip-stitch/chain pair stacked on one another shares one slot.
 	end: number[];
 	start: number[];
+}
+
+// What an opening spends around the seam. A repositioning slip stitch followed
+// by the opening chain is stacked on that chain, so the pair needs the chain's
+// angular slot only.
+export function openingSeamSymbols(symbols: readonly string[]): string[] {
+	const stacked = symbols.findIndex(
+		(symbol, index) => symbol === JOINING_STITCH && symbols[index + 1] === CHAIN,
+	);
+	return stacked < 0 ? [...symbols] : symbols.filter((_, index) => index !== stacked);
 }
 
 // How much arc the seam wants for what this round draws there, in px: the width
@@ -95,7 +113,8 @@ export interface SeamRegion {
 export function seamArc(contents: SeamContents): number {
 	const widths = seamWidths(contents);
 	const drawn = widths.reduce(sum, 0);
-	return drawn + SEAM_AIR * (widths.length - 1);
+	const sides = labelArc(contents.label) > 0 ? 2 * ROUND_CHANGE_SIDE_AIR : 0;
+	return drawn + SEAM_AIR * (widths.length - 1) + sides;
 }
 
 // Everything drawn at the seam, in the order it is drawn there, as the arc each
@@ -127,14 +146,16 @@ export function seamGapDegrees(contents: SeamContents, radius: number): number {
 // spilling its contents over the round's stitches.
 //
 // The walk starts at the stitch the round opens on and works backwards from it,
-// against the order the round is worked. Every round starts on the same radial
-// line (see anchorToStart in layout/round-graph.ts), so anchoring the seam there
-// puts the chain, the round number and the round change a fixed width out from
-// that line on every round — one straight channel, whatever the round's own gap
-// happens to be. Anchored in the middle of the gap instead, they were pushed
-// further out with every round: a round's seam is the same arc in px but a
-// wider and wider gap in px as the radius grows, so the surplus that gathered
-// around them grew with it and the numbers fanned away from the chart.
+// against the order the round is worked. That keeps the chain, the round number
+// and the round change a fixed width from one another on every round, whatever
+// the round's own gap happens to be. The graph layout may then turn the whole
+// round so its number shares one radial bearing with the other numbers; because
+// the turn is rigid, these physical distances do not change.
+//
+// Anchored in the middle of the gap instead, the contents were pushed further
+// out with every round: a round's seam is the same arc in px but a wider and
+// wider gap in px as the radius grows, so the surplus that gathered around them
+// grew with it and the numbers fanned away from the chart.
 //
 // What the round left over the seam's asking is therefore left in one piece, at
 // the far end: beside the stitch the round closed on, where there is nothing to
@@ -170,8 +191,10 @@ export function placeSeam(
 	// Backwards from the first stitch: the chain it stands on, the round number,
 	// the step out to the next round, then the joins that closed the round.
 	const start = walkBack(openingArcs(contents.start, lace), middleOf);
+	if (labelArc(contents.label) > 0) at += slot(ROUND_CHANGE_SIDE_AIR);
 	const label = middleOf(labelArc(contents.label));
 	const step = middleOf(STEP_ARC);
+	if (labelArc(contents.label) > 0) at += slot(ROUND_CHANGE_SIDE_AIR);
 	const end = walkBack(instructionArcs(contents.end, lace), middleOf);
 
 	return { step, label, end, start };
