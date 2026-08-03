@@ -15,7 +15,6 @@ import {
 	fitTurn,
 	meanAngle,
 	relaxSpacing,
-	shortestAngleDelta,
 } from './angles';
 import { symbolArc, symbolArcRoomy, symbolExtent, symbolHalfWidth, SYMBOL_CLEARANCE } from './constants';
 import { buildShapingMark } from './shaping';
@@ -80,10 +79,12 @@ function maxIncreaseSpread(symbol: string): number {
 const MAX_DRIFT_SHARE = 0.2;
 
 // ...and how much of a stitch a round may spend closing its seam back to the room
-// it needs (see closeSeam), on top of that. Spent by the stitches beside the seam
-// and by none of the ones opposite it, so what a round gives up to keep its seam
-// one width is a fifth of a stitch where the seam is and nothing where it isn't.
-const SEAM_CLOSE_SHARE = 0.2;
+// it needs (see closeSeam), on top of that. The round is turned back onto its own
+// start afterwards (see anchorToStart), so what closing costs is not shared
+// between the two ends of the round any more — all of it lands on the stitch the
+// round closed on. Half what it was, for that reason: the same closing, paid at
+// one end, must still leave that stitch over the one it is worked into.
+const SEAM_CLOSE_SHARE = 0.1;
 
 // How far apart the two stitches of an increase sit: the opening of the V drawn
 // across them, and no more — the pair is one symbol, so it takes one stitch's
@@ -139,10 +140,6 @@ export function layoutRoundGraph(
 	let radius = 0;
 	let previousRadius = 0;
 	let previousCount = -1;
-	// Where the round change sits, handed from one round to the next so it reads
-	// as one radial line rather than as a spiral (see alignSeam).
-	let seamCentre: number | undefined;
-
 	for (const round of graph.rounds) {
 		if (round.stitches.length === 0) continue;
 		const contents = seamContentsOf(round, options.lace !== true, lace);
@@ -170,9 +167,7 @@ export function layoutRoundGraph(
 			reach,
 			topRadius,
 			lace,
-			seamCentre,
 		);
-		seamCentre = seamCentreOf(angles);
 		round.stitches.forEach((stitch, index) => {
 			const angle = angles[index] ?? -90;
 			const radians = (angle * Math.PI) / 180;
@@ -612,7 +607,6 @@ function placeRound(
 	reach: { start: number; end: number },
 	topRadius: number,
 	lace: boolean,
-	seamCentre: number | undefined,
 ): number[] {
 	// A round drawn the other way about the chart is laid out in the order it is
 	// drawn — outermost angle first — and handed back in working order, so
@@ -620,15 +614,7 @@ function placeRound(
 	// round goes on.
 	const drawn = round.direction === -1 ? [...round.stitches].reverse() : round.stitches;
 	const angles = placeDrawnOrder(graph, { ...round, stitches: drawn }, previous, radius, style, contents, reach, topRadius, lace);
-	// The round change is one line across the chart, not a spiral. Where a round
-	// ends on an increase its last stitch sits half a spread short of the place
-	// below it, which moves the seam a degree or two; kept, that is handed to
-	// every round above and adds up — measured on a 41-round body, 37° by the
-	// last round. So the round is turned back onto the seam the round below
-	// left, which moves every stitch of it by the same fraction of a stitch and
-	// changes no gap inside it.
-	const turned = alignSeam(angles, seamCentre);
-	return round.direction === -1 ? [...turned].reverse() : turned;
+	return round.direction === -1 ? [...angles].reverse() : angles;
 }
 
 function placeDrawnOrder(
@@ -691,7 +677,7 @@ function placeDrawnOrder(
 	// Order and minimum spacing still apply: they are what stops two stitches
 	// being drawn over each other, and a round standing on the one below already
 	// satisfies them wherever the round below did.
-	const placed = fitTurn(enforceOrderAndGap(targets, minGaps), minGaps);
+	const placed = anchorToStart(fitTurn(enforceOrderAndGap(targets, minGaps), minGaps), aligned);
 	if (standsOnRoundBelow) return placed;
 
 	// An increase's two stitches sit closer together than the round's pitch —
@@ -703,7 +689,32 @@ function placeDrawnOrder(
 	// enough that the stitch stays over the one it is worked into. The plain
 	// rounds above have already returned above, keeping their columns exactly.
 	if (!movable.includes(true)) return placed;
-	return relaxSpacing(placed, movable, step * MAX_DRIFT_SHARE, minGaps);
+	return anchorToStart(relaxSpacing(placed, movable, step * MAX_DRIFT_SHARE, minGaps), aligned);
+}
+
+// Turn the round back onto the place its first stitch was aimed at.
+//
+// Every round starts where the round below it started: its first stitch is
+// worked into the first stitch of the round below, so ancestry aims it straight
+// out from there, and the rounds should read as one radial line of round
+// starts. Nothing above aims to move that line — but everything above moves it
+// anyway. Closing the seam spreads the round about the point opposite it, which
+// walks both its ends outward; fitting a round that asked for more than a turn
+// squeezes it; evening out nudges it. None of those knows where the round began,
+// so the start of each round crept round the chart, a few degrees a round, and
+// the run of round numbers curved away from the middle instead of standing on
+// one line.
+//
+// So the round is turned as a whole, by the one angle its first stitch was
+// moved. It is a rigid turn: no gap inside the round changes, nothing is
+// reordered, and whatever room the seam gained or lost is left where it belongs
+// — on the closing side, beside the stitch the round ended on.
+function anchorToStart(placed: readonly number[], targets: readonly number[]): number[] {
+	const from = placed[0];
+	const to = targets[0];
+	if (from === undefined || to === undefined || from === to) return [...placed];
+	const turn = from - to;
+	return placed.map((angle) => angle - turn);
 }
 
 // Is every stitch of this round drawn on one stitch of the round below, and on
@@ -737,27 +748,6 @@ function sitsOverParents(
 // How close a target has to be to its parent's angle to count as standing on
 // it. Not zero only because the arithmetic that got there is floating point.
 const ON_ITS_PARENT_DEG = 1e-9;
-
-// Where a round's seam sits: the middle of the wrap-around gap between its last
-// stitch and its first.
-function seamCentreOf(angles: readonly number[]): number | undefined {
-	const first = angles[0];
-	const last = angles[angles.length - 1];
-	return first === undefined || last === undefined ? undefined : (last + first - 360) / 2;
-}
-
-// Turn a round onto the seam the round below left, keeping every gap inside it.
-// Never by more than half a stitch: a round whose seam really does belong
-// somewhere else — one that cannot follow its ancestry at all — is left where
-// it was placed rather than dragged into line.
-function alignSeam(angles: readonly number[], seamCentre: number | undefined): number[] {
-	const own = seamCentreOf(angles);
-	if (own === undefined || seamCentre === undefined || angles.length < 2) return [...angles];
-	const step = 360 / angles.length;
-	const turn = shortestAngleDelta(seamCentre, own);
-	if (Math.abs(turn) > step / 2) return [...angles];
-	return angles.map((angle) => angle - turn);
-}
 
 // The stitches of a round that the next round works something across: an
 // increase splitting one of them in two, or a decrease closing over two of them.

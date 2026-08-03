@@ -1541,6 +1541,34 @@ describe('a chart that names its own round spacing', () => {
 });
 
 describe('where a chart changes rounds', () => {
+	// Every round starts where the round below started — its first stitch is
+	// worked into the first stitch of the round below — so the starts stand on
+	// one radial line. Shaping a round re-spaces it, and closing its seam spreads
+	// it, and neither of those knows where the round began; unanchored, the line
+	// of round starts curved away round the chart.
+	it('starts every round on the same line, shaping or not', () => {
+		const layout = calculateLayout(
+			parseChart(
+				'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [sc, inc] x 3\nR3: [2 sc, inc] x 3\nR4: [3 sc, inc] x 3\nR5: 15 sc\nR6: 15 sc\n',
+			),
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const bearing = (item: { x: number; y: number }) =>
+			(Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
+
+		const starts = [0, 1, 2, 3, 4, 5].map((rowIndex) => {
+			const first = layout.items.find((item) => item.rowIndex === rowIndex);
+			if (!first) throw new Error(`expected a first stitch on round ${rowIndex + 1}`);
+			return bearing(first);
+		});
+
+		for (const start of starts) {
+			expect(((start - starts[0]! + 540) % 360) - 180).toBeCloseTo(0, 9);
+		}
+	});
+
 	it('keeps the round change on one line, however many rounds there are', () => {
 		// Forty rounds of a body: plain rounds with an increase round every
 		// fourth, each working into the round below exactly once, which is where
