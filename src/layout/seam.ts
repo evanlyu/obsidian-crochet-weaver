@@ -31,15 +31,18 @@ const SEAM_AIR = 4;
 // either side. It is drawn nearly radially, so it needs no more than that.
 const STEP_ARC = ROUND_CHANGE_ARC + 2 * SEAM_AIR;
 
-// A round with few stitches would otherwise hand the seam a third of the chart.
-// So the gap is capped: at two stitches' worth of the round, plus one more for
-// every chain or join that has to be drawn in it, and never past a quarter turn.
-// Past that the seam crowds its own contents instead — a tight seam still reads
-// better than a round with a bite taken out of it. Rings are sized to leave room
-// for the seam (see roundCircumference), so this is a floor to fall back to, not
-// the usual case.
-const MIN_SEAM_SLOTS = 2;
-const MAX_SEAM_GAP_DEG = 90;
+// The seam is given the arc its contents ask for, because they are drawn at
+// their own size whatever room they are given: a gap capped below their asking
+// does not draw them smaller, it draws them over each other and over the
+// stitches either side of the gap. Rings are sized to hold the seam as well as
+// the stitches (see roundCircumference), so a round that asks honestly is
+// already round enough to pay — a first round of six stitches spends a wide
+// wedge on its chain, its join and its number because at that radius that is
+// what they measure, which is how a book draws it too.
+//
+// The cap that remains is a ceiling against the absurd, not a budget: whatever
+// a round is written as, the seam may not take half the chart.
+const MAX_SEAM_GAP_DEG = 180;
 
 // What a round draws at its seam. Symbols rather than counts, so each one is
 // given the room it actually takes; `label` is the round number, absent in the
@@ -90,10 +93,8 @@ export function seamArc(contents: SeamContents): number {
 
 // The gap a round has to leave between its last stitch and its first, in
 // degrees, so that everything drawn at the seam has room of its own.
-export function seamGapDegrees(contents: SeamContents, radius: number, stitchStep: number): number {
-	const wanted = arcToDegrees(seamArc(contents), radius);
-	const slots = MIN_SEAM_SLOTS + contents.start.length + contents.end.length;
-	return Math.min(wanted, slots * stitchStep, MAX_SEAM_GAP_DEG);
+export function seamGapDegrees(contents: SeamContents, radius: number): number {
+	return Math.min(arcToDegrees(seamArc(contents), radius), MAX_SEAM_GAP_DEG);
 }
 
 // Lays the seam out inside the gap the round really left. The slots are scaled

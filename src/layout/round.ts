@@ -4,7 +4,7 @@ import { buildRingGuide } from './grid-guide';
 import { normalize } from './normalize';
 import { centerExtent, placeUnitPolar, pushCenterAnchor } from './polar';
 import { layoutRoundGraph } from './round-graph';
-import { placeSeam, seamArc, type SeamContents } from './seam';
+import { placeSeam, seamArc, seamGapDegrees, type SeamContents } from './seam';
 import {
 	firstDrawnSymbol,
 	outputStitches,
@@ -58,7 +58,7 @@ function unitsArc(units: readonly LayoutUnit[]): number {
 
 // Standard style: each round's units spread evenly around the circle, starting
 // at the top. Stitch-to-stitch correspondence is only implied by the counts —
-// use style: book for the parent-aligned drawing.
+// use style: japanese for the parent-aligned drawing.
 function layoutRoundStandard(ast: CrochetAst, options: LayoutOptions): LayoutResult {
 	const innerRadius = innerRadiusOf(ast);
 	const items: RenderItem[] = [];
@@ -95,18 +95,25 @@ function layoutRoundStandard(ast: CrochetAst, options: LayoutOptions): LayoutRes
 		);
 
 		const angleStep = 360 / units.length;
+		// The seam is a gap of the round like the stitches are, not a leftover: the
+		// ring was sized to hold what is drawn there, so that room is set aside
+		// before the stitches are spread and the rest is theirs. Spread over the
+		// whole circle instead, the round hands its seam a single stitch's slot
+		// and its chain and join are drawn over the stitches either side.
+		const seamGap = Math.max(angleStep, seamGapDegrees(seam, radius));
+		const stitchStep = units.length > 1 ? (360 - seamGap) / (units.length - 1) : angleStep;
 		const start = items.length;
 		// Drawn as worked: opening chain, then the round's stitches, then the join
 		// that closes it. The chain and the join share the round's seam, laid out
 		// there by the same rules the graph-driven styles use (layout/seam.ts) so
 		// neither lands on a stitch or on the other.
-		const region = placeSeam(seam, -90 - (units.length - 1) * angleStep, -90 - 360, radius);
+		const region = placeSeam(seam, -90 - (units.length - 1) * stitchStep, -90 - 360, radius);
 		opening.forEach((unit, index) => {
 			placeUnitPolar(items, unit, radius, region.start[index] ?? region.step, rowIndex, undefined);
 		});
 		units.forEach((unit, i) => {
 			const itemStart = items.length;
-			placeUnitPolar(items, unit, radius, -90 - i * angleStep, rowIndex, i);
+			placeUnitPolar(items, unit, radius, -90 - i * stitchStep, rowIndex, i);
 			if (unit.color !== undefined && unit.color !== previousColor) {
 				const first = items[itemStart];
 				if (first) colorMarkers.push({ x: first.x, y: first.y, color: unit.color });

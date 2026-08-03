@@ -235,7 +235,7 @@ export function layoutRoundGraph(
 			// In japanese style a stitch the V or ∧ stands for has no symbol of its
 			// own on the chart — but it is still a stitch of this round, and
 			// still what the next round works into. Continuous style draws them all.
-			const marked = round.groups[stitch.unitIndex]?.mark !== undefined;
+			const marked = round.groups[stitch.groupIndex]?.mark !== undefined;
 			if (stitch.drawn !== false && (style === 'continuous' || !marked)) {
 				const item = toRenderItem(stitch);
 				items.push(item);
@@ -647,7 +647,7 @@ function placeDrawnOrder(
 	// hold (layout/seam.ts) and so is asked for by arc rather than by symbol.
 	minGaps[count - 1] = Math.max(
 		minGaps[count - 1] ?? 0,
-		seamGapDegrees(contents, radius, step) + reach.start + reach.end,
+		seamGapDegrees(contents, radius) + reach.start + reach.end,
 	);
 	const parentAngles = placeAngles(graph, previous);
 
@@ -750,6 +750,12 @@ function minStitchGaps(
 		inRun = true;
 	}
 
+	// The shaping mark this stitch is drawn under, if it is drawn under one at
+	// all: continuous style draws every stitch as itself, so an increase there is
+	// two stitches needing two stitches' room, not a V needing a V's.
+	const markOf = (stitch: GraphStitch): 'increase' | 'decrease' | undefined =>
+		style === 'continuous' ? undefined : round.groups[stitch.groupIndex]?.mark;
+
 	const half = (stitch: GraphStitch): number => {
 		// A chain hangs on the curve that bridges its space rather than standing
 		// on the ring, so it asks the ring for the chord under that curve. In
@@ -760,17 +766,16 @@ function minStitchGaps(
 			if (!lace) return ringRoom(stitch.symbol) / 2;
 			return runStarts.has(stitch.id) ? ringRoom(stitch.symbol) / 2 : 0;
 		}
-		if (style === 'continuous' || round.groups[stitch.unitIndex]?.mark === undefined) {
-			return symbolExtent(stitch.symbol);
-		}
+		const mark = markOf(stitch);
+		if (mark === undefined) return symbolExtent(stitch.symbol);
 		// A decrease's ∧ opens around its one stitch; an increase's V is drawn
 		// between its two, reaching no further out than they do.
-		return round.groups[stitch.unitIndex]?.mark === 'decrease' ? markHalfWidth(stitch.symbol) : 0;
+		return mark === 'decrease' ? markHalfWidth(stitch.symbol) : 0;
 	};
 
 	return round.stitches.map((stitch, index) => {
 		const next = round.stitches[(index + 1) % round.stitches.length] ?? stitch;
-		const sameMark = stitch.unitIndex === next.unitIndex && round.groups[stitch.unitIndex]?.mark !== undefined;
+		const sameMark = stitch.groupIndex === next.groupIndex && markOf(stitch) !== undefined;
 		// Lace is read as openwork, so its stitches are given a little more air
 		// than the bare clearance two symbols need not to touch: at that spacing
 		// a round of shells and picots reads as one mass rather than as motifs.
@@ -804,7 +809,7 @@ function ancestryTargets(
 	const targets: number[] = [];
 
 	round.stitches.forEach((stitch, index) => {
-		const group = round.groups[stitch.unitIndex];
+		const group = round.groups[stitch.groupIndex];
 		// How far this group's stitches straddle the one below. A shell or a
 		// V-stitch is a motif: it opens by one stitch's room per stitch, so it
 		// is drawn as wide as the stitches it is made of however wide the round

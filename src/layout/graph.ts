@@ -73,6 +73,11 @@ export interface GraphStitch {
 	sourceSlots: readonly number[];
 	shaping: ShapingKind;
 	color?: string;
+	// Which of the round's mappings made this stitch (see StitchRound.groups).
+	// Not the same as unitIndex: that counts the instructions the round is
+	// written as, and a round opening with a chain has one of those before it
+	// makes its first stitch.
+	groupIndex: number;
 	// Set on the stitches of a motif worked into one place, so a round above can
 	// ask for the middle stitch of "the next 7-dc shell".
 	motif?: { size: number; index: number };
@@ -202,6 +207,9 @@ function buildRound(
 		const targetIds: string[] = [];
 		const motifBase = aggregate ? (lastGroup?.targetIds.length ?? 0) : 0;
 		const motifSize = motifBase + symbols.length;
+		// Where this step's mapping sits in the round's list: the one it adds to
+		// when it works into the same place, otherwise the one about to be pushed.
+		const into = aggregate && lastGroup !== undefined ? groups.indexOf(lastGroup) : groups.length;
 
 		symbols.forEach((symbol, child) => {
 			const stitchIndex = stitches.length;
@@ -210,6 +218,7 @@ function buildRound(
 				roundIndex,
 				stitchIndex,
 				unitIndex: aggregate && lastGroup !== undefined ? lastGroup.unitIndex : unitIndex,
+				groupIndex: into,
 				symbol,
 				sourceStitchIds: sourceIds,
 				targetStitchIds: [],
@@ -659,6 +668,7 @@ function makeFoundation(ast: CrochetAst): GraphStitch {
 		roundIndex: -1,
 		stitchIndex: 0,
 		unitIndex: 0,
+		groupIndex: 0,
 		symbol: anchor === 'ch ring' ? CHAIN : CENTER_RING,
 		sourceStitchIds: [],
 		targetStitchIds: [],

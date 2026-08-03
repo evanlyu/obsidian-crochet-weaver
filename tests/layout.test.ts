@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { calculateLayout, roundStitchCount, unitStitchCounts } from '../src/layout';
 import { symbolExtent } from '../src/layout/constants';
 import { parse } from '../src/pattern/parser';
+import { parseChart as parsePattern } from '../src/pattern/parse-chart';
 import type { CrochetAst, GridPoint, LayoutResult, RenderItem, RowNode, ShapingMark } from '../src/types';
 
 const OPTIONS = {
@@ -1580,5 +1581,84 @@ describe('where a chart changes rounds', () => {
 		// One radial line: every round's number within a stitch of the first.
 		const spread = Math.max(...angles) - Math.min(...angles);
 		expect(spread).toBeLessThan(360 / 22);
+	});
+});
+
+describe('what a round draws is never drawn over something else', () => {
+	// Every style the plugin can draw a round chart in, so a fix for one is not a
+	// regression in another.
+	const STYLES = ['radial', 'japanese', 'continuous'] as const;
+
+	// The closest two things a round draws come to touching, in px: negative
+	// means their symbols overlap.
+	function tightest(layout: LayoutResult): number {
+		const byRound = new Map<number, RenderItem[]>();
+		for (const item of layout.items) {
+			if (item.rowIndex === undefined) continue;
+			byRound.set(item.rowIndex, [...(byRound.get(item.rowIndex) ?? []), item]);
+		}
+		let closest = Infinity;
+		for (const items of byRound.values()) {
+			for (let index = 1; index < items.length; index++) {
+				const previous = items[index - 1]!;
+				const item = items[index]!;
+				const clear =
+					distance(previous, item) - symbolExtent(previous.symbol) - symbolExtent(item.symbol);
+				closest = Math.min(closest, clear);
+			}
+		}
+		return closest;
+	}
+
+	// The round the increase and the single crochet were drawn on top of each
+	// other in: a small round whose chain and join have to be drawn at the seam
+	// beside its stitches, in a chart with no lace anywhere in it.
+	const EYE = '---\ntype: round\n---\nR1: mr, ch, sc6, slst\nR2: ch, [sc2, inc] rep, slst\n';
+
+	for (const style of STYLES) {
+		it(`leaves the smallest round's stitches clear of each other (${style})`, () => {
+			const layout = calculateLayout(parsePattern(EYE), { ringSpacing: 20, grid: false, roundStyle: style });
+
+			expect(tightest(layout)).toBeGreaterThan(0);
+		});
+	}
+
+	for (const style of STYLES) {
+		it(`leaves a round of nothing but increases clear of itself (${style})`, () => {
+			const source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [inc] x 12\nR4: [inc] x 24\n';
+			const layout = calculateLayout(parsePattern(source), { ringSpacing: 30, grid: false, roundStyle: style });
+
+			// In japanese style a pair is drawn as one V and given a V's room; in
+			// the styles that draw both stitches it needs both stitches' room.
+			expect(tightest(layout)).toBeGreaterThan(0);
+		});
+	}
+
+	it('marks the stitches the increase was written on, not the ones a chain later', () => {
+		// The round opens with a chain, which is drawn but makes no stitch. Counted
+		// as if it did, every stitch after it looked up the mapping of the step
+		// before, and the V was drawn across a plain single crochet.
+		const layout = calculateLayout(parsePattern(EYE), { ringSpacing: 20, grid: false, roundStyle: 'japanese' });
+		const marks = (layout.shapingMarks ?? []).filter((mark: ShapingMark) => mark.rowIndex === 1);
+
+		expect(marks).toHaveLength(2);
+		// Two increases in a round of eight: the pairs they stand for are drawn as
+		// the marks, leaving four single crochets of the round drawn as themselves.
+		const drawn = layout.items.filter((item) => item.rowIndex === 1 && item.symbol === 'sc');
+		expect(drawn).toHaveLength(4);
+	});
+});
+
+describe('the fan only appears where the pattern asked for lace', () => {
+	it('draws no motif stitch in any style when lace is off', () => {
+		const source =
+			'---\ntype: round\n---\nR1: MR, ch 3, 11 dc in MR, sl st to top of beginning ch-3.\n' +
+			'R2: ch 3, (dc, ch 2, dc) in next dc, sl st to top of beginning ch-3.\n';
+
+		for (const style of ['radial', 'japanese', 'continuous'] as const) {
+			const layout = calculateLayout(parsePattern(source), { ringSpacing: 20, grid: false, roundStyle: style });
+
+			expect(layout.motifStitches ?? []).toHaveLength(0);
+		}
 	});
 });
