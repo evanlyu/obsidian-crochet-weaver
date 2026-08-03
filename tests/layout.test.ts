@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { calculateLayout, roundStitchCount, unitStitchCounts } from '../src/layout';
 import { symbolExtent, symbolHalfHeight } from '../src/layout/constants';
+import { rowWrittenCount, writtenUnitWeights } from '../src/pattern/count';
 import { parse } from '../src/pattern/parser';
 import { parseChart as parsePattern } from '../src/pattern/parse-chart';
 import type { CrochetAst, GridPoint, LayoutResult, RenderItem, RowNode, ShapingMark } from '../src/types';
@@ -125,6 +126,43 @@ R1: 6 sc, sl st in MR
 
 		expect(roundStitchCount(row)).toBe(6);
 		expect(layout.items.filter((item) => item.symbol === 'sl st')).toHaveLength(1);
+	});
+
+	it('draws every short round opening beside the first stitch without taking a stitch position', () => {
+		const styles = ['radial', 'japanese', 'continuous'] as const;
+		const openings = [
+			{ source: 'sl st, ', symbols: ['sl st'] },
+			{ source: 'ch, ', symbols: ['ch'] },
+			{ source: 'sl st, ch, ', symbols: ['sl st', 'ch'] },
+		] as const;
+
+		for (const style of styles) {
+			for (const opening of openings) {
+				const chart = parsePattern(`---\ntype: round\n---\nR1: ${opening.source}6 sc in MR\n`);
+				const layout = calculateLayout(chart, { ...OPTIONS, roundStyle: style });
+				const center = layout.items.find((item) => item.symbol === 'MR');
+				const stitches = layout.items.filter((item) => item.symbol === 'sc');
+				const instructions = layout.items.filter((item) =>
+					(opening.symbols as readonly string[]).includes(item.symbol),
+				);
+				if (!center) throw new Error('expected center');
+
+				expect(rowWrittenCount(chart.rows[0]!)).toBe(6);
+				expect(writtenUnitWeights(chart.rows[0]!)).toEqual([1, 1, 1, 1, 1, 1]);
+				expect(roundStitchCount(chart.rows[0]!)).toBe(6);
+				expect(unitStitchCounts(chart.rows[0]!)).toEqual([1, 1, 1, 1, 1, 1]);
+				expect(stitches.map((item) => item.unitIndex)).toEqual([0, 1, 2, 3, 4, 5]);
+				expect(instructions.map((item) => item.unitIndex)).toEqual(opening.symbols.map(() => undefined));
+				expect(instructions.map((item) => item.symbol)).toEqual(opening.symbols);
+				const firstStitch = stitches[0];
+				const secondStitch = stitches[1];
+				if (!firstStitch || !secondStitch) throw new Error('expected stitches');
+				for (const instruction of instructions) {
+					expect(distance(instruction, center)).toBeCloseTo(distance(firstStitch, center), 9);
+					expect(distance(instruction, firstStitch)).toBeLessThan(distance(instruction, secondStitch));
+				}
+			}
+		}
 	});
 
 	it('keeps each round farther out than the last even through a later decrease', () => {

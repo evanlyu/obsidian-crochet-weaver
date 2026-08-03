@@ -1,4 +1,4 @@
-import { CENTER_RING, makesSpace } from '../render/symbols';
+import { CENTER_RING, JOINING_STITCH, makesSpace } from '../render/symbols';
 import type { AstNode, BeginningChain, CrochetAst, RawCrochetAst, RowNode, RowRepeatNode } from '../types';
 import { CHART_BUDGET, ChartBudgetError } from './budget';
 import { PatternError } from './pattern-error';
@@ -9,7 +9,11 @@ import { PatternError } from './pattern-error';
 
 export function expandPattern(ast: RawCrochetAst): CrochetAst {
 	const rows = expandRowRepeats(ast.rows);
-	return { type: 'CrochetChart', config: ast.config, rows: rows.map(resolveBeginningChain) };
+	return {
+		type: 'CrochetChart',
+		config: ast.config,
+		rows: rows.map((row) => resolveBeginningChain(markOpeningSlipStitches(row))),
+	};
 }
 
 function expandRowRepeats(entries: readonly (RowNode | RowRepeatNode)[]): RowNode[] {
@@ -92,6 +96,24 @@ function resolveBeginningChain(row: RowNode): RowNode {
 	return { ...row, steps };
 }
 
+// A bare slip stitch at the front of a round is the short form of moving to
+// where that round begins. It is worked and drawn, but it is not a stitch of
+// the fabric. Mark it before resolving the opening chain so "sl st, ch, ..."
+// recognizes both instructions as the round's opening.
+function markOpeningSlipStitches(row: RowNode): RowNode {
+	const steps = [...row.steps];
+	let changed = false;
+	for (const [index, step] of steps.entries()) {
+		if (step.type === 'TurnNode' || step.type === 'RepositionNode') continue;
+		if (step.type !== 'StitchNode') break;
+		if (step.stitch === CENTER_RING) continue;
+		if (step.stitch !== JOINING_STITCH || step.target !== undefined) break;
+		steps[index] = { ...step, instruction: 'reposition' };
+		changed = true;
+	}
+	return changed ? { ...row, steps } : row;
+}
+
 // Which step opens the round, if any: the first chain written before the round
 // works a stitch of its own. A turn, a magic ring, or a repositioning slip
 // stitch may come first — none of them is a stitch of the fabric.
@@ -100,6 +122,7 @@ function openingChainIndex(steps: readonly AstNode[]): number {
 		if (step.type === 'TurnNode' || step.type === 'RepositionNode') continue;
 		if (step.type !== 'StitchNode') return -1;
 		if (step.stitch === CENTER_RING) continue;
+		if (step.instruction === 'reposition') continue;
 		return makesSpace(step.stitch) && step.target === undefined ? index : -1;
 	}
 	return -1;

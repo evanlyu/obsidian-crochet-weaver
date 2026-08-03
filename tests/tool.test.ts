@@ -47,6 +47,30 @@ R2: 6 sc
 		expect(container.textContent).toContain('[sc, inc] × 2, sl st in MR');
 	});
 
+	it('does not count the slip stitch and chain that open each round', () => {
+		const container = document.createElement('div');
+		const store = new MemoryProgressStore();
+
+		renderCrochetTool(`---
+type: round
+id: long-tailed-tit-head
+tool: on
+---
+R1: sl st, ch, color #8b5a2b, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+R3: sl st, ch, [sc, inc] x 6
+R4: sl st, ch, sc, inc, [2 sc, inc] x 5, sc
+R5: sl st, ch, 24 sc
+R6: sl st, ch, [3 sc, inc] x 6
+R7: sl st, ch, 30 sc
+R8: sl st, ch, color #f5f0df, 30 sc
+R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
+`, container, store, 'zh-TW');
+
+		const counts = Array.from(container.querySelectorAll('.crochet-tool-count')).map((item) => item.textContent);
+		expect(counts).toEqual(['6 針', '12 針', '18 針', '24 針', '24 針', '30 針', '30 針', '30 針', '30 針']);
+	});
+
 	it('renders invalid syntax errors', () => {
 		const container = document.createElement('div');
 		const store = new MemoryProgressStore();

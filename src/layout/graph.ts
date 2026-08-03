@@ -74,9 +74,9 @@ export interface GraphStitch {
 	shaping: ShapingKind;
 	color?: string;
 	// Which of the round's mappings made this stitch (see StitchRound.groups).
-	// Not the same as unitIndex: that counts the instructions the round is
-	// written as, and a round opening with a chain has one of those before it
-	// makes its first stitch.
+	// Not the same as unitIndex: that counts the stitch-producing instructions
+	// the maker advances through. Non-counting opening instructions have no
+	// unit index or stitch position of their own.
 	groupIndex: number;
 	// Set on the stitches of a motif worked into one place, so a round above can
 	// ask for the middle stitch of "the next 7-dc shell".
@@ -272,7 +272,7 @@ function buildRound(
 	// where the round starts — drawn as the chains it is, at the seam, so the
 	// stitch it stands for is not drawn a second time.
 	for (const step of start) {
-		if (isDrawn(step)) unitIndex++;
+		if (step.type === 'StitchNode' && step.beginning?.counts === true) unitIndex++;
 		if (step.type === 'RepositionNode') {
 			resolveMove(cursor, step.target, row, previous);
 			continue;
@@ -379,7 +379,7 @@ function opensRound(step: UnrolledStep | undefined): boolean {
 	if (step.type === 'RepositionNode' || step.type === 'TurnNode') return true;
 	return (
 		step.type === 'StitchNode' &&
-		(makesSpace(step.stitch) || step.stitch === CENTER_RING) &&
+		(makesSpace(step.stitch) || step.stitch === CENTER_RING || step.instruction === 'reposition') &&
 		step.target === undefined
 	);
 }
