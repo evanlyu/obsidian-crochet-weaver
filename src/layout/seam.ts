@@ -1,5 +1,5 @@
 import { arcToDegrees } from './angles';
-import { labelExtent, ROUND_CHANGE_ARC, symbolExtent, symbolHalfWidth, SYMBOL_CLEARANCE } from './constants';
+import { labelExtent, ROUND_CHANGE_ARC, symbolExtent, symbolHalfWidth } from './constants';
 
 // The seam of a round: the wrap-around gap between its last stitch and its
 // first, where one round becomes the next.
@@ -22,14 +22,19 @@ import { labelExtent, ROUND_CHANGE_ARC, symbolExtent, symbolHalfWidth, SYMBOL_CL
 // need. Nothing here is per-round or per-stitch — a round with no chain and no
 // join simply has no slot for them.
 
-// Air left around each thing drawn at the seam, in px. More than the clearance
-// between two neighbouring stitches: the seam is a channel read across the whole
-// chart, and it only reads as one if what sits in it is not touching its edges.
-const SEAM_AIR = 4;
+// Air between two things drawn at the seam, in px: one gap between each pair,
+// not a margin around each of them. Padding both sides of everything charged
+// the seam for the same gap twice and made the wedge half again as wide as what
+// it holds — on a first round of six stitches that was a third of the ring
+// spent on air, and (since every round above inherits the angle) a corridor
+// that wide all the way out. The number sits beside the round change with a
+// gap, and the stitches either side of the seam with a gap, and that is all the
+// room the seam takes beyond what it draws.
+const SEAM_AIR = 2;
 
-// The step out to the next round's band: the width it is drawn at, plus air
-// either side. It is drawn nearly radially, so it needs no more than that.
-const STEP_ARC = ROUND_CHANGE_ARC + 2 * SEAM_AIR;
+// The step out to the next round's band: the width it is drawn at. It is drawn
+// nearly radially, so it needs no more than that.
+const STEP_ARC = ROUND_CHANGE_ARC;
 
 // The seam is given the arc its contents ask for, because they are drawn at
 // their own size whatever room they are given: a gap capped below their asking
@@ -78,17 +83,29 @@ export interface SeamRegion {
 	start: number[];
 }
 
-// How much arc the seam wants for what this round draws there, in px.
+// How much arc the seam wants for what this round draws there, in px: the width
+// of each of those things, and one gap between each pair of them.
 export function seamArc(contents: SeamContents): number {
+	const widths = seamWidths(contents);
+	const drawn = widths.reduce(sum, 0);
+	return drawn + SEAM_AIR * (widths.length - 1);
+}
+
+// Everything drawn at the seam, in the order it is drawn there, as the arc each
+// one takes. The half-symbol of the stitch at either edge is one of them: the
+// seam's angle is measured between stitch centers, so half of each reaches into
+// it, and the seam is only as wide as its contents plus those two halves.
+function seamWidths(contents: SeamContents): number[] {
 	const lace = contents.lace === true;
-	return (
-		clearanceOf(contents.lastStitch, lace) +
-		instructionArcs(contents.end, lace).reduce(sum, 0) +
-		STEP_ARC +
-		labelArc(contents.label) +
-		instructionArcs(contents.start, lace).reduce(sum, 0) +
-		clearanceOf(contents.firstStitch, lace)
-	);
+	const label = labelArc(contents.label);
+	return [
+		halfOf(contents.lastStitch, lace),
+		...instructionArcs(contents.end, lace),
+		STEP_ARC,
+		...(label > 0 ? [label] : []),
+		...instructionArcs(contents.start, lace),
+		halfOf(contents.firstStitch, lace),
+	];
 }
 
 // The gap a round has to leave between its last stitch and its first, in
@@ -119,43 +136,48 @@ export function placeSeam(
 	// than hugging the stitch the round closed on.
 	const spare = Math.max(0, gap - wanted) / 2;
 
-	// Each slot is claimed by stepping to its middle and on to its far edge, so
-	// the next one starts where this one ended.
-	let at = lastStitchAngle - spare - slot(clearanceOf(contents.lastStitch));
-	const middleOf = (slotSize: number): number => {
-		at -= slotSize / 2;
+	// Each slot is claimed by stepping to its middle and on to its far edge, and
+	// then over the gap to the next one, so the walk lands each thing exactly
+	// where seamArc said it would fit.
+	let at = lastStitchAngle - spare - slot(halfOf(contents.lastStitch));
+	const middleOf = (arc: number): number => {
+		// Nothing drawn here — a style with no round numbers, say — takes no slot
+		// and no gap either, which is what it was charged for.
+		if (arc <= 0) return at;
+		at -= slot(SEAM_AIR) + slot(arc) / 2;
 		const middle = at;
-		at -= slotSize / 2;
+		at -= slot(arc) / 2;
 		return middle;
 	};
 
-	const end = instructionArcs(contents.end).map((arc) => middleOf(slot(arc)));
-	const step = middleOf(slot(STEP_ARC));
-	const label = middleOf(slot(labelArc(contents.label)));
-	const start = instructionArcs(contents.start).map((arc) => middleOf(slot(arc)));
+	const end = instructionArcs(contents.end).map((arc) => middleOf(arc));
+	const step = middleOf(STEP_ARC);
+	const label = middleOf(labelArc(contents.label));
+	const start = instructionArcs(contents.start).map((arc) => middleOf(arc));
 
 	return { step, label, end, start };
 }
 
 // Room the seam leaves at one of its edges: half the symbol of the stitch there,
-// which its angle is the middle of, and air after it. Whatever that stitch's own
-// shaping reaches past it is handled by the caller, which knows what the round
-// below it looks like (see seamReachOf in layout/round-graph.ts).
-function clearanceOf(symbol: string, lace = false): number {
-	return (lace ? symbolHalfWidth(symbol) : symbolExtent(symbol)) + SEAM_AIR;
+// which its angle is the middle of. Whatever that stitch's own shaping reaches
+// past it is handled by the caller, which knows what the round below it looks
+// like (see seamReachOf in layout/round-graph.ts).
+function halfOf(symbol: string, lace = false): number {
+	return lace ? symbolHalfWidth(symbol) : symbolExtent(symbol);
 }
 
 // A chain or a slip stitch at the seam takes the width its own symbol is drawn
 // at, beside the next thing drawn there — not a stitch's slot of the round: it is
 // an instruction squeezed into the seam, not a stitch of the ring.
 function instructionArcs(symbols: readonly string[], lace = false): number[] {
-	return symbols.map((symbol) =>
-		lace ? 2 * symbolHalfWidth(symbol) + SYMBOL_CLEARANCE : 2 * symbolExtent(symbol) + SYMBOL_CLEARANCE,
-	);
+	return symbols.map((symbol) => 2 * halfOf(symbol, lace));
 }
 
+// The round number takes the width of its own digits and nothing more; the gap
+// that keeps it off the round change beside it is the seam's one gap, the same
+// as between everything else drawn there.
 function labelArc(text: string | undefined): number {
-	return text === undefined ? 0 : 2 * labelExtent(text) + 2 * SEAM_AIR;
+	return text === undefined ? 0 : 2 * labelExtent(text);
 }
 
 function sum(total: number, value: number): number {
