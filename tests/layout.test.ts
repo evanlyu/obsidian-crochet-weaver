@@ -622,12 +622,10 @@ describe('traditional-Japanese round layout', () => {
 		}
 
 		// A plain round works one stitch into each of the round below, so every
-		// stitch belongs over the one it is worked into — but it also inherits that
-		// round's crowding, and an increase always leaves some: its two stitches
-		// take less room than two spread ones would, so the gaps beside them are
-		// wider. So a plain round evens out as it goes, by a fraction of a stitch
-		// each round, and never by enough to leave a stitch off its own.
-		it('evens out the crowding a plain round inherits without leaving its columns', () => {
+		// stitch is drawn on the one it is worked into and on nothing else: not
+		// near it, on it. Whatever crowding shaping below left is inherited as it
+		// stands — evening it out would be moving stitches off their own.
+		it('draws a plain round on the stitches of the round below', () => {
 			const layout = calculateLayout(
 				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: 18 sc\n'),
 				LINKED,
@@ -635,19 +633,16 @@ describe('traditional-Japanese round layout', () => {
 			const center = layout.items[0];
 			if (!center) throw new Error('expected MR center');
 			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
-			const radius = roundRadius(layout, center, 3);
-			const pitch = (2 * Math.PI * radius) / round(layout, 3).length;
 
-			expect(unevenness(layout, 3)).toBeLessThan(unevenness(layout, 2));
+			expect(unevenness(layout, 3)).toBeCloseTo(unevenness(layout, 2), 9);
 			for (const stitch of round(layout, 3)) {
 				const parent = byId.get(stitch.sourceStitchIds?.[0]);
 				if (!parent) throw new Error('expected the stitch below');
-				const drift = angleDiff(angleOf(center, stitch), angleOf(center, parent));
-				expect((drift * Math.PI * radius) / 180).toBeLessThanOrEqual(pitch * DRIFT_SHARE);
+				expect(angleDiff(angleOf(center, stitch), angleOf(center, parent))).toBeCloseTo(0, 9);
 			}
 		});
 
-		it('keeps a whole run of plain rounds in the same columns, closing up as it goes', () => {
+		it('keeps a whole run of plain rounds in the same columns', () => {
 			let source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\n';
 			for (let round = 4; round <= 8; round++) source += `R${round}: 18 sc\n`;
 			const layout = calculateLayout(parseChart(source), LINKED);
@@ -655,23 +650,17 @@ describe('traditional-Japanese round layout', () => {
 			if (!center) throw new Error('expected MR center');
 			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
 
-			// Every plain round is at least as even as the one below it, and none of
-			// them reorders or leaves the column it inherited: each stitch stays
-			// within a fraction of a stitch of the one it is worked into, so the
-			// columns lean in over the rounds rather than jumping.
+			// However many plain rounds follow, the columns run straight out: each
+			// stitch sits on the one below it, so nothing leans and nothing adds up
+			// over the rounds. The spacing they inherited is carried unchanged too.
 			for (let rowIndex = 3; rowIndex <= 7; rowIndex++) {
-				expect(unevenness(layout, rowIndex)).toBeLessThanOrEqual(unevenness(layout, rowIndex - 1) + 1e-9);
-				const radius = roundRadius(layout, center, rowIndex);
-				const pitch = (2 * Math.PI * radius) / round(layout, rowIndex).length;
+				expect(unevenness(layout, rowIndex)).toBeCloseTo(unevenness(layout, rowIndex - 1), 9);
 				for (const stitch of round(layout, rowIndex)) {
 					const parent = byId.get(stitch.sourceStitchIds?.[0]);
 					if (!parent) throw new Error('expected the stitch below');
-					const drift = angleDiff(angleOf(center, stitch), angleOf(center, parent));
-					expect((drift * Math.PI * radius) / 180).toBeLessThanOrEqual(pitch * DRIFT_SHARE);
+					expect(angleDiff(angleOf(center, stitch), angleOf(center, parent))).toBeCloseTo(0, 9);
 				}
 			}
-			// And they do close up: by the last one the round is nearly even.
-			expect(unevenness(layout, 7)).toBeLessThan(unevenness(layout, 2) * 0.9);
 		});
 
 		// Closing the repeats up must not cost the correspondence: a stitch still

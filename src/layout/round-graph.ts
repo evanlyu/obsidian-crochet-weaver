@@ -665,24 +665,75 @@ function placeDrawnOrder(
 	const pinned = pinnedByNextRound(graph, round.roundIndex);
 	const movable = round.stitches.map((stitch) => stitch.shaping === 'normal' && !pinned.has(stitch.id));
 
+	// A round that works one stitch into each stitch of the round below is drawn
+	// standing on it: every stitch keeps the angle of the one it came from, so
+	// the chart reads outward along a straight line of stitches, which is what a
+	// chart is read for. Nothing about such a round re-spaces the ring, so
+	// neither the seam-closing nor the evening-out below is allowed to — both
+	// move stitches off the ones they are worked into, by a fifth of a stitch a
+	// round each, and over a tall piece that adds up to a visible lean.
+	//
+	// The cost is that the seam keeps the angle it inherited rather than
+	// narrowing to the arc it needs, so the round-change corridor widens as the
+	// chart grows. Only a round that changes the stitch count re-spaces the ring,
+	// and that is where both are spent instead.
+	const standsOnRoundBelow = sitsOverParents(round, aligned, parentAngles, parentTurn);
+
 	// Ancestry hands down the seam's angle, which is more and more arc the
 	// further out the round is; close it back toward the room it needs, by a
 	// share of a stitch at most (see closeSeam).
-	const targets = closeSeam(aligned, minGaps[count - 1] ?? 0, step * SEAM_CLOSE_SHARE);
+	const targets = standsOnRoundBelow
+		? aligned
+		: closeSeam(aligned, minGaps[count - 1] ?? 0, step * SEAM_CLOSE_SHARE);
+	// Order and minimum spacing still apply: they are what stops two stitches
+	// being drawn over each other, and a round standing on the one below already
+	// satisfies them wherever the round below did.
 	const placed = fitTurn(enforceOrderAndGap(targets, minGaps), minGaps);
+	if (standsOnRoundBelow) return placed;
 
 	// An increase's two stitches sit closer together than the round's pitch —
 	// they are one symbol worked into one place — so the room they gave up shows
-	// up as a wider gap on either side of them, and ancestry alone hands that
-	// gap on to every round above unchanged. So a round evens out what it
-	// inherited: its stitches drift toward the midpoint of their neighbours, by
-	// no more than MAX_DRIFT_SHARE of a stitch each round, which closes the gap
-	// after an increase gradually over the rounds above it rather than all at
-	// once under it.
-	//
+	// up as a wider gap on either side of them, and a round that shapes again
+	// inherits that gap on top of its own. So a shaping round evens out what it
+	// was handed: its plain stitches drift toward the midpoint of their
+	// neighbours, by no more than MAX_DRIFT_SHARE of a stitch, which is little
+	// enough that the stitch stays over the one it is worked into. The plain
+	// rounds above have already returned above, keeping their columns exactly.
 	if (!movable.includes(true)) return placed;
 	return relaxSpacing(placed, movable, step * MAX_DRIFT_SHARE, minGaps);
 }
+
+// Is every stitch of this round drawn on one stitch of the round below, and on
+// that one alone? Asked of the targets themselves rather than of the pattern:
+// a stitch worked into a single parent and sharing it with nobody is placed at
+// exactly that parent's angle (see ancestryTargets), so a round whose every
+// target already sits on its own parent is a round that can be left there.
+// Anything that spreads — an increase's pair, a decrease's merge, a motif's
+// fan, a round with more or fewer stitches than places below — fails the test
+// on the stitches it moved, and the round is spaced as before.
+function sitsOverParents(
+	round: StitchRound,
+	targets: readonly number[],
+	parentAngles: readonly number[],
+	parentTurn: 1 | -1,
+): boolean {
+	if (parentAngles.length === 0 || parentAngles.length !== round.stitches.length) return false;
+	return round.stitches.every((stitch, index) => {
+		const parents = parentAnglesOf(stitch, parentAngles, parentTurn);
+		const parent = parents[0];
+		const target = targets[index];
+		return (
+			parents.length === 1 &&
+			parent !== undefined &&
+			target !== undefined &&
+			Math.abs(target - parent) < ON_ITS_PARENT_DEG
+		);
+	});
+}
+
+// How close a target has to be to its parent's angle to count as standing on
+// it. Not zero only because the arithmetic that got there is floating point.
+const ON_ITS_PARENT_DEG = 1e-9;
 
 // Where a round's seam sits: the middle of the wrap-around gap between its last
 // stitch and its first.
