@@ -109,7 +109,7 @@ function layoutRoundStandard(ast: CrochetAst, options: LayoutOptions): LayoutRes
 		// neither lands on a stitch or on the other.
 		const region = placeSeam(seam, -90 - (units.length - 1) * stitchStep, -90 - 360, radius);
 		opening.forEach((unit, index) => {
-			placeUnitPolar(items, unit, radius, region.start[index] ?? region.step, rowIndex, undefined);
+			placeUnitPolar(items, unit, radius, region.start[index] ?? region.step, rowIndex, undefined, true);
 		});
 		units.forEach((unit, i) => {
 			const itemStart = items.length;

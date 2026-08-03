@@ -227,7 +227,10 @@ export function layoutRoundGraph(
 				if (index === opening.from + opening.length - 1) slot++;
 				return;
 			}
-			placeUnitPolar(items, unit, radius, angle, round.roundIndex, undefined);
+			// Turned across the ring and tucked against the first stitch: the round
+			// opens with a turn up to its first stitch, not with a stitch of its own
+			// standing in the ring (see placeStart in layout/seam.ts).
+			placeUnitPolar(items, unit, radius, angle, round.roundIndex, undefined, true);
 			slot++;
 		});
 

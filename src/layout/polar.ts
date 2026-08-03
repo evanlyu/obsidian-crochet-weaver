@@ -1,7 +1,7 @@
 import type { CrochetAst, RenderItem } from '../types';
 import { CENTER_RING } from '../render/symbols';
 import { arcToDegrees } from './angles';
-import { CH_RING_COUNT, chRingRadius, symbolExtent, SYMBOL_CLEARANCE } from './constants';
+import { CH_RING_COUNT, chRingRadius, OPENING_TURN_SCALE, symbolExtent, SYMBOL_CLEARANCE } from './constants';
 import { flattenGroup, type LayoutUnit } from './steps';
 
 export function pushCenterAnchor(ast: CrochetAst, items: RenderItem[]) {
@@ -30,15 +30,20 @@ export function placeUnitPolar(
 	phiDeg: number,
 	rowIndex?: number,
 	unitIndex?: number,
+	// What the round opens with, rather than a stitch of it: drawn a quarter
+	// turn round, lying across the ring instead of along it, and a little
+	// smaller than the stitches — it is the turn up to the first stitch, not a
+	// stitch standing in the ring (see placeStart in layout/seam.ts).
+	opening = false,
 ) {
 	if (unit.type === 'StitchNode') {
-		items.push(polarItem(unit.stitch, radius, phiDeg, rowIndex, unitIndex, unit.color));
+		items.push(polarItem(unit.stitch, radius, phiDeg, rowIndex, unitIndex, unit.color, opening));
 	} else {
 		const children = flattenGroup(unit);
 		const mid = (children.length - 1) / 2;
 		const fan = fanStep(children, radius);
 		children.forEach((stitch, i) => {
-			items.push(polarItem(stitch, radius, phiDeg - (i - mid) * fan, rowIndex, unitIndex, unit.color));
+			items.push(polarItem(stitch, radius, phiDeg - (i - mid) * fan, rowIndex, unitIndex, unit.color, opening));
 		});
 	}
 }
@@ -78,16 +83,18 @@ function polarItem(
 	rowIndex?: number,
 	unitIndex?: number,
 	color?: string,
+	opening = false,
 ): RenderItem {
 	const rad = (phiDeg * Math.PI) / 180;
 	return {
 		symbol,
 		x: radius * Math.cos(rad),
 		y: radius * Math.sin(rad),
-		rotation: symbolAngle(phiDeg),
+		rotation: symbolAngle(phiDeg) + (opening ? QUARTER_TURN : 0),
 		rowIndex,
 		unitIndex,
 		color,
+		...(opening ? { turned: true, scale: OPENING_TURN_SCALE } : {}),
 	};
 }
 
@@ -105,3 +112,6 @@ function writtenAnchor(ast: CrochetAst): 'MR' | undefined {
 export function symbolAngle(phiDeg: number): number {
 	return phiDeg + 90;
 }
+
+// Turning a symbol from lying along the round to lying across it.
+export const QUARTER_TURN = 90;

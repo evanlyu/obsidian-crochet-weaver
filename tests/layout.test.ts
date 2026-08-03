@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calculateLayout, roundStitchCount, unitStitchCounts } from '../src/layout';
-import { symbolExtent } from '../src/layout/constants';
+import { symbolExtent, symbolHalfHeight } from '../src/layout/constants';
 import { parse } from '../src/pattern/parser';
 import { parseChart as parsePattern } from '../src/pattern/parse-chart';
 import type { CrochetAst, GridPoint, LayoutResult, RenderItem, RowNode, ShapingMark } from '../src/types';
@@ -1578,6 +1578,15 @@ describe('what a round draws is never drawn over something else', () => {
 	// regression in another.
 	const STYLES = ['radial', 'japanese', 'continuous'] as const;
 
+	// How far a drawn symbol reaches along its round, in px. Its own size, except
+	// where it is drawn turned across the ring and scaled down — what a round
+	// opens with — and then it reaches its short way about, at the size it is
+	// really drawn (see layout/seam.ts).
+	function reachAlongRound(item: RenderItem): number {
+		const own = item.turned === true ? symbolHalfHeight(item.symbol) : symbolExtent(item.symbol);
+		return own * (item.scale ?? 1);
+	}
+
 	// The closest two things a round draws come to touching, in px: negative
 	// means their symbols overlap.
 	function tightest(layout: LayoutResult): number {
@@ -1591,8 +1600,7 @@ describe('what a round draws is never drawn over something else', () => {
 			for (let index = 1; index < items.length; index++) {
 				const previous = items[index - 1]!;
 				const item = items[index]!;
-				const clear =
-					distance(previous, item) - symbolExtent(previous.symbol) - symbolExtent(item.symbol);
+				const clear = distance(previous, item) - reachAlongRound(previous) - reachAlongRound(item);
 				closest = Math.min(closest, clear);
 			}
 		}

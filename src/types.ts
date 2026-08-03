@@ -270,7 +270,11 @@ export interface RenderItem {
 	// opens with stand one above the next inside that round's band, standing in
 	// for the one stitch they replace, so they are drawn to fit it.
 	scale?: number;
-
+	// Drawn a quarter turn from the way a stitch of its round is: lying across
+	// the ring rather than along it, so what it takes of the round is its short
+	// way about. Set on what a round opens with — the turn up to its first
+	// stitch, which is not a stitch standing in the ring (see layout/seam.ts).
+	turned?: boolean;
 }
 
 // The V of an increase or the ∧ of a decrease: a stitch symbol of its own

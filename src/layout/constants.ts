@@ -50,6 +50,12 @@ export const MIN_ARC = STITCH_WIDTH;
 // actually occupy, in px.
 export const SYMBOL_CLEARANCE = 2;
 
+// How big what a round opens with is drawn, against its own size. Smaller than
+// a stitch of the round because it is not one: the turn up to the first stitch,
+// drawn leaning on it. Everything that measures it — the room it is charged at
+// the seam, the symbol itself — reads it from here.
+export const OPENING_TURN_SCALE = 0.75;
+
 // How wide the round change at a seam is drawn, as arc length in px: the gap each
 // band boundary leaves for the step out to the next round (layout/grid-guide.ts),
 // which is also the room the seam reserves for it (layout/seam.ts). One constant

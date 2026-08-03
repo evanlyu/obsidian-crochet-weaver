@@ -1,5 +1,12 @@
 import { arcToDegrees } from './angles';
-import { labelExtent, ROUND_CHANGE_ARC, symbolExtent, symbolHalfWidth } from './constants';
+import {
+	labelExtent,
+	OPENING_TURN_SCALE,
+	ROUND_CHANGE_ARC,
+	symbolExtent,
+	symbolHalfHeight,
+	symbolHalfWidth,
+} from './constants';
 
 // The seam of a round: the wrap-around gap between its last stitch and its
 // first, where one round becomes the next.
@@ -103,7 +110,7 @@ function seamWidths(contents: SeamContents): number[] {
 		...instructionArcs(contents.end, lace),
 		STEP_ARC,
 		...(label > 0 ? [label] : []),
-		...instructionArcs(contents.start, lace),
+		...openingArcs(contents.start, lace),
 		halfOf(contents.firstStitch, lace),
 	];
 }
@@ -153,9 +160,34 @@ export function placeSeam(
 	const end = instructionArcs(contents.end).map((arc) => middleOf(arc));
 	const step = middleOf(STEP_ARC);
 	const label = middleOf(labelArc(contents.label));
-	const start = instructionArcs(contents.start).map((arc) => middleOf(arc));
+	// The opening chain leans on the stitch it turns up to rather than floating
+	// in the middle of the seam: whatever room the round left over its asking
+	// gathers behind it, between the round number and the chain, instead of
+	// pushing the chain away from the first stitch.
+	const start = placeStart(contents, firstStitchAngle, slot);
 
 	return { step, label, end, start };
+}
+
+// Where each opening chain goes: walked back from the first stitch, against it,
+// in reverse working order — the last chain worked is the one the first stitch
+// stands on.
+function placeStart(
+	contents: SeamContents,
+	firstStitchAngle: number,
+	slot: (arc: number) => number,
+): number[] {
+	const lace = contents.lace === true;
+	const arcs = openingArcs(contents.start, lace);
+	const angles: number[] = [];
+	let at = firstStitchAngle + slot(halfOf(contents.firstStitch, lace));
+	for (let index = arcs.length - 1; index >= 0; index--) {
+		const arc = arcs[index] ?? 0;
+		at += slot(SEAM_AIR) + slot(arc) / 2;
+		angles[index] = at;
+		at += slot(arc) / 2;
+	}
+	return angles;
 }
 
 // Room the seam leaves at one of its edges: half the symbol of the stitch there,
@@ -171,6 +203,19 @@ function halfOf(symbol: string, lace = false): number {
 // an instruction squeezed into the seam, not a stitch of the ring.
 function instructionArcs(symbols: readonly string[], lace = false): number[] {
 	return symbols.map((symbol) => 2 * halfOf(symbol, lace));
+}
+
+// The chain a round opens with is not a stitch of the round: it is the turn up
+// to it, so it is drawn turned across the ring, smaller than the stitches, and
+// tucked against the first one (see placeStart). Turned, a chain lies along the
+// ring its short way, and that — at the size it is really drawn — is all the
+// room it is charged for, a quarter of the slot it took when it was measured as
+// if it stood in the ring like a stitch.
+function openingArcs(symbols: readonly string[], lace = false): number[] {
+	// A lace round stands its opening chains one above the next across the
+	// round's band instead, so they lie across the ring already.
+	if (lace) return instructionArcs(symbols, true);
+	return symbols.map((symbol) => 2 * symbolHalfHeight(symbol) * OPENING_TURN_SCALE);
 }
 
 // The round number takes the width of its own digits and nothing more; the gap
