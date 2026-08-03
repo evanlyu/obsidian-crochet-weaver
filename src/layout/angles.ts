@@ -127,6 +127,7 @@ export function closeSeam(
 	targets: readonly number[],
 	seamTarget: number,
 	fixed: readonly boolean[] = [],
+	keepOpening = false,
 ): number[] {
 	const count = targets.length;
 	const first = targets[0];
@@ -136,6 +137,15 @@ export function closeSeam(
 	const span = first - last;
 	const excess = 360 - span - seamTarget;
 	if (span <= 0 || excess <= 0) return [...targets];
+
+	if (!fixed.includes(true) && canTaperSeamEdges(count)) {
+		// A large ordinary round may explicitly preserve its opening-side
+		// ancestry. Otherwise close symmetrically, keeping the correction away
+		// from the broad opposite side either way.
+		return keepOpening
+			? taperSeamEdges(targets, 0, -excess)
+			: taperSeamEdges(targets, excess / 2, -excess / 2);
+	}
 
 	// Preserve every shaping stitch we can: moving a decrease out from between
 	// the parents it joins makes the chart say something untrue. The surplus is
@@ -154,6 +164,36 @@ export function closeSeam(
 	const goes = count - 1 - from;
 	return targets.map((target, index) =>
 		index <= from ? target : target - excess * ((index - from) / goes),
+	);
+}
+
+// A local seam correction needs enough neighbouring gaps to disappear
+// gradually. With fewer than five gaps on either edge, concentrating it there
+// makes a small round visibly lopsided, so those rounds keep sharing it.
+export function canTaperSeamEdges(count: number): boolean {
+	return Math.floor((count - 1) / 4) >= 5;
+}
+
+// Applies an angular correction at either edge of a round's seam and fades it
+// smoothly to zero within the nearest quarter-turn. The broad opposite side is
+// left exactly where ancestry placed it, so its stitches form radial columns.
+export function taperSeamEdges(
+	angles: readonly number[],
+	firstOffset: number,
+	lastOffset: number,
+): number[] {
+	const count = angles.length;
+	if (count < 2) return [...angles];
+	const fade = Math.max(1, Math.floor((count - 1) / 4));
+	const edgeWeight = (distance: number): number => {
+		if (distance >= fade) return 0;
+		return (1 + Math.cos(Math.PI * distance / fade)) / 2;
+	};
+	return angles.map(
+		(angle, index) =>
+			angle +
+			firstOffset * edgeWeight(index) +
+			lastOffset * edgeWeight(count - 1 - index),
 	);
 }
 

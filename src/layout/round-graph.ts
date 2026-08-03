@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import {
 	arcToDegrees,
+	canTaperSeamEdges,
 	closeSeam,
 	enforceOrderAndGap,
 	fitTurn,
@@ -104,12 +105,21 @@ const MARK_WIDTH_SHARE = 0.35;
 // Japanese charts conventionally place their round-number column just to the
 // right of twelve o'clock. Keeping this explicit prevents the column inheriting
 // whatever bearing the first round happened to acquire from its seam contents.
-const ROUND_NUMBER_BEARING = -55;
+const ROUND_NUMBER_BEARING = -50;
+// Each outer row leans another half degree toward twelve o'clock, giving the
+// number column a subtle upward-narrowing trapezoid rather than a rigid spoke.
+const ROUND_NUMBER_BEARING_STEP = -0.5;
+
+// The marker's 10px side margins are minimums, not a command to close every
+// larger inherited seam to exactly that width. Retain up to this much extra
+// room so stitches near the opening can stay closer to their ancestry, without
+// letting the corridor grow without bound on outer rounds.
+const NUMBERED_SEAM_EXTRA_ROOM = 10;
 
 // The innermost seam needs enough radius that generous marker margins do not
 // turn into an extreme wedge, but it need not be as large as the seam is long:
 // retaining this share keeps the center compact while preserving alignment.
-const COMPACT_INNER_SEAM_RADIUS_SHARE = 0.7;
+const COMPACT_INNER_SEAM_RADIUS_SHARE = 0.68;
 
 function markOpening(symbol: string): number {
 	return symbolArc(symbol) * MARK_OPENING_SHARE;
@@ -160,6 +170,8 @@ export function layoutRoundGraph(
 	for (const round of graph.rounds) {
 		if (round.stitches.length === 0) continue;
 		const contents = seamContentsOf(round, options.lace !== true, lace);
+		const roundNumberBearing =
+			ROUND_NUMBER_BEARING + placed.length * ROUND_NUMBER_BEARING_STEP;
 		const reach = seamReachOf(graph, round, previousRound);
 		// How far this round sits from the one below: as far as its own stitches
 		// are tall, unless the chart asked for a spacing of its own.
@@ -193,18 +205,23 @@ export function layoutRoundGraph(
 			topRadius,
 			lace,
 		);
-		if (contents.label !== undefined) {
-			const aligned = alignRoundNumber(
+		const expandsNumberedOpening = canExpandNumberedOpening(graph, round, previousRound);
+		if (contents.label !== undefined && !expandsNumberedOpening) {
+			angles = alignRoundNumber(
 				graph,
 				round,
 				previousRound,
 				contents,
 				angles,
 				radius,
-				ROUND_NUMBER_BEARING,
+				roundNumberBearing,
 			);
-			angles = aligned.angles;
 		}
+		// The first stitch worked into the center ring is the chart's radial
+		// origin. Keep it at twelve o'clock independently of the nearby numbered
+		// seam; every round above can then inherit this line without being
+		// rotated merely to position a label.
+		if (contents.label !== undefined && previousRound === undefined) angles = anchorFirstAtTop(angles);
 		round.stitches.forEach((stitch, index) => {
 			const angle = angles[index] ?? -90;
 			const radians = (angle * Math.PI) / 180;
@@ -222,7 +239,11 @@ export function layoutRoundGraph(
 		// sit at the seam — nothing is worked into them, so they take no place
 		// in the ring of stitches, only a slot of the seam's own gap.
 		const start = items.length;
-		const seam = seamOf(contents, angles, radius, seamReachOf(graph, round, previousRound, angles));
+		const rawSeam = seamOf(contents, angles, radius, seamReachOf(graph, round, previousRound, angles));
+		const seam =
+			contents.label !== undefined && expandsNumberedOpening
+				? alignNumberedSeamContents(rawSeam, roundNumberBearing)
+				: rawSeam;
 		// The chain a round opens with. In lace it is drawn the way a book draws
 		// it: standing out of the chart at the seam, its chains stacked one above
 		// the next across the round's band, so the run reads as the stitch it
@@ -316,7 +337,8 @@ export function layoutRoundGraph(
 		// with nothing drawn across it. A lace chart prints none, the way a
 		// pattern book prints lace.
 		if (options.lace !== true) {
-			const labelRadians = (seam.label * Math.PI) / 180;
+			const labelAngle = previousRound === undefined ? roundNumberBearing : seam.label;
+			const labelRadians = (labelAngle * Math.PI) / 180;
 			labels.push({
 				x: radius * Math.cos(labelRadians),
 				y: radius * Math.sin(labelRadians),
@@ -402,6 +424,45 @@ function innerSeamRadiusShare(graph: StitchGraph, round: StitchRound): number {
 	return next?.stitches.some((stitch) => stitch.shaping === 'decrease')
 		? 1
 		: COMPACT_INNER_SEAM_RADIUS_SHARE;
+}
+
+function anchorFirstAtTop(angles: readonly number[]): number[] {
+	const first = angles[0];
+	if (first === undefined) return [...angles];
+	const turn = shortestAngleDelta(first, -90);
+	return angles.map((angle) => angle + turn);
+}
+
+// A broad ordinary round has enough neighbouring gaps to absorb its closing
+// correction without disturbing the opening or opposite-side ancestry. Small
+// and shaping rounds keep the stricter established placement.
+function canExpandNumberedOpening(
+	graph: StitchGraph,
+	round: StitchRound,
+	previous: StitchRound | undefined,
+): boolean {
+	return (
+		previous !== undefined &&
+		previous.stitches.length === round.stitches.length &&
+		consumesPreviousRoundExactly(graph, round.roundIndex) &&
+		canTaperSeamEdges(round.stitches.length) &&
+		round.stitches.every((stitch) => stitch.shaping === 'normal' && stitch.sourceSlots.length === 1)
+	);
+}
+
+// A numbered seam has two independently meaningful sides. Its opening belongs
+// with the first stitch and may stay farther away when ancestry leaves more
+// than the minimum 10px; its number and step form the fixed round-change
+// marker. Move only that pair to the requested bearing, leaving the opening,
+// closing instructions and all real stitch positions untouched.
+function alignNumberedSeamContents(seam: SeamRegion, targetLabel: number): SeamRegion {
+	const turn = shortestAngleDelta(seam.label, targetLabel);
+	return {
+		start: seam.start,
+		label: seam.label + turn,
+		step: seam.step + turn,
+		end: seam.end,
+	};
 }
 
 // The space left between two chains of an opening run, in px. Enough to read as
@@ -720,24 +781,35 @@ function placeDrawnOrder(
 
 	// A round that works one stitch into each stitch of the round below needs no
 	// general evening-out: its ancestry already gives it the fabric's order and
-	// spacing. Its seam still closes to its own physical width, however. Keeping
-	// the inherited seam angle would make the round-change corridor grow wider
-	// in pixels at every larger radius instead of letting the stitches use that
-	// space.
+	// spacing. The inherited seam is valid too: its requested width is a minimum,
+	// and any extra room lets those ancestry-aligned stitches remain readable.
 	const standsOnRoundBelow = sitsOverParents(round, aligned, parentAngles, parentTurn);
 
-	// Ancestry hands down the seam's angle, which is more and more arc the
-	// further out the round is; close it back to the room it needs and share the
-	// released space across the other stitch gaps.
+	// Ten pixels around the round-change marker is a minimum. Keep a bounded
+	// share of any additional inherited room so the opening-side stitches can
+	// remain nearer their parents, then return only the surplus beyond that to
+	// the rest of the round.
+	const expandsNumberedOpening =
+		contents.label !== undefined &&
+		standsOnRoundBelow &&
+		canTaperSeamEdges(count);
+	const seamTarget =
+		(minGaps[count - 1] ?? 0) +
+		(expandsNumberedOpening ? arcToDegrees(NUMBERED_SEAM_EXTRA_ROOM, radius) : 0);
 	const targets = closeSeam(
 		aligned,
-		minGaps[count - 1] ?? 0,
+		seamTarget,
 		round.stitches.map((stitch) => stitch.shaping !== 'normal'),
+		expandsNumberedOpening,
 	);
 	// Order and minimum spacing still apply: they are what stops two stitches
 	// being drawn over each other, and a round standing on the one below already
 	// satisfies them wherever the round below did.
-	const placed = anchorToStart(fitTurn(enforceOrderAndGap(targets, minGaps), minGaps), aligned);
+	const fitted = fitTurn(enforceOrderAndGap(targets, minGaps), minGaps);
+	// A plain one-to-one round is already on its ancestry. Anchoring the fitted
+	// result back to one edge would rotate the other columns needlessly; shaping
+	// rounds retain the established first-stitch anchor.
+	const placed = standsOnRoundBelow ? fitted : anchorToStart(fitted, aligned);
 	if (standsOnRoundBelow) return placed;
 
 	// An increase's two stitches sit closer together than the round's pitch —
@@ -1002,11 +1074,9 @@ function seamOf(
 	return placeSeam(contents, last - reach.end, first - 360 + reach.start, radius);
 }
 
-// Turn each ordinary numbered round as one rigid piece until its red number
-// sits on the chart's explicit top-right bearing. Keeping the first stitch
-// fixed put the number a constant number of pixels beside it; that offset is a
-// smaller angle at every larger radius, so the numbers bent into a J. A rigid
-// turn changes no gap, order, or seam width inside the round.
+// Small and shaping rounds still turn rigidly with their numbered seam: they
+// do not have enough ordinary stitches to localize that correction safely. A
+// decrease is the exception because its point must remain between its parents.
 function alignRoundNumber(
 	graph: StitchGraph,
 	round: StitchRound,
@@ -1015,20 +1085,10 @@ function alignRoundNumber(
 	placed: readonly number[],
 	radius: number,
 	target: number,
-): { angles: number[]; label: number } {
-	let angles = [...placed];
-	let label = seamOf(contents, angles, radius, seamReachOf(graph, round, previous, angles)).label;
-	// A decrease must keep its point over the two stitches it closes below.
-	// Turning that round to straighten its number would pull the point away from
-	// those stitches, so shaping wins on decreasing rounds; the surrounding
-	// ordinary rounds return to the shared number bearing.
-	const hasDecrease = round.stitches.some((stitch) => stitch.shaping === 'decrease');
-	if (hasDecrease) {
-		return { angles, label };
-	}
-
+): number[] {
+	const angles = [...placed];
+	if (round.stitches.some((stitch) => stitch.shaping === 'decrease')) return angles;
+	const label = seamOf(contents, angles, radius, seamReachOf(graph, round, previous, angles)).label;
 	const turn = shortestAngleDelta(label, target);
-	angles = angles.map((angle) => angle + turn);
-	label = seamOf(contents, angles, radius, seamReachOf(graph, round, previous, angles)).label;
-	return { angles, label };
+	return angles.map((angle) => angle + turn);
 }

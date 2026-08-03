@@ -69,35 +69,12 @@ export function buildShapingMark(
 	const apexRadius = band.radius + (kind === 'increase' ? -own / 2 : own / 2);
 	const openRadius = band.radius + (kind === 'increase' ? own / 2 : -own / 2);
 
-	// Draw the opening no wider than the symbol wants to be, closing it around
-	// the pointed end — which keeps its exact angle, since that is what says
-	// which stitch this is worked into. Each end is measured from that point
-	// along the shortest arc: the two ends of a mark can be on either side of
-	// the round's seam (a round that works past the end of the one below picks
-	// its next stitch up a whole turn later), and there they are neighbours on
-	// the chart however far apart their angles count.
 	const apexAngle = point.layout.angle;
-	const offsets = openAngles.map((angle) => shortestAngleDelta(apexAngle, angle));
-	// The widest a mark may open, in px: one stitch's room for each stitch on its
-	// open side, taken from those stitches' own symbols. Its height does not come
-	// into it — reaching further is how a mark says which stitches it joins.
-	const widest = open.reduce((total, stitch) => total + symbolArc(stitch.symbol), 0);
-	const maxSpan = arcToDegrees(widest, openRadius);
-	const span = Math.max(...offsets) - Math.min(...offsets);
-	const squeeze = span > maxSpan ? maxSpan / span : 1;
-	// Closing the opening is not enough on its own: where a round cannot follow
-	// its ancestry (it does not work into the round below exactly once each, so
-	// it is spread evenly instead), a mark's ends can sit well off to one side
-	// of its point, and it would be drawn as a long thin spike. Slide the whole
-	// opening back under the point, keeping the ends' separation and order.
-	const scaled = offsets.map((offset) => offset * squeeze);
-	const half = maxSpan / 2;
-	const low = Math.min(...scaled);
-	const high = Math.max(...scaled);
-	const slide = low < -half ? -half - low : high > half ? half - high : 0;
-
 	const apex = polar(apexAngle, apexRadius);
-	const arms = scaled.map((offset) => polar(apexAngle + offset + slide, openRadius));
+	const arms =
+		kind === 'increase'
+			? openAngles.map((angle) => polar(angle, openRadius))
+			: decreaseArms(open, openAngles, apexAngle, openRadius);
 	const first = arms[0];
 	const last = arms[arms.length - 1];
 	if (first === undefined || last === undefined) return undefined;
@@ -117,6 +94,30 @@ export function buildShapingMark(
 		rowIndex: group.roundIndex,
 		unitIndex: group.unitIndex,
 	};
+}
+
+// A decrease may inherit a very wide or one-sided pair of parents when its
+// round cannot follow ancestry exactly. Keep its existing compact ∧ treatment:
+// squeeze the opening to the symbols' own room, then slide it back under its
+// point. Increases deliberately do not use this — all three points of a V must
+// remain aimed at the parent and the two child stitches it represents.
+function decreaseArms(
+	open: readonly GraphStitch[],
+	openAngles: readonly number[],
+	apexAngle: number,
+	openRadius: number,
+): GridPoint[] {
+	const offsets = openAngles.map((angle) => shortestAngleDelta(apexAngle, angle));
+	const widest = open.reduce((total, stitch) => total + symbolArc(stitch.symbol), 0);
+	const maxSpan = arcToDegrees(widest, openRadius);
+	const span = Math.max(...offsets) - Math.min(...offsets);
+	const squeeze = span > maxSpan ? maxSpan / span : 1;
+	const scaled = offsets.map((offset) => offset * squeeze);
+	const half = maxSpan / 2;
+	const low = Math.min(...scaled);
+	const high = Math.max(...scaled);
+	const slide = low < -half ? -half - low : high > half ? half - high : 0;
+	return scaled.map((offset) => polar(apexAngle + offset + slide, openRadius));
 }
 
 function midAngle(angles: readonly number[]): number {
