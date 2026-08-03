@@ -120,14 +120,13 @@ export function fitTurn(angles: readonly number[], minGaps: readonly number[]): 
 // So a round spreads its stitches out into that surplus. The spread is measured
 // from the point of the round opposite the seam, which does not move: stitches
 // far from the seam keep the angle their ancestry gave them, and the ones beside
-// it — the ones the corridor is actually too wide for — give way most. No stitch
-// moves further than `maxDrift`, so a round closes what it can and the rounds
-// above it carry on from there, each starting from a seam its own round below
-// already narrowed.
+// it — the ones the corridor is actually too wide for — give way most. The whole
+// surplus is used, so the seam takes the same physical width at every radius and
+// the other stitches share the released room.
 export function closeSeam(
 	targets: readonly number[],
 	seamTarget: number,
-	maxDrift: number,
+	fixed: readonly boolean[] = [],
 ): number[] {
 	const count = targets.length;
 	const first = targets[0];
@@ -136,13 +135,26 @@ export function closeSeam(
 
 	const span = first - last;
 	const excess = 360 - span - seamTarget;
-	if (span <= 0 || excess <= 0 || maxDrift <= 0) return [...targets];
+	if (span <= 0 || excess <= 0) return [...targets];
 
-	// Spreading by `scale` moves the stitches at either end of the round by half
-	// the arc it takes up, and the middle of the round not at all.
-	const scale = Math.min(1 + excess / span, 1 + (2 * maxDrift) / span);
-	const middle = (first + last) / 2;
-	return targets.map((target) => middle + (target - middle) * scale);
+	// Preserve every shaping stitch we can: moving a decrease out from between
+	// the parents it joins makes the chart say something untrue. The surplus is
+	// shared by the plain run after the last such stitch. When shaping itself
+	// closes the round there is no untouched run to spend it in, so the whole
+	// round shares it instead — changing the seam requires moving its last
+	// stitch somewhere.
+	let from = 0;
+	for (let index = count - 2; index >= 0; index--) {
+		if (fixed[index] === true) {
+			from = index;
+			break;
+		}
+	}
+	if (fixed[count - 1] === true || from >= count - 1) from = 0;
+	const goes = count - 1 - from;
+	return targets.map((target, index) =>
+		index <= from ? target : target - excess * ((index - from) / goes),
+	);
 }
 
 // How strongly one pass pulls a stitch toward the midpoint of its neighbours.

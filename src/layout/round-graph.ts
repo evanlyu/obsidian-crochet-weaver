@@ -78,14 +78,6 @@ function maxIncreaseSpread(symbol: string): number {
 // which is how real fabric takes it up, rather than in one jump.
 const MAX_DRIFT_SHARE = 0.2;
 
-// ...and how much of a stitch a round may spend closing its seam back to the room
-// it needs (see closeSeam), on top of that. The round is turned back onto its own
-// start afterwards (see anchorToStart), so what closing costs is not shared
-// between the two ends of the round any more — all of it lands on the stitch the
-// round closed on. Half what it was, for that reason: the same closing, paid at
-// one end, must still leave that stitch over the one it is worked into.
-const SEAM_CLOSE_SHARE = 0.1;
-
 // How far apart the two stitches of an increase sit: the opening of the V drawn
 // across them, and no more — the pair is one symbol, so it takes one stitch's
 // worth of the round and the stitches after it follow straight on. Read off the
@@ -654,26 +646,22 @@ function placeDrawnOrder(
 	const pinned = pinnedByNextRound(graph, round.roundIndex);
 	const movable = round.stitches.map((stitch) => stitch.shaping === 'normal' && !pinned.has(stitch.id));
 
-	// A round that works one stitch into each stitch of the round below is drawn
-	// standing on it: every stitch keeps the angle of the one it came from, so
-	// the chart reads outward along a straight line of stitches, which is what a
-	// chart is read for. Nothing about such a round re-spaces the ring, so
-	// neither the seam-closing nor the evening-out below is allowed to — both
-	// move stitches off the ones they are worked into, by a fifth of a stitch a
-	// round each, and over a tall piece that adds up to a visible lean.
-	//
-	// The cost is that the seam keeps the angle it inherited rather than
-	// narrowing to the arc it needs, so the round-change corridor widens as the
-	// chart grows. Only a round that changes the stitch count re-spaces the ring,
-	// and that is where both are spent instead.
+	// A round that works one stitch into each stitch of the round below needs no
+	// general evening-out: its ancestry already gives it the fabric's order and
+	// spacing. Its seam still closes to its own physical width, however. Keeping
+	// the inherited seam angle would make the round-change corridor grow wider
+	// in pixels at every larger radius instead of letting the stitches use that
+	// space.
 	const standsOnRoundBelow = sitsOverParents(round, aligned, parentAngles, parentTurn);
 
 	// Ancestry hands down the seam's angle, which is more and more arc the
-	// further out the round is; close it back toward the room it needs, by a
-	// share of a stitch at most (see closeSeam).
-	const targets = standsOnRoundBelow
-		? aligned
-		: closeSeam(aligned, minGaps[count - 1] ?? 0, step * SEAM_CLOSE_SHARE);
+	// further out the round is; close it back to the room it needs and share the
+	// released space across the other stitch gaps.
+	const targets = closeSeam(
+		aligned,
+		minGaps[count - 1] ?? 0,
+		round.stitches.map((stitch) => stitch.shaping !== 'normal'),
+	);
 	// Order and minimum spacing still apply: they are what stops two stitches
 	// being drawn over each other, and a round standing on the one below already
 	// satisfies them wherever the round below did.

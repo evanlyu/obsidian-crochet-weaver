@@ -368,11 +368,9 @@ describe('traditional-Japanese round layout', () => {
 	const BOOK = { ...OPTIONS, roundStyle: 'japanese' } as const;
 
 	// How far the layout may move a stitch from the one it is worked into, as a
-	// share of its round's stitch pitch: a fifth of a stitch to even out the
-	// crowding shaping below it left (MAX_DRIFT_SHARE), and as much again where a
-	// round closes its seam back to the one width it needs (SEAM_CLOSE_SHARE — see
-	// closeSeam in layout/angles.ts). Both are spent beside the seam and neither
-	// opposite it, so this is the worst case, not the usual one.
+	// share of its round's stitch pitch. A fifth is the ordinary redistribution
+	// allowance (MAX_DRIFT_SHARE); another fifth covers the local adjustment
+	// around shaping while order and minimum gaps are imposed.
 	const DRIFT_SHARE = 0.4;
 
 	// That allowance in degrees, on a round of `count` stitches.
@@ -659,11 +657,9 @@ describe('traditional-Japanese round layout', () => {
 			return Math.max(...pitches) / Math.min(...pitches);
 		}
 
-		// A plain round works one stitch into each of the round below, so every
-		// stitch is drawn on the one it is worked into and on nothing else: not
-		// near it, on it. Whatever crowding shaping below left is inherited as it
-		// stands — evening it out would be moving stitches off their own.
-		it('draws a plain round on the stitches of the round below', () => {
+		// A plain round starts on its first parent, then uses the arc that would
+		// otherwise make its inherited seam wider at this larger radius.
+		it('keeps a plain round anchored while sharing released seam room across its stitches', () => {
 			const layout = calculateLayout(
 				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: 18 sc\n'),
 				LINKED,
@@ -672,15 +668,20 @@ describe('traditional-Japanese round layout', () => {
 			if (!center) throw new Error('expected MR center');
 			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
 
-			expect(unevenness(layout, 3)).toBeCloseTo(unevenness(layout, 2), 9);
-			for (const stitch of round(layout, 3)) {
+			expect(unevenness(layout, 3)).toBeLessThan(unevenness(layout, 2));
+			const drifts = round(layout, 3).map((stitch) => {
 				const parent = byId.get(stitch.sourceStitchIds?.[0]);
 				if (!parent) throw new Error('expected the stitch below');
-				expect(angleDiff(angleOf(center, stitch), angleOf(center, parent))).toBeCloseTo(0, 9);
+				return angleDiff(angleOf(center, stitch), angleOf(center, parent));
+			});
+			expect(drifts[0]).toBeCloseTo(0, 9);
+			expect(drifts.at(-1)).toBeGreaterThan(0);
+			for (let index = 1; index < drifts.length; index++) {
+				expect(drifts[index]).toBeGreaterThanOrEqual((drifts[index - 1] ?? 0) - 1e-9);
 			}
 		});
 
-		it('keeps a whole run of plain rounds in the same columns', () => {
+		it('keeps a run of plain rounds anchored while letting their stitch pitches grow', () => {
 			let source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\n';
 			for (let round = 4; round <= 8; round++) source += `R${round}: 18 sc\n`;
 			const layout = calculateLayout(parseChart(source), LINKED);
@@ -688,16 +689,21 @@ describe('traditional-Japanese round layout', () => {
 			if (!center) throw new Error('expected MR center');
 			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
 
-			// However many plain rounds follow, the columns run straight out: each
-			// stitch sits on the one below it, so nothing leans and nothing adds up
-			// over the rounds. The spacing they inherited is carried unchanged too.
+			// Each larger ring has more usable circumference after reserving the
+			// same physical seam width. Its first stitch remains the radial anchor;
+			// the closing side moves into the released room.
 			for (let rowIndex = 3; rowIndex <= 7; rowIndex++) {
-				expect(unevenness(layout, rowIndex)).toBeCloseTo(unevenness(layout, rowIndex - 1), 9);
-				for (const stitch of round(layout, rowIndex)) {
-					const parent = byId.get(stitch.sourceStitchIds?.[0]);
-					if (!parent) throw new Error('expected the stitch below');
-					expect(angleDiff(angleOf(center, stitch), angleOf(center, parent))).toBeCloseTo(0, 9);
-				}
+				const stitches = round(layout, rowIndex);
+				const first = stitches[0];
+				const last = stitches.at(-1);
+				if (!first || !last) throw new Error('expected a plain round');
+				const firstParent = byId.get(first.sourceStitchIds?.[0]);
+				const lastParent = byId.get(last.sourceStitchIds?.[0]);
+				if (!firstParent || !lastParent) throw new Error('expected parent stitches');
+				expect(angleDiff(angleOf(center, first), angleOf(center, firstParent))).toBeCloseTo(0, 9);
+				expect(angleDiff(angleOf(center, last), angleOf(center, lastParent))).toBeGreaterThan(0);
+				const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+				expect(average(pitchesOf(layout, rowIndex))).toBeGreaterThan(average(pitchesOf(layout, rowIndex - 1)));
 			}
 		});
 
@@ -726,11 +732,11 @@ describe('traditional-Japanese round layout', () => {
 				return worst;
 			};
 
-			// An increase's two stitches straddle the one they share, so they cannot
-			// sit dead over it — half a stitch — and the layout may move a stitch a
-			// further DRIFT_SHARE of one. Nothing may exceed the two together.
+			// An increase's two stitches straddle the one they share, and the first
+			// large step out from the center must also normalize the inherited seam
+			// to its fixed physical width. Later rounds need only a local correction.
 			for (let rowIndex = 1; rowIndex <= 8; rowIndex++) {
-				expect(worstDrift(rowIndex)).toBeLessThan(0.5 + DRIFT_SHARE);
+				expect(worstDrift(rowIndex)).toBeLessThan(rowIndex === 1 ? 1.25 : 0.5 + DRIFT_SHARE);
 			}
 			// And it stays there instead of creeping outward round after round,
 			// which is what would really lose the correspondence: the outermost
@@ -798,7 +804,11 @@ describe('traditional-Japanese round layout', () => {
 
 			expect(gaps).toHaveLength(12);
 			for (const gap of gaps.slice(0, -1)) expect(gap).toBeCloseTo(gaps[0] ?? 0);
-			expect(gaps[gaps.length - 1] ?? 0).toBeGreaterThan(gaps[0] ?? 0);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const radius = roundRadius(layout, center, 1);
+			const seam = ((gaps[gaps.length - 1] ?? 0) * Math.PI * radius) / 180;
+			expect(seam).toBeGreaterThan(24);
 		});
 	});
 
@@ -1021,30 +1031,30 @@ describe('traditional-Japanese round layout', () => {
 		});
 	});
 
-	it("aligns a plain round's stitches with the fanned-out children of the previous round's increases", () => {
+	it("keeps a plain round's stitches with the previous round's increase marks", () => {
 		const layout = calculateLayout(
 			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: 12 sc\n'),
 			BOOK,
 		);
 		const center = layout.items[0];
 		if (!center) throw new Error('expected MR center');
-		const round1 = layout.items.filter((item) => item.rowIndex === 0);
+		const increases = marksOf(layout, 1);
 		const round3 = layout.items.filter((item) => item.rowIndex === 2);
 
-		// R2's six increases each split one R1 parent into two children (the
-		// increases render as one V each, so their children only surface as
-		// R3's twelve plain sc). Each R3 pair 2i / 2i+1 descends from R1 stitch
-		// i and must straddle it — the parent sits at the pair's midpoint, give or
-		// take the fraction of a stitch R3 evens itself out by.
+		// R2's six increases render as one V each, so their children only surface
+		// as R3's twelve plain sc. Each R3 pair 2i / 2i+1 remains with the V it
+		// came from while the closing side spends the room released by the
+		// now-fixed seam width.
+		expect(increases).toHaveLength(6);
 		expect(round3).toHaveLength(12);
 		const radius = roundRadius(layout, center, 2);
 		const pitch = (2 * Math.PI * radius) / round3.length;
-		round1.forEach((parent, i) => {
+		increases.forEach((increase, i) => {
 			const left = round3[2 * i];
 			const right = round3[2 * i + 1];
-			if (!left || !right) throw new Error('expected two grandchildren');
+			if (!left || !right) throw new Error('expected two children');
 			const mid = midAngle(angleOf(center, left), angleOf(center, right));
-			const off = (angleDiff(angleOf(center, parent), mid) * Math.PI * radius) / 180;
+			const off = (angleDiff(angleOf(center, increase), mid) * Math.PI * radius) / 180;
 			expect(off).toBeLessThanOrEqual(pitch * DRIFT_SHARE);
 		});
 	});
@@ -1636,6 +1646,84 @@ describe('where a chart changes rounds', () => {
 		// One radial line: every round's number within a stitch of the first.
 		const spread = Math.max(...angles) - Math.min(...angles);
 		expect(spread).toBeLessThan(360 / 22);
+	});
+
+	it('keeps the numbered seam the same physical width as rounds grow', () => {
+		const source =
+			'---\ntype: round\n---\n' +
+			Array.from({ length: 2 }, (_, index) =>
+				`R${index + 1}: 6 sc${index === 0 ? ' in MR' : ''}`,
+			).join('\n');
+
+		for (const style of ['japanese', 'continuous'] as const) {
+			const layout = calculateLayout(parsePattern(source), {
+				ringSpacing: 20,
+				grid: false,
+				roundStyle: style,
+			});
+			const center = layout.items.find((item) => item.symbol === 'MR');
+			if (!center) throw new Error('expected center');
+			const seamWidths = Array.from({ length: 2 }, (_, rowIndex) => {
+				const stitches = layout.items
+					.filter((item) => item.rowIndex === rowIndex && item.symbol === 'sc')
+					.sort((a, b) => (a.unitIndex ?? 0) - (b.unitIndex ?? 0));
+				const first = stitches[0];
+				const last = stitches.at(-1);
+				if (!first || !last) throw new Error(`expected stitches on round ${rowIndex + 1}`);
+				const firstAngle = Math.atan2(first.y - center.y, first.x - center.x);
+				const lastAngle = Math.atan2(last.y - center.y, last.x - center.x);
+				const angle = Math.abs(Math.atan2(Math.sin(firstAngle - lastAngle), Math.cos(firstAngle - lastAngle)));
+				const radius = distance(center, first);
+				return radius * angle;
+			});
+
+			expect(Math.max(...seamWidths) - Math.min(...seamWidths)).toBeLessThan(1);
+		}
+	});
+
+	it('keeps one seam width through the full long-tailed-tit head pattern', () => {
+		const layout = calculateLayout(
+			parsePattern(`---
+type: round
+---
+R1: sl st, ch, color #8b5a2b, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+R3: sl st, ch, [sc, inc] x 6
+R4: sl st, ch, sc, inc, [2 sc, inc] x 5, sc
+R5: sl st, ch, 24 sc
+R6: sl st, ch, [3 sc, inc] x 6
+R7: sl st, ch, 30 sc
+R8: sl st, ch, color #f5f0df, 30 sc
+R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
+`),
+			{ ringSpacing: 20, grid: false, roundStyle: 'continuous' },
+		);
+		const center = layout.items.find((item) => item.symbol === 'MR');
+		if (!center) throw new Error('expected center');
+		const seams = Array.from({ length: 9 }, (_, rowIndex) => {
+			const stitches = layout.items.filter((item) => item.rowIndex === rowIndex && item.stitchId !== undefined);
+			const first = stitches[0];
+			const last = stitches.at(-1);
+			const label = layout.labels?.[rowIndex];
+			if (!first || !last || !label) throw new Error(`expected a numbered seam on round ${rowIndex + 1}`);
+			const firstAngle = Math.atan2(first.y - center.y, first.x - center.x);
+			const lastAngle = Math.atan2(last.y - center.y, last.x - center.x);
+			const labelAngle = Math.atan2(label.y - center.y, label.x - center.x);
+			const arc = (from: number, to: number) => {
+				const angle = Math.abs(Math.atan2(Math.sin(from - to), Math.cos(from - to)));
+				return distance(center, first) * angle;
+			};
+			return {
+				width: arc(firstAngle, lastAngle),
+				openingSide: arc(firstAngle, labelAngle),
+				closingSide: arc(labelAngle, lastAngle),
+			};
+		});
+
+		for (const side of ['width', 'openingSide', 'closingSide'] as const) {
+			const widths = seams.map((seam) => seam[side]);
+			expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(1);
+		}
 	});
 });
 
