@@ -125,6 +125,20 @@ export function seamGapDegrees(contents: SeamContents, radius: number): number {
 // down together when that gap is tighter than they asked for (a round too small
 // to spare it, see the caps above), so a crowded seam crowds evenly instead of
 // spilling its contents over the round's stitches.
+//
+// The walk starts at the stitch the round opens on and works backwards from it,
+// against the order the round is worked. Every round starts on the same radial
+// line (see anchorToStart in layout/round-graph.ts), so anchoring the seam there
+// puts the chain, the round number and the round change a fixed width out from
+// that line on every round — one straight channel, whatever the round's own gap
+// happens to be. Anchored in the middle of the gap instead, they were pushed
+// further out with every round: a round's seam is the same arc in px but a
+// wider and wider gap in px as the radius grows, so the surplus that gathered
+// around them grew with it and the numbers fanned away from the chart.
+//
+// What the round left over the seam's asking is therefore left in one piece, at
+// the far end: beside the stitch the round closed on, where there is nothing to
+// line up with anything.
 export function placeSeam(
 	contents: SeamContents,
 	lastStitchAngle: number,
@@ -137,55 +151,39 @@ export function placeSeam(
 	const wanted = arcToDegrees(seamArc(contents), radius);
 	const scale = wanted > 0 ? Math.min(1, gap / wanted) : 1;
 	const slot = (arc: number): number => arcToDegrees(arc, radius) * scale;
-
-	// Whatever room the round left over the seam's asking sits either side of its
-	// contents, so the step and the number stay in the middle of the gap rather
-	// than hugging the stitch the round closed on.
-	const spare = Math.max(0, gap - wanted) / 2;
+	const lace = contents.lace === true;
 
 	// Each slot is claimed by stepping to its middle and on to its far edge, and
 	// then over the gap to the next one, so the walk lands each thing exactly
 	// where seamArc said it would fit.
-	let at = lastStitchAngle - spare - slot(halfOf(contents.lastStitch));
+	let at = firstStitchAngle + slot(halfOf(contents.firstStitch, lace));
 	const middleOf = (arc: number): number => {
 		// Nothing drawn here — a style with no round numbers, say — takes no slot
 		// and no gap either, which is what it was charged for.
 		if (arc <= 0) return at;
-		at -= slot(SEAM_AIR) + slot(arc) / 2;
+		at += slot(SEAM_AIR) + slot(arc) / 2;
 		const middle = at;
-		at -= slot(arc) / 2;
+		at += slot(arc) / 2;
 		return middle;
 	};
 
-	const end = instructionArcs(contents.end).map((arc) => middleOf(arc));
-	const step = middleOf(STEP_ARC);
+	// Backwards from the first stitch: the chain it stands on, the round number,
+	// the step out to the next round, then the joins that closed the round.
+	const start = walkBack(openingArcs(contents.start, lace), middleOf);
 	const label = middleOf(labelArc(contents.label));
-	// The opening chain leans on the stitch it turns up to rather than floating
-	// in the middle of the seam: whatever room the round left over its asking
-	// gathers behind it, between the round number and the chain, instead of
-	// pushing the chain away from the first stitch.
-	const start = placeStart(contents, firstStitchAngle, slot);
+	const step = middleOf(STEP_ARC);
+	const end = walkBack(instructionArcs(contents.end, lace), middleOf);
 
 	return { step, label, end, start };
 }
 
-// Where each opening chain goes: walked back from the first stitch, against it,
-// in reverse working order — the last chain worked is the one the first stitch
-// stands on.
-function placeStart(
-	contents: SeamContents,
-	firstStitchAngle: number,
-	slot: (arc: number) => number,
-): number[] {
-	const lace = contents.lace === true;
-	const arcs = openingArcs(contents.start, lace);
+// A run of instructions claimed against the walk's direction: the last one
+// worked is nearest the stitch the walk started from. Handed back in working
+// order, which is the order the caller draws them in.
+function walkBack(arcs: readonly number[], middleOf: (arc: number) => number): number[] {
 	const angles: number[] = [];
-	let at = firstStitchAngle + slot(halfOf(contents.firstStitch, lace));
 	for (let index = arcs.length - 1; index >= 0; index--) {
-		const arc = arcs[index] ?? 0;
-		at += slot(SEAM_AIR) + slot(arc) / 2;
-		angles[index] = at;
-		at += slot(arc) / 2;
+		angles[index] = middleOf(arcs[index] ?? 0);
 	}
 	return angles;
 }
@@ -207,7 +205,7 @@ function instructionArcs(symbols: readonly string[], lace = false): number[] {
 
 // The chain a round opens with is not a stitch of the round: it is the turn up
 // to it, so it is drawn turned across the ring, smaller than the stitches, and
-// tucked against the first one (see placeStart). Turned, a chain lies along the
+// tucked against the first one (see placeSeam). Turned, a chain lies along the
 // ring its short way, and that — at the size it is really drawn — is all the
 // room it is charged for, a quarter of the slot it took when it was measured as
 // if it stood in the ring like a stitch.
