@@ -190,6 +190,10 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 	// getSettingDefinitions() and only ever call display(). Ignored by newer
 	// versions once getSettingDefinitions() returns a non-empty array.
 	display(): void {
+		this.renderLegacySettings();
+	}
+
+	private renderLegacySettings(): void {
 		const { containerEl } = this;
 		const locale = this.plugin.getLocale();
 		containerEl.empty();
@@ -225,7 +229,7 @@ export class CrochetWeaverSettingTab extends PluginSettingTab {
 			await this.setControlValue(control.key, value);
 			// The whole page is written in the chosen language, so changing it
 			// rewrites the page.
-			if (control.key === 'languagePreference') this.display();
+			if (control.key === 'languagePreference') this.renderLegacySettings();
 		};
 
 		if (control.type === 'toggle') {

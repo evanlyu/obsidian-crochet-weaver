@@ -60,17 +60,23 @@ Optional, delimited by `---` lines, flat `key: value` pairs (no nesting, no list
 | Key | Values | Default | Notes |
 |---|---|---|---|
 | `type` | `flat` \| `round` \| `spiral` | `flat` | See "Choosing a chart type" below. |
-| `id` | any string | derived from block content | Set this whenever you also embed or write a `crochet-tool`/`tool: on` panel, so progress survives edits to the pattern text. |
+| `id` | 1–80 ASCII letters, digits, `_`, or `-` | derived from block content | Set this whenever you also embed or write a `crochet-tool`/`tool: on` panel, so progress survives edits to the pattern text. |
 | `scale` | positive number | plugin setting | Display scale. |
 | `stroke` | positive number | plugin setting | SVG stroke width. |
 | `spacing` | positive number | plugin setting | Pixel gap between round/spiral rings. |
 | `highlight` | `on`/`off`/`true`/`false`/`yes`/`no`/`1`/`0` | plugin setting | Accent-colors `inc`/`dec` stitches. |
 | `style` | `radial` \| `japanese` \| `continuous` | plugin setting | Round-chart drawing style. `japanese` gives Japanese-pattern-book styling: a continuous spiral guide winds through the rounds, stitches sit above the previous-round stitch they're worked into, an `inc` is a **V** and a `dec` an **∧** drawn in line with the round's own stitches, rounds are numbered. `continuous` uses the same layout but draws every stitch's own symbol and links each one to the stitch below it — useful for checking a conversion. Only affects `type: round`. |
+| `lace` | boolean (as above) | `off` | Pattern-book lace presentation: hide round guides and numbers, enlarge symbols, and stand chain runs out into the openwork. |
+| `sector` | `on` or a number between 0 and 360 | full chart | Draw one wedge of a round chart; `on` means 90 degrees. |
+| `wholeRounds` | positive integer | none | Keep this many center rounds whole before applying `sector`. |
+| `grid` | boolean (as above) | plugin setting | Draw a background guide aligned to the real chart. |
+| `rounds` / `rows` / `columns` | positive integer | chart extent | Extend the background guide beyond the real pattern; never shrink it. |
 | `tool` | boolean (as above) | plugin setting | Embeds the interactive progress tool next to the chart. See "Embedding a progress panel". |
 | `text` | boolean (as above) | plugin setting | Embeds a read-only shorthand list next to the chart (ignored if `tool` is also on). |
+| `readable` | boolean (as above) | plugin setting | Show translated full stitch names instead of raw shorthand in the tool/text panel. |
 | `position` | `right` \| `left` \| `below` | plugin setting | Where an embedded `tool`/`text` panel sits relative to the chart. |
 
-Any invalid value silently falls back to the plugin's global setting — it will not error, so double-check values you're unsure about rather than relying on a visible failure.
+An invalid value silently falls back to the matching global setting, or is ignored when that option has no global default (such as `sector`) — it will not error, so double-check values you're unsure about rather than relying on a visible failure.
 
 ### Rows
 
@@ -165,7 +171,7 @@ Repeats and groups can nest and contain each other.
 
 There is still no dedicated token for N-into-one **increases** — those are groups, not stitch names (see "Group" below): "2 dc in next st" → `(dc, dc)`, "shell: 5 dc in next st" → `(5 dc)`.
 
-The chain a round opens with **is** supported: write it as a plain `ch` step at the start of the row (`R2: ch, [2 sc, inc] rep, slst`). It is drawn at the round's seam, but it is not a stitch of the fabric — it adds nothing to the round's count and the next round does not work into it. The same goes for the `sl st` that closes a round, and for a `mr` written as a step (`R1: mr, ch, sc6, slst`) instead of as an `in MR` anchor.
+The chain a round opens with **is** supported: preserve the source's plain or annotated leading `ch` step (`R2: ch, [2 sc, inc] rep, slst`). It is drawn at the seam. `ch 3 (counts as dc)` counts as one replacement stitch; `ch 1 (does not count as a st)` counts zero; an unannotated beginning chain counts as one only when that round closes to its top. The closing `sl st` and a `mr` written as a step (`R1: mr, ch, sc6, slst`) always count zero.
 
 Write these only where the source does. On a flat chart `turn` has no chart meaning, so `ch 1, turn` can be dropped.
 
@@ -336,7 +342,7 @@ R1: 6 sc in MR
 R2: [inc] x 6
 ```
 
-- `tool: on` — full interactive checklist next to the chart: row-by-row list, progress bar, and a per-row stitch counter (`+1` per stitch made, auto-completes the row on reaching its total). The chart also highlights the current row/stitch live.
+- `tool: on` — full interactive checklist next to the chart: row-by-row list, progress bar, and a weighted per-row stitch counter. Tap once per written unit; the button adds that unit's weight (`inc` is `+2`, and a V/shell adds its full weight at once). The chart also highlights the current row/stitch live.
 - `text: on` — same row list, but read-only (no buttons, no progress, no chart highlight). Use when the person just wants the shorthand next to the picture.
 - Always set an explicit `id` when using `tool: on` (or a standalone `crochet-tool`) if you expect the pattern text to be edited later — otherwise progress is keyed to a hash of the block content and resets on edit.
 

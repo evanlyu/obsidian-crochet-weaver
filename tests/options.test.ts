@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveOptions, resolvePanelOptions } from '../src/settings/options';
 import { parse } from '../src/pattern/parser';
-import type { CrochetAst } from '../src/types';
+import { LACE_SYMBOL_SCALE, type CrochetAst } from '../src/types';
 import type { CrochetWeaverSettings } from '../src/settings/tab';
 
 const SETTINGS: CrochetWeaverSettings = {
@@ -192,6 +192,47 @@ R1: sc
 		expect(resolveOptions(parseChart('---\ncolumns: 16\n---\nR1: sc\n'), SETTINGS).gridColumns).toBe(16);
 		expect(resolveOptions(parseChart('R1: sc\n'), SETTINGS).gridColumns).toBeUndefined();
 		expect(resolveOptions(parseChart('---\ncolumns: 0\n---\nR1: sc\n'), SETTINGS).gridColumns).toBeUndefined();
+	});
+
+	it('resolves lace presentation, sector, and whole-round options', () => {
+		const options = resolveOptions(
+			parseChart(`---
+type: round
+lace: on
+sector: 72
+wholeRounds: 4
+---
+R1: 6 sc in MR
+`),
+			SETTINGS,
+		);
+
+		expect(options).toMatchObject({
+			lace: true,
+			sector: 72,
+			wholeRounds: 4,
+			symbolScale: LACE_SYMBOL_SCALE,
+		});
+		expect(resolveOptions(parseChart('---\nsector: on\n---\nR1: sc\n'), SETTINGS).sector).toBe(90);
+		expect(resolveOptions(parseChart('---\nwhole: 3\n---\nR1: sc\n'), SETTINGS).wholeRounds).toBe(3);
+	});
+
+	it('ignores invalid lace presentation values', () => {
+		const options = resolveOptions(
+			parseChart(`---
+lace: maybe
+sector: 360
+wholeRounds: 0
+---
+R1: sc
+`),
+			SETTINGS,
+		);
+
+		expect(options.lace).toBe(false);
+		expect(options.sector).toBeUndefined();
+		expect(options.wholeRounds).toBeUndefined();
+		expect(options.symbolScale).toBe(1);
 	});
 });
 

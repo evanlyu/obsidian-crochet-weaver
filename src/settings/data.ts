@@ -115,14 +115,6 @@ export interface CrochetSettingGroup {
 export const SETTING_DEFINITIONS = getLocalizedSettingDefinitions('en');
 
 // The settings, in the order they are shown: grouped by what they affect, and
-// the groups themselves ordered by how much of a chart they change — the look of
-// every chart first, the panels beside it next, then the blank grid block, and
-// last the things set once and left alone.
-// The settings, in the order they are shown: grouped by what they affect, and
-// the groups ordered by how often they are the reason someone opened this page —
-// the language the plugin speaks and the reference to hand an AI first, then the
-// look of every chart, the panels beside it, and the blank grid block last.
-// The settings, in the order they are shown: grouped by what they affect, and
 // the groups ordered by how much of a chart each one changes — the look of every
 // chart first, the panels beside it next, then the blank grid block, and last the
 // things set once and left alone.

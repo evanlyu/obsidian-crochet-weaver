@@ -11,7 +11,7 @@ Crochet Weaver renders crochet stitch charts from text patterns inside Obsidian 
 - Use common crochet symbols for chains, single crochet, half double crochet, double crochet, treble stitches, slip stitch, increases, decreases, bobbles, popcorns, and post stitches.
 - Add row-level `blo` / `flo` markers and round anchors such as magic ring or chain ring.
 - **Chart lace the way it is written**: say where a stitch goes (`5 dc in next ch-2 sp`, `sc in center dc of next 7-dc shell`), and shells fan from the space they are worked into, chain runs are drawn as the curve they hang in, and V-stitches, picots, joins, turns and "repeat R11-R14" rounds are read as written.
-- Show a configurable-color marker at the first stitch of the next round on concentric charts.
+- Keep numbered round changes clear of stitches while preserving radial stitch ancestry away from the seam.
 - Render `crochet-tool` blocks as a readable row checklist with stitch counts, progress controls, and a per-row stitch counter.
 - **Embed the progress tool or a read-only pattern-text list directly next to a `crochet` chart** (`tool: on` / `text: on`), so you never have to paste the same pattern into two code blocks.
 - **Highlight the current row and target stitch on the chart itself** when the progress tool is embedded, in a configurable color.
@@ -20,7 +20,7 @@ Crochet Weaver renders crochet stitch charts from text patterns inside Obsidian 
 - **Pan and scroll charts that are larger than their note pane** instead of squeezing them to fit — drag with the mouse, or use native touch/trackpad scrolling; a chart that overflows opens centered.
 - **Copy the AI pattern-authoring reference from Settings**, in any of four languages, ready to paste into an AI chat for help converting or writing patterns.
 - Store all progress locally in the plugin data file.
-- Fully localized UI: English, Traditional Chinese, Simplified Chinese, and Japanese.
+- Fully localized UI in eight languages: English, Traditional Chinese, Simplified Chinese, Japanese, Korean, German, French, and Spanish.
 
 ## Quick Start
 
@@ -77,7 +77,7 @@ R2: [sc, inc] x 6
 R3: [2 sc, inc] x 6, sl st
 ```
 
-Use an explicit `id` when you want progress to survive edits to the pattern text. If `id` is omitted, Crochet Weaver derives a local hash from the code block content, so editing the block can reset progress.
+Use an explicit `id` when you want progress to survive edits to the pattern text. It must contain 1–80 ASCII letters, digits, `_`, or `-`; an omitted or invalid `id` falls back to a local hash of the block content, so editing the block can reset progress.
 
 ## Let an AI write the pattern for you
 
@@ -135,13 +135,21 @@ stroke: 2
 spacing: 40
 highlight: on
 style: radial | japanese | continuous
+lace: on | off
+sector: on | degrees
+wholeRounds: positive-integer
+grid: on | off
+rounds: positive-integer
+rows: positive-integer
+columns: positive-integer
 tool: on | off
 text: on | off
+readable: on | off
 position: right | left | below
 ---
 ```
 
-Global plugin settings are used by default. Valid frontmatter values override those settings for one chart. Invalid values fall back to the global settings. `tool`, `text`, and `position` fall back to their own global defaults the same way (see [Settings](#settings)).
+Global plugin settings are used by default where an option has one. Valid frontmatter values override those settings for one chart; invalid values fall back to the corresponding global default or are ignored for presentation-only options such as `sector`. The lace, sector, grid-guide, and panel options are explained in their sections below.
 
 ### Rows
 
@@ -222,7 +230,7 @@ Each go at `[2 sc, inc]` works into three stitches and R1 has six, so that is tw
 
 A stitch's count can go either side of its name — `6 sc`, `sc6` and `sc 6` are the same — and a slip stitch may be written `sl st`, `slst`, `sl-st` or `sl_st`.
 
-The chain a round opens with and the slip stitch that closes it are drawn at the round's seam, but neither counts as a stitch of the round: the round above works into the stitches between them.
+A round's opening chain and closing slip stitch are drawn at the seam. The join always counts zero. A beginning chain counts as the one stitch it replaces when written as `ch 3 (counts as dc)`, or when an unannotated chain is joined at its top; `ch 1 (does not count as a st)` and a chain joined elsewhere count zero.
 
 Groups use parentheses and render as a fan from one stitch position — this is also how N-into-one increases and shells are written (there are no dedicated `2dc-in-1` names; `(dc, dc)` or `(5 dc)` draws exactly that chart symbol):
 
@@ -322,13 +330,15 @@ R2: [sc, inc] x 6, sl st
 
 `style: japanese` switches a round chart to Japanese-pattern-book styling: a continuous spiral guide winds through the rounds (as crochet-in-the-round really is one spiralling line), stepping out to the next round at each starting seam, with each round numbered in red at that seam.
 
-Shaping is drawn the way the books do it: as a symbol of its own round, in line with the plain stitches. An `inc` is a **V** whose point sits on the round's inner edge, in line with the stitch it is worked into, and whose two arms open out to the round's outer edge — one per stitch it makes, where the next round will be worked. A `dec` (or an `scNtog`) is the **∧**: its feet on each stitch it closed over, its point standing above them. Nothing floats in the gap between two rounds, and nothing is a fixed glyph: each mark is sized to its round's band and leans toward the stitches it belongs to. It opens far enough to reach across the stitches it belongs to, but never so far that it stops reading as a V: a decrease merging two stitches a long way apart on a big round still reaches toward both instead of stretching into two long lines.
+Shaping is drawn the way the books do it: as a symbol of its own round, in line with the plain stitches. An `inc` is a **V** whose point sits on the round's inner edge at its parent and whose two arms end at the actual positions of the two child stitches. A `dec` (or an `scNtog`) is the **∧**: its feet lean toward the stitches it closed over and its point stands above them; unusually wide decreases are compacted so the mark stays readable. Nothing floats in the gap between two rounds, and every endpoint continues to describe real stitch ancestry.
 
 Underneath, every stitch is placed from the previous-round stitch it is worked into, and records it: an increase's two stitches share one source, a decrease's stitch has two. Stitches never change working order, never overlap, and share out whatever room the shaping leaves.
 
 `style: continuous` uses that same layout and spells the correspondence out instead of printing it: every stitch keeps its own symbol — including **both** stitches an increase makes — and lines are drawn from them to the stitch below they are worked into. Useful for checking a pattern, or for reading a chart when you don't already know the book symbols.
 
-In both, nothing is grouped or packed: every stitch simply follows the stitch below it. A round written as a repeat — `[2 sc, inc] x 6` — still reads as six wedges, because its six increases sit above the six stitches they are worked into. A round that neither writes repeats nor shapes — the straight sides of a basket, `R9: 40 sc` — copies the round below exactly, so a run of plain rounds stacks into straight radial columns above whatever the shaping under it left.
+In both, nothing is grouped or packed: every stitch simply follows the stitch below it. A round written as a repeat — `[2 sc, inc] x 6` — still reads as six wedges, because its six increases sit above the six stitches they are worked into. A round that neither writes repeats nor shapes — the straight sides of a basket, `R9: 40 sc` — copies the round below. On sufficiently large plain rounds, any numbered-seam correction fades out within the nearest quarter of the round, leaving the broad opposite side in exact radial columns.
+
+The first stitch worked into the center ring stays at twelve o'clock. Round numbers start just to its right and lean another half degree toward twelve o'clock on each outer round, forming a subtle inward guide instead of a rigid spoke. The seam always reserves the room its join, step, number, and opening chain need; a large plain round may retain up to 10 px of extra inherited room so closing the seam does not unnecessarily pull stitches away from their parents.
 
 The default `style: radial` keeps the original evenly spread layout with the stock `inc`/`dec` glyphs; the global **Round chart style** setting changes the default for all charts.
 
@@ -402,7 +412,7 @@ R4: [2 sc, inc] x 6, sl st
 
 A `crochet` block's `tool` and `text` frontmatter keys (or their matching global settings) let the chart carry its own progress panel, so the pattern only ever needs to be written once:
 
-- `tool: on` — embeds the full interactive progress tool (row checklist, progress bar, per-row stitch counter with `+1` / `−1` / reset, previous/complete/reset controls).
+- `tool: on` — embeds the full interactive progress tool (row checklist, progress bar, weighted per-row stitch counter with add / subtract / reset, previous/complete/reset controls).
 - `text: on` — embeds a read-only shorthand list of the rows (label, normalized steps, stitch count), with no progress tracking or buttons. Useful if you just want the notation next to the picture.
 - If both are truthy, `tool` wins (it already shows everything `text` would).
 - `position: right | left | below` controls where the panel sits relative to the chart. `right` (default) and `left` sit side by side and wrap to a stacked layout on narrow widths; `below` always stacks.
@@ -429,6 +439,7 @@ Open the plugin settings tab to configure global defaults:
 - **Chart tool current-position color**: color used to highlight the current row/stitch on a chart with an embedded progress tool.
 - **Show progress tool by default**: embed the progress tool on every `crochet` chart unless overridden per chart with `tool: on/off`.
 - **Show pattern text by default**: embed the read-only pattern text on every `crochet` chart unless overridden per chart with `text: on/off`.
+- **Pattern text style**: show raw shorthand or fully translated readable stitch names, overridable per chart with `readable: on/off`.
 - **Panel position**: default position (right / left / below) for an embedded tool or text panel, overridable per chart with `position:`.
 - **Show background grid guide**: draw the round/row reference guide behind every `crochet` chart by default, overridable per chart with `grid: on/off`.
 - **Round chart style**: `radial` (evenly spread stitches), `japanese` (round separators, parent-placed stitches, printed V/∧ shaping, and round numbers), or `continuous` (same layout, every stitch drawn and joined by lines to the round below).

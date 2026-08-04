@@ -204,7 +204,7 @@ export interface LayoutOptions {
 	// how a pattern book draws them and the only chart size that was still a
 	// fixed number rather than read off what the chart draws.
 	ringSpacing?: number;
-	// See RoundStyle; undefined behaves as 'standard'. Ignored by flat and
+	// See RoundStyle; undefined behaves as 'radial'. Ignored by flat and
 	// spiral charts.
 	roundStyle?: RoundStyle;
 	// Background grid-guide overlay (see ChartGridGuide below).

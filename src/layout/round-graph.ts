@@ -65,9 +65,9 @@ import { isStackedOpeningSlipStitch, tagLoop, unitSymbols, type LayoutUnit } fro
 // spacing never rearranges the correspondence it is smoothing.
 //
 // The two styles differ only in how shaping is *drawn* from that same layout:
-// `book` replaces an increase or decrease with the V or ∧ printed charts use,
-// inside its own round's band (layout/shaping.ts); `linked` keeps each stitch's
-// own symbol and draws lines to the stitch below it is worked into
+// `japanese` replaces an increase or decrease with the V or ∧ printed charts
+// use, inside its own round's band (layout/shaping.ts); `continuous` keeps each
+// stitch's own symbol and draws lines to the stitch below it is worked into
 // (layout/links.ts).
 
 // Air between two neighbouring stitches of a lace round, in px.
