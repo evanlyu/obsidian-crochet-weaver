@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderCrochetPatternText, renderCrochetTool, type ProgressStore } from '../src/tool';
+import { renderCrochetPatternText, renderCrochetTool, type ProgressStore } from '../src/panel/tool';
 
 class MemoryProgressStore implements ProgressStore {
 	readonly progress: Record<string, number> = {};
@@ -45,6 +45,30 @@ R2: 6 sc
 		expect(container.querySelector('.crochet-tool-title')?.textContent).toBe('同心圓環織');
 		expect(container.querySelector('.crochet-tool-count')?.textContent).toBe('6 針');
 		expect(container.textContent).toContain('[sc, inc] × 2, sl st in MR');
+	});
+
+	it('does not count the slip stitch and chain that open each round', () => {
+		const container = document.createElement('div');
+		const store = new MemoryProgressStore();
+
+		renderCrochetTool(`---
+type: round
+id: long-tailed-tit-head
+tool: on
+---
+R1: sl st, ch, color #8b5a2b, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+R3: sl st, ch, [sc, inc] x 6
+R4: sl st, ch, sc, inc, [2 sc, inc] x 5, sc
+R5: sl st, ch, 24 sc
+R6: sl st, ch, [3 sc, inc] x 6
+R7: sl st, ch, 30 sc
+R8: sl st, ch, color #f5f0df, 30 sc
+R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
+`, container, store, 'zh-TW');
+
+		const counts = Array.from(container.querySelectorAll('.crochet-tool-count')).map((item) => item.textContent);
+		expect(counts).toEqual(['6 針', '12 針', '18 針', '24 針', '24 針', '30 針', '30 針', '30 針', '30 針']);
 	});
 
 	it('renders invalid syntax errors', () => {
@@ -396,5 +420,65 @@ R2: 6 sc
 		const zhTW = document.createElement('div');
 		renderCrochetPatternText('R1: 8 sc, color white, 8 sc\n', zhTW, 'zh-TW');
 		expect(zhTW.querySelector('.crochet-pattern-text-steps')?.textContent).toBe('8 sc, 換成 white, 8 sc');
+	});
+});
+
+describe('crochet progress tool: rounds counted the way they are written', () => {
+	it('shows a mesh round as the number of stitches the pattern prints', () => {
+		const container = document.createElement('div');
+		const store = new MemoryProgressStore();
+
+		renderCrochetTool(`---
+id: written-count
+type: round
+---
+R1: MR, ch 3 (counts as dc), 23 dc in MR, sl st to top of beginning ch-3. (24 dc)
+
+R2: ch 1 (does not count as a st),
+    sc in same st, ch 1,
+    [sc in next dc, ch 1] x23,
+    sl st to first sc.
+    (24 sc + 24 ch-1 sp = 48 sts)
+`, container, store);
+
+		const counts = Array.from(container.querySelectorAll('.crochet-tool-count')).map((el) => el.textContent);
+		expect(counts).toEqual(['24 stitches', '48 stitches']);
+	});
+
+	it('advances a motif in one click, by what the motif is worth', () => {
+		const container = document.createElement('div');
+		const store = new MemoryProgressStore();
+
+		renderCrochetTool(`---
+id: written-motif
+type: round
+---
+R1: 5 dc in next ch-2 sp, sc in next picot, V3 in next sc.
+`, container, store);
+
+		const add = () => container.querySelector<HTMLButtonElement>('.crochet-tool-stitch-btn.mod-cta');
+		expect(add()?.textContent).toBe('+5');
+
+		add()?.click();
+		expect(store.stitchProgress['written-motif']).toBe(1);
+		expect(container.querySelector('.crochet-tool-stitch-count')?.textContent).toBe('5 / 11 stitches');
+	});
+
+	it('reads a position stored under an older row total against the row as it is worth now', () => {
+		const container = document.createElement('div');
+		const store = new MemoryProgressStore();
+		// Three instructions in the round; a stored position past the end of it.
+		store.stitchProgress['written-stale'] = 99;
+
+		renderCrochetTool(`---
+id: written-stale
+type: round
+---
+R1: 6 sc in MR
+R2: 6 sc
+`, container, store);
+
+		expect(container.querySelector('.crochet-tool-stitch-count')?.textContent).toBe('6 / 6 stitches');
+		expect(store.progress['written-stale']).toBeUndefined();
 	});
 });

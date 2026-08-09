@@ -1,17 +1,18 @@
 {
 	"name": "obsidian-crochet-weaver",
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"description": "Render crochet stitch charts and progress tools from text patterns in code blocks.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
-		"generate-parser": "peggy --plugin ts-pegjs -o src/parser.ts src/grammar.peggy",
-		"test": "npm run generate-parser && vitest run",
-		"test:watch": "npm run generate-parser && vitest",
-		"dev": "npm run generate-parser && node esbuild.config.mjs",
-		"build": "npm run generate-parser && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"generate-parser": "peggy --plugin ts-pegjs -o src/pattern/parser.ts src/pattern/grammar.peggy",
+		"generate-skill": "node scripts/generate-skill-content.mjs",
+		"test": "npm run generate-parser && npm run generate-skill && vitest run",
+		"test:watch": "npm run generate-parser && npm run generate-skill && vitest",
+		"dev": "npm run generate-parser && npm run generate-skill && node esbuild.config.mjs",
+		"build": "npm run generate-parser && npm run generate-skill && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"lint": "npm run generate-parser && eslint ."
+		"lint": "npm run generate-parser && npm run generate-skill && eslint ."
 	},
 	"keywords": [],
 	"license": "0-BSD",

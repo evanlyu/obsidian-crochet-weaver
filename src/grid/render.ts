@@ -1,6 +1,6 @@
 import { t, type Locale } from '../i18n';
-import { wrapScrollable } from '../scroll-pan';
-import type { GridLayoutResult, ResolvedGridOptions } from '../types';
+import { wrapScrollable } from '../render/scroll-pan';
+import type { GridLayoutResult, ResolvedGridOptions } from './types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

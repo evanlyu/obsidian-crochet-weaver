@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { resolveOptions, resolvePanelOptions } from '../src/options';
-import { parse } from '../src/parser';
-import type { CrochetAst } from '../src/types';
-import type { CrochetWeaverSettings } from '../src/settings';
+import { resolveOptions, resolvePanelOptions } from '../src/settings/options';
+import { parse } from '../src/pattern/parser';
+import { LACE_SYMBOL_SCALE, type CrochetAst } from '../src/types';
+import type { CrochetWeaverSettings } from '../src/settings/tab';
 
 const SETTINGS: CrochetWeaverSettings = {
 	languagePreference: 'auto',
-	symbolRotation: 'smart',
+	roundChartStyle: 'radial',
 	scale: 1,
 	strokeWidth: 1.5,
 	ringSpacing: 30,
 	highlightIncDec: false,
+	highlightColor: '#8b5cf6',
 	chartMarkerColor: '#1971c2',
 	showTool: false,
 	showPatternText: false,
@@ -34,12 +35,15 @@ describe('chart option resolution', () => {
 		const options = resolveOptions(parseChart('R1: sc\n'), SETTINGS);
 
 		expect(options).toEqual({
-			rotation: 'smart',
+			roundStyle: 'radial',
 			ringSpacing: 30,
 			grid: false,
+			lace: false,
+			symbolScale: 1,
 			scale: 1,
 			strokeWidth: 1.5,
 			highlightIncDec: false,
+			highlightColor: '#8b5cf6',
 			chartMarkerColor: '#1971c2',
 		});
 	});
@@ -59,12 +63,15 @@ R1: sc
 		);
 
 		expect(options).toEqual({
-			rotation: 'all',
+			roundStyle: 'radial',
 			ringSpacing: 40,
 			grid: false,
+			lace: false,
+			symbolScale: 1,
 			scale: 1.25,
 			strokeWidth: 2,
 			highlightIncDec: true,
+			highlightColor: '#8b5cf6',
 			chartMarkerColor: '#1971c2',
 		});
 	});
@@ -84,12 +91,15 @@ R1: sc
 		);
 
 		expect(options).toEqual({
-			rotation: 'smart',
+			roundStyle: 'radial',
 			ringSpacing: 30,
 			grid: false,
+			lace: false,
+			symbolScale: 1,
 			scale: 1,
 			strokeWidth: 1.5,
 			highlightIncDec: false,
+			highlightColor: '#8b5cf6',
 			chartMarkerColor: '#1971c2',
 		});
 	});
@@ -145,10 +155,84 @@ R1: sc
 		expect(invalid.gridCount).toBeUndefined();
 	});
 
+	it('resolves roundStyle from global settings or the style frontmatter override', () => {
+		expect(resolveOptions(parseChart('R1: sc\n'), SETTINGS).roundStyle).toBe('radial');
+		expect(
+			resolveOptions(parseChart('R1: sc\n'), { ...SETTINGS, roundChartStyle: 'japanese' }).roundStyle,
+		).toBe('japanese');
+		expect(
+			resolveOptions(parseChart('---\ntype: round\nstyle: japanese\n---\nR1: 6 sc in MR\n'), SETTINGS).roundStyle,
+		).toBe('japanese');
+		expect(
+			resolveOptions(
+				parseChart('---\ntype: round\nstyle: radial\n---\nR1: 6 sc in MR\n'),
+				{ ...SETTINGS, roundChartStyle: 'japanese' },
+			).roundStyle,
+		).toBe('radial');
+		expect(
+			resolveOptions(
+				parseChart('---\ntype: round\nstyle: fancy\n---\nR1: 6 sc in MR\n'),
+				{ ...SETTINGS, roundChartStyle: 'japanese' },
+			).roundStyle,
+		).toBe('japanese');
+	});
+
+	// The styles were renamed once they had names from the craft rather than from
+	// the code. A chart written before that still means what it said.
+	it('still reads the names the three round styles used to go by', () => {
+		const styleOf = (name: string) =>
+			resolveOptions(parseChart(`---\ntype: round\nstyle: ${name}\n---\nR1: 6 sc in MR\n`), SETTINGS).roundStyle;
+
+		expect(styleOf('standard')).toBe('radial');
+		expect(styleOf('book')).toBe('japanese');
+		expect(styleOf('linked')).toBe('continuous');
+	});
+
 	it('resolves gridColumns from the columns frontmatter key', () => {
 		expect(resolveOptions(parseChart('---\ncolumns: 16\n---\nR1: sc\n'), SETTINGS).gridColumns).toBe(16);
 		expect(resolveOptions(parseChart('R1: sc\n'), SETTINGS).gridColumns).toBeUndefined();
 		expect(resolveOptions(parseChart('---\ncolumns: 0\n---\nR1: sc\n'), SETTINGS).gridColumns).toBeUndefined();
+	});
+
+	it('resolves lace presentation, sector, and whole-round options', () => {
+		const options = resolveOptions(
+			parseChart(`---
+type: round
+lace: on
+sector: 72
+wholeRounds: 4
+---
+R1: 6 sc in MR
+`),
+			SETTINGS,
+		);
+
+		expect(options).toMatchObject({
+			lace: true,
+			sector: 72,
+			wholeRounds: 4,
+			symbolScale: LACE_SYMBOL_SCALE,
+		});
+		expect(resolveOptions(parseChart('---\nsector: on\n---\nR1: sc\n'), SETTINGS).sector).toBe(90);
+		expect(resolveOptions(parseChart('---\nwhole: 3\n---\nR1: sc\n'), SETTINGS).wholeRounds).toBe(3);
+	});
+
+	it('ignores invalid lace presentation values', () => {
+		const options = resolveOptions(
+			parseChart(`---
+lace: maybe
+sector: 360
+wholeRounds: 0
+---
+R1: sc
+`),
+			SETTINGS,
+		);
+
+		expect(options.lace).toBe(false);
+		expect(options.sector).toBeUndefined();
+		expect(options.wholeRounds).toBeUndefined();
+		expect(options.symbolScale).toBe(1);
 	});
 });
 

@@ -1,6 +1,6 @@
 # Crochet Weaver — Full Feature Demo
 
-This note exercises every feature of Crochet Weaver in one place: all three chart types, every supported stitch, row modifiers and anchors, the row-to-row connector line, error handling, the progress tool (standalone and embedded) — including its readable pattern-text style and yarn color changes — panel positioning, frontmatter overrides, and a real pattern conversion. Open it with the plugin enabled to see every block render.
+This note exercises every feature of Crochet Weaver in one place: all three chart types (including book-style round charts), every supported stitch, row modifiers and anchors, the row-to-row connector line, error handling, the progress tool (standalone and embedded) — including its readable pattern-text style and yarn color changes — panel positioning, frontmatter overrides, and a real pattern conversion. Open it with the plugin enabled to see every block render.
 
 ## 1. Chart Types
 
@@ -504,4 +504,248 @@ R1: color black, 6 sc in MR
 R2: [inc] x 6
 R3: [sc, inc] x 6
 R4: 8 sc, color white, 8 sc, color black, 8 sc
+```
+
+## 14. Book-Style Round Charts
+
+`style: japanese` switches a round chart to Japanese-pattern-book styling: a continuous spiral guide winds through the rounds (as crochet-in-the-round really is one spiralling line), stepping out to the next round at each starting seam; every stitch sits directly above the previous-round stitch it is worked into (an increase fans its two stitches out from its parent, a decrease converges the parents it merges); the `inc`/`dec` glyphs stretch into wide book-style V/∧ shapes reaching the stitches they connect; and each round is numbered in red at the seam — which drifts diagonally with the increases, just like a printed chart. The default `style: radial` keeps the original evenly spread layout; the global **Round chart style** setting changes the default for every chart.
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: 8 sc in MR
+R2: [inc] x 8
+R3: [sc, inc] x 8
+R4: [2 sc, inc] x 8
+R5: [3 sc, inc] x 8
+R6: [4 sc, inc] x 8
+```
+
+Decreases converge the same way:
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: 12 sc
+R4: [dec] x 6
+```
+
+## 15. Round Chart Styles, Side by Side
+
+The same six rounds in each of the three styles. Everything else — spacing, scale, stitch symbols — is identical, so the only difference is how a round chart is drawn.
+
+`style: radial` — each round's stitches spread evenly from the centre, with the stock `inc`/`dec` glyphs. It shows what a round contains, not which stitch is worked into which.
+
+```crochet
+---
+type: round
+style: radial
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+R5: [3 sc, inc] x 6
+R6: 30 sc
+```
+
+`style: japanese` — the traditional pattern-book chart: a spiral guide encloses each round, every stitch sits over the stitch it is worked into, an increase is the V and a decrease the ∧, and each round is numbered in red beside the round-change step.
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+R5: [3 sc, inc] x 6
+R6: 30 sc
+```
+
+`style: continuous` — the same layout, with every stitch drawn as itself and a line from each shaping stitch down to the stitch it is worked into. Useful for checking a conversion, or for reading a chart without knowing the printed symbols.
+
+```crochet
+---
+type: round
+style: continuous
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+R5: [3 sc, inc] x 6
+R6: 30 sc
+```
+
+## 16. Shaping a Whole Piece
+
+An amigurumi ball worked from the top down: increase rounds, straight rounds, then decrease rounds mirroring the increases. Watch how each ∧ converges onto the two stitches it closes over, and how the seam channel keeps the same width all the way out.
+
+```crochet
+---
+type: round
+style: japanese
+tool: on
+id: demo-ball
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+R5: 24 sc
+R6: 24 sc
+R7: [2 sc, dec] x 6
+R8: [sc, dec] x 6
+R9: [dec] x 6
+```
+
+A flat triangle, shaped at one edge only — each row one stitch shorter than the last:
+
+```crochet
+---
+type: flat
+---
+R1: 10 sc
+R2: 8 sc, dec
+R3: 7 sc, dec
+R4: 6 sc, dec
+R5: 5 sc, dec
+```
+
+## 17. Worked in Taller Stitches
+
+Rings are sized from the symbols they draw: the same twelve stitches need a longer ring as double crochet than as single crochet, and a round opening with `ch 3` gets room for all three chains at its seam.
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: ch 3, 12 dc in MR, sl st
+R2: ch 3, [dc, inc] x 6, sl st
+R3: ch 3, [2 dc, inc] x 6, sl st
+```
+
+A flat swatch climbing through the heights — chain foundation, then single, half double, double and treble crochet:
+
+```crochet
+---
+type: flat
+---
+R1: 12 ch
+R2: 12 sc
+R3: 12 hdc
+R4: 12 dc
+R5: 12 tr
+```
+
+## 18. A Granny Square
+
+Shells worked into the spaces of the round below. Groups `( ... )` put several stitches into one place; the `ch` between them is the corner space.
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: ch 3, [(3 dc), ch] x 4, sl st
+R2: ch 3, [(3 dc), ch, (3 dc), ch] x 4, sl st
+R3: ch 3, [(3 dc), ch, (3 dc), ch, (3 dc), ch] x 4, sl st
+```
+
+## 19. Textured Stitches in Context
+
+Post stitches, popcorns, clusters and crossed stitches, each in a round of plain stitches so the symbol is easy to pick out.
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: 12 dc in MR
+R2: [dc, fpdc, dc, bpdc] x 3
+R3: [3 dc, popcorn] x 3
+R4: [3 dc, dc3cl] x 3
+R5: [2 dc, xdc] x 4
+```
+
+A picot edging and a crab-stitch (reverse single crochet) border, worked flat:
+
+```crochet
+---
+type: flat
+---
+R1: 12 sc
+R2: [3 sc, picot] x 3
+R3: 12 rsc
+```
+
+## 20. Colorwork
+
+Yarn changes mid-round, each marked with a ring in the new color on the first stitch worked in it. The color is whatever the pattern says — a name or a hex value.
+
+```crochet
+---
+type: round
+style: japanese
+tool: on
+id: demo-colorwork
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: color #e8734a, 6 sc, color #f2c14e, 6 sc
+R4: color #6ab04c, 9 sc, color #4a90d9, 9 sc
+```
+
+## 21. Repeat Forms
+
+Three ways to write the same kind of round, and one that is worked out from the round below.
+
+```crochet
+---
+type: round
+---
+R1: 12 sc in MR
+R2: [sc, inc] x 6
+R3: [2 sc, inc] rep 6
+R4: [3 sc, inc] rep
+```
+
+`x 6` and `rep 6` are the same thing. A bare `rep` repeats until the round below is used up — R4 works into R3's 24 stitches, four at a time, so it repeats six times. If the round below does not divide evenly by one repeat, the chart says so with the numbers involved instead of guessing a count.
+
+## 22. When It Cannot Be Charted in One Piece
+
+A closed 3D shape — a ball, a head, a bag — cannot be read as one top-down round chart: the increase rounds, the straight rounds and the decrease rounds all overlap on the page. Chart the part that reads well, and let the progress tool carry the rest of the pattern as text.
+
+```crochet
+---
+type: round
+style: japanese
+text: on
+id: demo-partial-chart
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+```
+
+```crochet-tool
+---
+id: demo-partial-rest
+---
+R5: 24 sc
+R6: 24 sc
+R7: 24 sc
+R8: [2 sc, dec] x 6
+R9: [sc, dec] x 6
+R10: [dec] x 6
 ```

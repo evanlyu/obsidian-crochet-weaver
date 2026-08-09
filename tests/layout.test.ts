@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { calculateLayout, roundStitchCount, unitStitchCounts } from '../src/layout';
-import { parse } from '../src/parser';
-import type { CrochetAst, RowNode } from '../src/types';
+import {
+	labelExtent,
+	ROUND_CHANGE_ARC,
+	symbolExtent,
+	symbolHalfHeight,
+} from '../src/layout/constants';
+import { rowWrittenCount, writtenUnitWeights } from '../src/pattern/count';
+import { parse } from '../src/pattern/parser';
+import { parseChart as parsePattern } from '../src/pattern/parse-chart';
+import { placeSeam, seamArc, type SeamContents } from '../src/layout/seam';
+import type { CrochetAst, GridPoint, LayoutResult, RenderItem, RowNode, ShapingMark } from '../src/types';
 
 const OPTIONS = {
-	rotation: 'smart',
 	ringSpacing: 30,
 	grid: false,
 } as const;
@@ -22,6 +30,19 @@ function firstRow(source: string): RowNode {
 
 function distance(a: { readonly x: number; readonly y: number }, b: { readonly x: number; readonly y: number }): number {
 	return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// Do segments a1-a2 and b1-b2 properly cross? (Touching at a shared endpoint,
+// which is how two connectors may legitimately meet at a stitch, is not a
+// crossing.)
+function segmentsCross(a1: GridPoint, a2: GridPoint, b1: GridPoint, b2: GridPoint): boolean {
+	const side = (p: GridPoint, q: GridPoint, r: GridPoint) =>
+		Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+	const d1 = side(a1, a2, b1);
+	const d2 = side(a1, a2, b2);
+	const d3 = side(b1, b2, a1);
+	const d4 = side(b1, b2, a2);
+	return d1 !== d2 && d3 !== d4 && d1 !== 0 && d2 !== 0 && d3 !== 0 && d4 !== 0;
 }
 
 describe('crochet layout', () => {
@@ -84,6 +105,30 @@ R1: 6 sc in MR
 		expect(layout.items.filter((item) => item.symbol === 'sc')).toHaveLength(6);
 	});
 
+	it('prints わ only for a Japanese-style magic-ring center', () => {
+		const source = parseChart(`---
+type: round
+---
+R1: 6 sc in MR
+`);
+		const japanese = calculateLayout(source, { ...OPTIONS, roundStyle: 'japanese' });
+		const continuous = calculateLayout(source, { ...OPTIONS, roundStyle: 'continuous' });
+		const radial = calculateLayout(source, { ...OPTIONS, roundStyle: 'radial' });
+		const spiral = calculateLayout(
+			parseChart(`---
+type: spiral
+---
+R1: 6 sc in MR
+`),
+			OPTIONS,
+		);
+
+		expect(japanese.items.find((item) => item.symbol === 'MR')?.centerLabel).toBe('わ');
+		for (const layout of [continuous, radial, spiral]) {
+			expect(layout.items.find((item) => item.symbol === 'MR')?.centerLabel).toBeUndefined();
+		}
+	});
+
 	it('adds a chain-ring center anchor for round charts', () => {
 		const layout = calculateLayout(
 			parseChart(`---
@@ -96,6 +141,21 @@ R1: 6 sc in ch ring
 
 		expect(layout.items.slice(0, 6).every((item) => item.symbol === 'ch')).toBe(true);
 		expect(layout.items.filter((item) => item.symbol === 'sc')).toHaveLength(6);
+	});
+
+	it('keeps a Japanese chain-ring center as chain symbols rather than ち', () => {
+		const layout = calculateLayout(
+			parseChart(`---
+type: round
+---
+R1: 6 sc in ch ring
+`),
+			{ ...OPTIONS, roundStyle: 'japanese' },
+		);
+		const centerChains = layout.items.filter((item) => item.rowIndex === undefined && item.symbol === 'ch');
+
+		expect(centerChains).toHaveLength(6);
+		expect(layout.items.every((item) => item.centerLabel !== 'ち')).toBe(true);
 	});
 
 	it('places trailing round slip stitch as a join and excludes it from stitch count', () => {
@@ -111,6 +171,54 @@ R1: 6 sc, sl st in MR
 
 		expect(roundStitchCount(row)).toBe(6);
 		expect(layout.items.filter((item) => item.symbol === 'sl st')).toHaveLength(1);
+	});
+
+	it('draws every short round opening beside the first stitch without taking a stitch position', () => {
+		const styles = ['radial', 'japanese', 'continuous'] as const;
+		const openings = [
+			{ source: 'sl st, ', symbols: ['sl st'] },
+			{ source: 'ch, ', symbols: ['ch'] },
+			{ source: 'sl st, ch, ', symbols: ['sl st', 'ch'] },
+		] as const;
+
+		for (const style of styles) {
+			for (const opening of openings) {
+				const chart = parsePattern(`---\ntype: round\n---\nR1: ${opening.source}6 sc in MR\n`);
+				const layout = calculateLayout(chart, { ...OPTIONS, roundStyle: style });
+				const center = layout.items.find((item) => item.symbol === 'MR');
+				const stitches = layout.items.filter((item) => item.symbol === 'sc');
+				const instructions = layout.items.filter((item) =>
+					(opening.symbols as readonly string[]).includes(item.symbol),
+				);
+				if (!center) throw new Error('expected center');
+
+				expect(rowWrittenCount(chart.rows[0]!)).toBe(6);
+				expect(writtenUnitWeights(chart.rows[0]!)).toEqual([1, 1, 1, 1, 1, 1]);
+				expect(roundStitchCount(chart.rows[0]!)).toBe(6);
+				expect(unitStitchCounts(chart.rows[0]!)).toEqual([1, 1, 1, 1, 1, 1]);
+				expect(stitches.map((item) => item.unitIndex)).toEqual([0, 1, 2, 3, 4, 5]);
+				expect(instructions.map((item) => item.unitIndex)).toEqual(opening.symbols.map(() => undefined));
+				expect(instructions.map((item) => item.symbol)).toEqual(opening.symbols);
+				const firstStitch = stitches[0];
+				const secondStitch = stitches[1];
+				if (!firstStitch || !secondStitch) throw new Error('expected stitches');
+				if (opening.symbols.length === 2) {
+					const slipStitch = instructions[0];
+					const chain = instructions[1];
+					if (!slipStitch || !chain) throw new Error('expected opening slip stitch and chain');
+					expect(slipStitch.x - chain.x).toBeCloseTo(5, 6);
+					expect(slipStitch.y - chain.y).toBeCloseTo(-5, 6);
+					expect(distance(chain, center)).toBeCloseTo(distance(firstStitch, center), 9);
+				} else {
+					for (const instruction of instructions) {
+						expect(distance(instruction, center)).toBeCloseTo(distance(firstStitch, center), 9);
+					}
+				}
+				for (const instruction of instructions) {
+					expect(distance(instruction, firstStitch)).toBeLessThan(distance(instruction, secondStitch));
+				}
+			}
+		}
 	});
 
 	it('keeps each round farther out than the last even through a later decrease', () => {
@@ -312,6 +420,1253 @@ R3: [sc, inc] x 6
 	});
 });
 
+describe('traditional-Japanese round layout', () => {
+	const BOOK = { ...OPTIONS, roundStyle: 'japanese' } as const;
+
+	// How far the layout may move a stitch from the one it is worked into, as a
+	// share of its round's stitch pitch. A fifth is the ordinary redistribution
+	// allowance (MAX_DRIFT_SHARE); another fifth covers the local adjustment
+	// around shaping while order and minimum gaps are imposed.
+	const DRIFT_SHARE = 0.4;
+
+	// That allowance in degrees, on a round of `count` stitches.
+	function driftDegrees(count: number): number {
+		return (360 / count) * DRIFT_SHARE;
+	}
+
+	function angleOf(center: { x: number; y: number }, item: { x: number; y: number }): number {
+		return (Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
+	}
+
+	function angleDiff(a: number, b: number): number {
+		const d = Math.abs(a - b) % 360;
+		return Math.min(d, 360 - d);
+	}
+
+	// How far clockwise (the direction stitches are worked) it is from a to b.
+	function clockwiseDelta(a: number, b: number): number {
+		return (((a - b) % 360) + 360) % 360;
+	}
+
+	// Midpoint of the short way round. Averaging the two angles directly would
+	// put the midpoint of 350° and 10° at 180°, on the opposite side of the chart.
+	function midAngle(a: number, b: number): number {
+		return a - clockwiseDelta(a, b) / 2;
+	}
+
+	function radiusOf(center: { x: number; y: number }, point: { x: number; y: number }): number {
+		return Math.hypot(point.x - center.x, point.y - center.y);
+	}
+
+	// Every stitch symbol a round drew, in working order. A shaping step draws
+	// no stitch symbols — its V or ∧ stands for them (see roundSteps).
+	function round(layout: LayoutResult, rowIndex: number): RenderItem[] {
+		return layout.items.filter((item) => item.rowIndex === rowIndex);
+	}
+
+	function marksOf(layout: LayoutResult, rowIndex: number): ShapingMark[] {
+		return (layout.shapingMarks ?? []).filter((mark) => mark.rowIndex === rowIndex);
+	}
+
+	// Everything a round drew, in working order: a plain stitch at its symbol, a
+	// shaping step at the mark standing for the stitches it made.
+	function roundSteps(layout: LayoutResult, rowIndex: number): { x: number; y: number; unitIndex: number }[] {
+		const items = round(layout, rowIndex)
+			.filter((item) => item.unitIndex !== undefined)
+			.map((item) => ({ x: item.x, y: item.y, unitIndex: item.unitIndex ?? 0 }));
+		const marks = marksOf(layout, rowIndex).map((mark) => ({ x: mark.x, y: mark.y, unitIndex: mark.unitIndex }));
+		return [...items, ...marks].sort((a, b) => a.unitIndex - b.unitIndex);
+	}
+
+	function stitchOf(layout: LayoutResult, id: string): RenderItem {
+		const item = layout.items.find((candidate) => candidate.stitchId === id);
+		if (!item) throw new Error(`expected stitch ${id}`);
+		return item;
+	}
+
+	// The pointed end and the open ends of a V or ∧.
+	function endpoints(mark: ShapingMark): { apex: GridPoint; arms: GridPoint[] } {
+		const [first, apex, last] = mark.segments[0] ?? [];
+		if (!first || !apex || !last) throw new Error('expected a three-point mark');
+		return { apex, arms: [first, last, ...mark.segments.slice(1).map((segment) => segment[1] ?? apex)] };
+	}
+
+	// The radius a round's stitches sit at, whether they drew stitch symbols or
+	// only shaping marks.
+	function roundRadius(layout: LayoutResult, center: GridPoint, rowIndex: number): number {
+		const step = roundSteps(layout, rowIndex)[0];
+		if (!step) throw new Error(`expected round ${rowIndex} to have stitches`);
+		return radiusOf(center, step);
+	}
+
+	// Spec test 4 / section 11: an increase makes two stitches out of one, and
+	// its V stands for both of them.
+	it('opens each increase V from the stitch below it out to the two it makes', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const round1 = round(layout, 0);
+		const marks = marksOf(layout, 1);
+
+		// The V's are the round's stitches; there are no separate symbols for them.
+		expect(round(layout, 1)).toHaveLength(0);
+		expect(marks).toHaveLength(6);
+		marks.forEach((mark, i) => {
+			const parent = round1[i];
+			if (!parent) throw new Error('expected the stitch below');
+			const { apex, arms } = endpoints(mark);
+			const [left, right] = arms;
+			if (!left || !right) throw new Error('expected two arms');
+			// The point lines up with the stitch it is worked into. The two open
+			// ends keep the children's real working order rather than being pulled
+			// into false symmetry when spacing or the seam moved those children.
+			expect(angleDiff(angleOf(center, apex), angleOf(center, parent))).toBeLessThan(0.01);
+			expect(clockwiseDelta(angleOf(center, left), angleOf(center, right))).toBeGreaterThan(0);
+			// Both children remain in this parent's sector, so the exact
+			// connections still read as one increase rather than two unrelated
+			// stitches.
+			expect(angleDiff(angleOf(center, left), angleOf(center, right))).toBeLessThan(360 / 6);
+		});
+	});
+
+	it('keeps every increase V balanced when its round has room', () => {
+		const pattern = parsePattern(`---
+type: round
+---
+R1: sl st, ch, color #8b5a2b, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+R3: sl st, ch, [sc, inc] x 6
+R4: sl st, ch, sc, inc, [2 sc, inc] x 5, sc
+R5: sl st, ch, 24 sc
+R6: sl st, ch, [3 sc, inc] x 6
+R7: sl st, ch, 30 sc
+R8: sl st, ch, color #f5f0df, 30 sc
+R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
+`);
+		for (const ringSpacing of [20, BOOK.ringSpacing]) {
+			const layout = calculateLayout(pattern, { ...BOOK, ringSpacing });
+			const increases = (layout.shapingMarks ?? []).filter((mark) => mark.kind === 'increase');
+
+			expect(increases).toHaveLength(24);
+			for (const mark of increases) {
+				const { apex, arms } = endpoints(mark);
+				const [left, right] = arms;
+				if (!left || !right) throw new Error('expected both increase arms');
+				expect(
+					Math.abs(distance(apex, left) - distance(apex, right)),
+					`${ringSpacing}px spacing, R${mark.rowIndex + 1}, shaping unit ${mark.unitIndex + 1}`,
+				).toBeLessThan(0.5);
+			}
+		}
+	});
+
+	// Spec sections 3 and 4: a shaping symbol belongs to its round — pointed end
+	// toward the stitch below, open end toward the round above, drawn the height
+	// of a stitch rather than the height of the band, and never reaching into a
+	// neighbouring round.
+	it('draws the increase V inside its own round, at a stitch\'s own height', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: inc, 5 sc\nR3: 8 sc\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+
+		expect(layout.shapingMarks).toHaveLength(1);
+		const mark = layout.shapingMarks?.[0];
+		if (!mark) throw new Error('expected an increase mark');
+		expect(mark.kind).toBe('increase');
+		expect(mark.segments).toHaveLength(1);
+
+		const { apex, arms } = endpoints(mark);
+		const parent = stitchOf(layout, 'r0s0');
+		const inner = (roundRadius(layout, center, 0) + roundRadius(layout, center, 1)) / 2;
+		const outer = (roundRadius(layout, center, 1) + roundRadius(layout, center, 2)) / 2;
+
+		// The point lines up with the stitch below, and the whole mark sits
+		// inside this round's band — pointing the right way without crossing
+		// into a neighbouring round.
+		expect(angleDiff(angleOf(center, apex), angleOf(center, parent))).toBeLessThan(0.01);
+		expect(radiusOf(center, apex)).toBeGreaterThan(inner);
+		expect(radiusOf(center, apex)).toBeLessThan(roundRadius(layout, center, 1));
+		for (const arm of arms) {
+			expect(radiusOf(center, arm)).toBeGreaterThan(roundRadius(layout, center, 1));
+			expect(radiusOf(center, arm)).toBeLessThan(outer);
+			expect(radiusOf(center, arm)).toBeLessThan(roundRadius(layout, center, 2));
+		}
+		// ...and it is a stitch's symbol, so it is a stitch tall rather than a
+		// band tall: a round of increases must not be drawn taller than a round
+		// of plain stitches beside it.
+		const height = Math.abs(radiusOf(center, apex) - radiusOf(center, arms[0]!));
+		expect(height).toBeLessThanOrEqual(2 * symbolExtent('sc') + 0.01);
+	});
+
+	// Spec test 3 / section 5.5: the ∧ is the reverse — two ends on the stitches
+	// it closed over, its point where the next round picks it up.
+	it('draws the decrease ∧ inside its own round, over both stitches it merges', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: dec, 4 sc\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+
+		// Four plain stitches drew symbols; the decrease drew its ∧ instead.
+		expect(round(layout, 1)).toHaveLength(4);
+		expect(layout.shapingMarks).toHaveLength(1);
+		const mark = layout.shapingMarks?.[0];
+		if (!mark) throw new Error('expected a decrease mark');
+		expect(mark.kind).toBe('decrease');
+
+		const { apex, arms } = endpoints(mark);
+		const [footA, footB] = arms;
+		if (!footA || !footB) throw new Error('expected two feet');
+		const [parentA, parentB] = [stitchOf(layout, 'r0s0'), stitchOf(layout, 'r0s1')];
+		const inner = (roundRadius(layout, center, 0) + roundRadius(layout, center, 1)) / 2;
+
+		// It leans over the two stitches it closed over — one foot toward each,
+		// centered between them — and reaches this round's inner edge without
+		// crossing it. The opening is drawn no wider than those two stitches
+		// really are apart, so the ∧ stays a symbol rather than two long lines.
+		const across = clockwiseDelta(angleOf(center, parentA), angleOf(center, parentB));
+		const open = clockwiseDelta(angleOf(center, footA), angleOf(center, footB));
+		expect(open).toBeGreaterThan(0);
+		expect(open).toBeLessThanOrEqual(across);
+		expect(
+			angleDiff(
+				midAngle(angleOf(center, footA), angleOf(center, footB)),
+				midAngle(angleOf(center, parentA), angleOf(center, parentB)),
+			),
+		).toBeLessThan(driftDegrees(5));
+		expect(radiusOf(center, footA)).toBeGreaterThan(inner);
+		expect(radiusOf(center, footA)).toBeLessThan(roundRadius(layout, center, 1));
+		// ...and the point stands above them, further out, on this round.
+		expect(radiusOf(center, apex)).toBeGreaterThan(radiusOf(center, footA));
+		expect(radiusOf(center, apex)).toBeGreaterThan(roundRadius(layout, center, 1));
+	});
+
+	// An increase's stitches and a decrease's stitch belong to their round like
+	// any other — nothing is left floating between two rounds.
+	it('puts every step of a round on that round, at one shared radius', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 8 sc in MR\nR2: inc, sc, dec, sc, inc, dec\nR3: [sc, inc] x 4\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+
+		for (const rowIndex of [0, 1, 2]) {
+			const radii = roundSteps(layout, rowIndex).map((step) => radiusOf(center, step));
+			const first = radii[0] ?? 0;
+			expect(first).toBeGreaterThan(0);
+			for (const radius of radii) expect(radius).toBeCloseTo(first, 9);
+		}
+	});
+
+	// Spec section 5: a symbol is made smaller by narrowing the sector it takes
+	// up, never by pulling its round closer to the one below it.
+	it('keeps the gap between rounds independent of the shaping in them', () => {
+		const gaps = (source: string) => {
+			const layout = calculateLayout(parseChart(source), BOOK);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const first = round(layout, 0)[0];
+			const second = round(layout, 1)[0];
+			if (!first || !second) throw new Error('expected two rounds');
+			return radiusOf(center, second) - radiusOf(center, first);
+		};
+
+		const plain = gaps('---\ntype: round\n---\nR1: 6 sc in MR\nR2: 6 sc\n');
+		const increased = gaps('---\ntype: round\n---\nR1: 6 sc in MR\nR2: inc, 5 sc\n');
+		const decreased = gaps('---\ntype: round\n---\nR1: 6 sc in MR\nR2: dec, 4 sc\n');
+
+		expect(increased).toBeCloseTo(plain);
+		expect(decreased).toBeCloseTo(plain);
+		expect(plain).toBeCloseTo(OPTIONS.ringSpacing);
+	});
+
+	// The complaint this style exists to avoid: a shaping symbol adrift in the
+	// gap between two rounds, reading as a ring of its own. Every part of every
+	// mark stays inside the band of the round it belongs to.
+	it('keeps every shaping symbol inside its own round, never in the gap between rounds', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [dec] x 6\nR4: 6 sc\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+
+		expect(layout.shapingMarks).toHaveLength(12);
+		layout.shapingMarks?.forEach((mark) => {
+			const own = roundRadius(layout, center, mark.rowIndex);
+			// The band runs halfway to the round below and halfway to the one above.
+			const inner = (roundRadius(layout, center, mark.rowIndex - 1) + own) / 2;
+			const outer = (own + roundRadius(layout, center, mark.rowIndex + 1)) / 2;
+			for (const segment of mark.segments) {
+				for (const point of segment) {
+					expect(radiusOf(center, point)).toBeGreaterThan(inner);
+					expect(radiusOf(center, point)).toBeLessThan(outer);
+				}
+			}
+		});
+	});
+
+	describe('free-form ancestry alignment', () => {
+		const MINIMAL_SHAPING_SOURCE = `---
+type: round
+---
+R1: 6 sc in MR
+R2: [2 sc, inc] x 2
+`;
+		const SOURCE = `---
+type: round
+---
+R1: 6 sc in MR
+R2: 6 sc
+R3: 6 sc
+R4: 6 sc
+R5: [2 sc, inc] x 2
+R6: 8 sc
+R7: 8 sc
+R8: [3 sc, inc] x 2
+R9: 10 sc
+R10: 10 sc
+R11: [4 sc, inc] x 2
+R12: 12 sc
+R13: 12 sc
+`;
+
+		it('keeps every ordinary stitch directly above its unique parent through arbitrary shaping', () => {
+			for (const roundStyle of ['japanese', 'continuous'] as const) {
+				const layout = calculateLayout(parseChart(MINIMAL_SHAPING_SOURCE), {
+					...OPTIONS,
+					roundStyle,
+				});
+				const center = layout.items[0];
+				if (!center) throw new Error('expected MR center');
+				const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+
+				for (const stitch of layout.items) {
+					if (stitch.rowIndex === undefined || stitch.rowIndex === 0 || stitch.shaping !== undefined) continue;
+					const [sourceId] = stitch.sourceStitchIds ?? [];
+					const parent = sourceId === undefined ? undefined : byId.get(sourceId);
+					if (!parent) throw new Error(`expected parent of ${stitch.stitchId ?? 'stitch'}`);
+					expect(
+						angleDiff(angleOf(center, stitch), angleOf(center, parent)),
+						`${roundStyle} ${stitch.stitchId ?? 'stitch'}`,
+					).toBeLessThan(0.01);
+				}
+			}
+		});
+
+		it('keeps the ancestry of worked stitches when a free-form round deliberately skips places', () => {
+			const layout = calculateLayout(
+				parseChart(`---
+type: round
+---
+R1: 6 sc in MR
+R2: sc, skip 1, sc, skip 1, sc, skip 1
+`),
+				{ ...OPTIONS, roundStyle: 'continuous' },
+			);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+
+			for (const stitch of round(layout, 1)) {
+				const parent = byId.get(stitch.sourceStitchIds?.[0]);
+				if (!parent) throw new Error(`expected parent of ${stitch.stitchId ?? 'stitch'}`);
+				expect(angleDiff(angleOf(center, stitch), angleOf(center, parent))).toBeLessThan(0.01);
+			}
+		});
+
+		it('keeps every increase V symmetric about the parent direction through arbitrary shaping', () => {
+			const layout = calculateLayout(parseChart(SOURCE), BOOK);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const increases = (layout.shapingMarks ?? []).filter((mark) => mark.kind === 'increase');
+
+			expect(increases).toHaveLength(6);
+			for (const mark of increases) {
+				const { apex, arms } = endpoints(mark);
+				const [first, last] = arms;
+				if (!first || !last) throw new Error('expected both increase arms');
+				expect(
+					angleDiff(
+						angleOf(center, apex),
+						midAngle(angleOf(center, first), angleOf(center, last)),
+					),
+				).toBeLessThan(0.01);
+			}
+		});
+	});
+
+	describe('repeat grouping', () => {
+		const LINKED = { ...OPTIONS, roundStyle: 'continuous' } as const;
+
+		// Every stitch renders in continuous style, so the round's real spacing can be
+		// read straight off the chart.
+		function gapsOf(layout: LayoutResult, rowIndex: number): number[] {
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const stitches = round(layout, rowIndex);
+			return stitches.map((stitch, i) =>
+				clockwiseDelta(angleOf(center, stitch), angleOf(center, stitches[(i + 1) % stitches.length] ?? stitch)),
+			);
+		}
+
+		// The gaps between neighbouring stitches, in px of arc, leaving out the
+		// seam — that gap is reserved room rather than spacing (see layout/seam.ts).
+		function pitchesOf(layout: LayoutResult, rowIndex: number): number[] {
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const radius = roundRadius(layout, center, rowIndex);
+			return gapsOf(layout, rowIndex)
+				.slice(0, -1)
+				.map((gap) => (gap * Math.PI * radius) / 180);
+		}
+
+		// A plain one-to-one round is a literal copy of the stitch positions
+		// below it. The inherited seam may become physically wider at the larger
+		// radius; presentation geometry may not spend that room by moving stitches.
+		it('keeps every plain one-to-one stitch exactly on its parent', () => {
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: 18 sc\n'),
+				LINKED,
+			);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+
+			const drifts = round(layout, 3).map((stitch) => {
+				const parent = byId.get(stitch.sourceStitchIds?.[0]);
+				if (!parent) throw new Error('expected the stitch below');
+				return angleDiff(angleOf(center, stitch), angleOf(center, parent));
+			});
+			for (const drift of drifts) expect(drift).toBeLessThan(0.01);
+		});
+
+		it('keeps a run of plain rounds anchored while letting their stitch pitches grow', () => {
+			let source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\n';
+			for (let round = 4; round <= 8; round++) source += `R${round}: 18 sc\n`;
+			const layout = calculateLayout(parseChart(source), LINKED);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+
+			// The angles stay inherited while each larger radius gives those same
+			// angular pitches more physical room.
+			for (let rowIndex = 3; rowIndex <= 7; rowIndex++) {
+				const stitches = round(layout, rowIndex);
+				const first = stitches[0];
+				const last = stitches.at(-1);
+				if (!first || !last) throw new Error('expected a plain round');
+				const firstParent = byId.get(first.sourceStitchIds?.[0]);
+				const lastParent = byId.get(last.sourceStitchIds?.[0]);
+				if (!firstParent || !lastParent) throw new Error('expected parent stitches');
+				expect(angleDiff(angleOf(center, first), angleOf(center, firstParent))).toBeLessThan(0.01);
+				expect(angleDiff(angleOf(center, last), angleOf(center, lastParent))).toBeLessThan(0.01);
+				const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+				expect(average(pitchesOf(layout, rowIndex))).toBeGreaterThan(average(pitchesOf(layout, rowIndex - 1)));
+			}
+		});
+
+		// Closing the repeats up must not cost the correspondence: a stitch still
+		// has to sit under the stitch it is worked into, however tight its group
+		// is, and that must not drift further out round after round.
+		it('keeps every stitch under the one it is worked into, all the way out', () => {
+			let source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n';
+			for (let round = 3; round <= 9; round++) source += `R${round}: [${round - 2} sc, inc] x 6\n`;
+			const layout = calculateLayout(parseChart(source), LINKED);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+
+			const worstDrift = (rowIndex: number) => {
+				const stitches = round(layout, rowIndex);
+				const radius = roundRadius(layout, center, rowIndex);
+				const pitch = (2 * Math.PI * radius) / stitches.length;
+				let worst = 0;
+				for (const stitch of stitches) {
+					const parent = byId.get(stitch.sourceStitchIds?.[0]);
+					if (!parent) throw new Error('expected the stitch below');
+					const drift = angleDiff(angleOf(center, stitch), angleOf(center, parent));
+					worst = Math.max(worst, (drift * Math.PI * radius) / 180 / pitch);
+				}
+				return worst;
+			};
+
+			// An increase's two stitches straddle the one they share, and the first
+			// two steps out from the center may also spend room preserving the
+			// upright first V. Later rounds need only a local correction.
+			for (let rowIndex = 1; rowIndex <= 8; rowIndex++) {
+				expect(worstDrift(rowIndex)).toBeLessThan(rowIndex <= 2 ? 1.25 : 0.5 + DRIFT_SHARE);
+			}
+			// And it stays there instead of creeping outward round after round,
+			// which is what would really lose the correspondence: the outermost
+			// round is no further off its own parents than an inner one, give or
+			// take what closing the seam costs.
+			expect(worstDrift(8)).toBeLessThanOrEqual(worstDrift(4) + DRIFT_SHARE);
+		});
+
+		// An increase makes two stitches where there was one, so it needs room —
+		// but it must take that room from itself, never by pushing the stitches
+		// after it off the ones they are worked into.
+		it('never pushes the stitches after an increase off their own', () => {
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: [sc, inc, sc] x 6\n'),
+				LINKED,
+			);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+			const radius = roundRadius(layout, center, 3);
+			const stitches = round(layout, 3);
+			const pitch = (2 * Math.PI * radius) / stitches.length;
+
+			// The plain stitch that follows each increase, over its own parent.
+			for (const stitch of stitches) {
+				if (stitch.shaping !== undefined) continue;
+				const parent = byId.get(stitch.sourceStitchIds?.[0]);
+				if (!parent) throw new Error('expected the stitch below');
+				const drift = angleDiff(angleOf(center, stitch), angleOf(center, parent));
+				expect((drift * Math.PI * radius) / 180 / pitch).toBeLessThan(0.5);
+			}
+		});
+
+		// Evenly, that is, around the part of the ring the stitches have: the seam
+		// keeps room of its own for the round number and the step out to the next
+		// round, so it is the one gap that is wider than a stitch's worth.
+		it('spreads a round evenly when it is all one group', () => {
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: 6 sc\n'),
+				LINKED,
+			);
+
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			for (const rowIndex of [0, 1]) {
+				const gaps = gapsOf(layout, rowIndex);
+				expect(gaps).toHaveLength(6);
+				for (const gap of gaps.slice(0, -1)) expect(gap).toBeCloseTo(gaps[0] ?? 0);
+				// The seam holds the round number and the step out, whatever the
+				// stitches around it are doing.
+				const radius = roundRadius(layout, center, rowIndex);
+				const seam = ((gaps[gaps.length - 1] ?? 0) * Math.PI * radius) / 180;
+				expect(seam).toBeGreaterThan(24);
+			}
+		});
+
+		it('falls back to even spacing on a round too crowded to separate repeats', () => {
+			// Every stitch is its own repeat here, so there is nothing to close up:
+			// separating them would just be even spacing under another name.
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: 12 sc in MR\nR2: [sc] x 12\n'),
+				LINKED,
+			);
+			const gaps = gapsOf(layout, 1);
+
+			expect(gaps).toHaveLength(12);
+			for (const gap of gaps.slice(0, -1)) expect(gap).toBeCloseTo(gaps[0] ?? 0);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const radius = roundRadius(layout, center, 1);
+			const seam = ((gaps[gaps.length - 1] ?? 0) * Math.PI * radius) / 180;
+			expect(seam).toBeGreaterThan(24);
+		});
+	});
+
+	// A mark reaches its stitches sideways rather than by growing: however far
+	// apart they are, it opens no wider than the room those stitches themselves
+	// take, and stays the height of one stitch.
+	it('reaches its stitches by opening, never by growing taller', () => {
+		for (const source of [
+			'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: [2 sc, dec] x 4\n',
+			'---\ntype: round\n---\nR1: 24 sc in MR\nR2: [dec] x 12\nR3: [dec] x 6\n',
+			'---\ntype: round\n---\nR1: 18 sc in MR\nR2: [sc3tog] x 6\n',
+		]) {
+			const layout = calculateLayout(parseChart(source), BOOK);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const marks = layout.shapingMarks ?? [];
+			expect(marks.length).toBeGreaterThan(0);
+
+			for (const mark of marks) {
+				const { apex, arms } = endpoints(mark);
+				const [first, last] = arms;
+				if (!first || !last) throw new Error('expected two open ends');
+				const width = distance(first, last);
+				const height = Math.abs(radiusOf(center, apex) - radiusOf(center, first));
+				// It reaches sideways as far as the stitches it spans take up —
+				// one stitch's worth of the round each, so a 3-together may open
+				// wider than a 2-together — and no further.
+				expect(width).toBeLessThanOrEqual(20 * arms.length);
+				// Its height is a stitch's height, whatever it had to reach.
+				expect(height).toBeLessThanOrEqual(2 * symbolExtent('sc') + 0.01);
+			}
+		}
+	});
+
+	// Spec tests 4 and 5: a whole round of shaping, with no two symbols crossing.
+	it('never lets two shaping connectors cross each other', () => {
+		for (const source of [
+			'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n',
+			'---\ntype: round\n---\nR1: 12 sc in MR\nR2: [dec] x 6\n',
+			'---\ntype: round\n---\nR1: 4 sc in MR\nR2: inc, inc, sc, sc\n',
+		]) {
+			const connectors = calculateLayout(parseChart(source), BOOK).shapingMarks ?? [];
+			expect(connectors.length).toBeGreaterThan(1);
+
+			const segments = connectors.flatMap((connector, index) =>
+				connector.segments.flatMap((segment) =>
+					segment.slice(1).map((point, i) => ({ index, a: segment[i] ?? point, b: point })),
+				),
+			);
+			segments.forEach((first, i) => {
+				segments.slice(i + 1).forEach((second) => {
+					if (first.index === second.index) return;
+					expect(segmentsCross(first.a, first.b, second.a, second.b)).toBe(false);
+				});
+			});
+		}
+	});
+
+	// The progress tool counts steps, not stitches: an increase is one action
+	// worth two stitches, and its mark answers to that step's index.
+	it('tags each shaping mark with the step that made it, alongside the join', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 3, sl st\n'),
+			BOOK,
+		);
+		const round2 = layout.items.filter((item) => item.rowIndex === 1);
+
+		expect(layout.shapingMarks?.map((mark) => mark.unitIndex)).toEqual([0, 1, 2]);
+		// Only the closing join drew a stitch symbol of its own.
+		expect(round2.map((item) => item.symbol)).toEqual(['sl st']);
+		expect(round2[0]?.unitIndex).toBeUndefined();
+	});
+
+	// Spec section 18: a shaping symbol is never a stock glyph here.
+	it('never stamps the fixed inc/dec glyphs in a book-style chart', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [dec] x 6\n'),
+			BOOK,
+		);
+
+		expect(layout.items.some((item) => item.symbol === 'inc' || item.symbol === 'dec')).toBe(false);
+		expect(layout.shapingMarks).toHaveLength(12);
+	});
+
+	// Spec test 1: nothing to connect on a plain round.
+	it('draws no shaping connectors when a round has no increases or decreases', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: 6 sc\n'),
+			BOOK,
+		);
+
+		expect(layout.shapingMarks).toBeUndefined();
+		expect(layout.items.some((item) => item.symbol === 'inc' || item.symbol === 'dec')).toBe(false);
+	});
+
+	// Spec test 5: a whole round of decreases stays readable.
+	it('gathers each decrease over the two stitches it merges, all round', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 12 sc in MR\nR2: [dec] x 6\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const round1 = round(layout, 0);
+		const marks = marksOf(layout, 1);
+
+		expect(marks).toHaveLength(6);
+		marks.forEach((mark, i) => {
+			const left = round1[2 * i];
+			const right = round1[2 * i + 1];
+			if (!left || !right) throw new Error('expected parent stitches');
+			const { apex, arms } = endpoints(mark);
+			const [footA, footB] = arms;
+			if (!footA || !footB) throw new Error('expected two feet');
+			// Its point stands midway above the two stitches, one foot leaning
+			// toward each, opening no wider than the two stitches themselves.
+			const mid = midAngle(angleOf(center, left), angleOf(center, right));
+			expect(angleDiff(angleOf(center, apex), mid)).toBeLessThan(driftDegrees(6));
+			expect(angleDiff(midAngle(angleOf(center, footA), angleOf(center, footB)), mid)).toBeLessThan(
+				driftDegrees(6),
+			);
+			expect(clockwiseDelta(angleOf(center, footA), angleOf(center, footB))).toBeLessThanOrEqual(
+				clockwiseDelta(angleOf(center, left), angleOf(center, right)) + 1e-9,
+			);
+		});
+	});
+
+	// Spec test 6 / section 10: order is a property of the pattern, not the layout.
+	it('keeps steps in working order around the circle through mixed shaping', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 8 sc in MR\nR2: inc, sc, dec, sc, inc, dec\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const steps = roundSteps(layout, 1);
+
+		expect(steps.map((step) => step.unitIndex)).toEqual([0, 1, 2, 3, 4, 5]);
+		// Walking the round clockwise from the first step visits them in the
+		// order they are worked, and each step is a real gap forward.
+		let swept = 0;
+		steps.forEach((step, i) => {
+			if (i === 0) return;
+			const previous = steps[i - 1];
+			if (!previous) throw new Error('expected previous step');
+			const gap = clockwiseDelta(angleOf(center, previous), angleOf(center, step));
+			expect(gap).toBeGreaterThan(0);
+			swept += gap;
+		});
+		expect(swept).toBeLessThan(360);
+	});
+
+	// Spec section 6 / 8: shaping may not squash stitches into each other.
+	it('keeps neighbouring steps apart even where shaping crowds a round', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 8 sc in MR\nR2: inc, sc, dec, sc, inc, dec\nR3: [sc, inc] x 4\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+
+		for (const rowIndex of [1, 2]) {
+			const steps = roundSteps(layout, rowIndex);
+			const radius = roundRadius(layout, center, rowIndex);
+			steps.forEach((step, i) => {
+				const next = steps[(i + 1) % steps.length];
+				if (!next) throw new Error('expected a next step');
+				const gap = clockwiseDelta(angleOf(center, step), angleOf(center, next));
+				// 14px of arc: symbols are ~12px wide, so they cannot overlap.
+				expect((gap * Math.PI * radius) / 180).toBeGreaterThan(13.9);
+			});
+		}
+	});
+
+	// Spec test 7 / section 15: shaping either side of the round's seam.
+	it('handles a decrease whose stitches sit either side of 0°', () => {
+		// With 12 stitches starting at the top, the 10th sits at 0° and the 11th
+		// at 330°: a decrease merging them must land between them near 345°, not
+		// half a turn away at 165° where averaging the two raw angles would put it.
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 12 sc in MR\nR2: 9 sc, dec, sc\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+
+		const child = marksOf(layout, 1).find((mark) => mark.unitIndex === 9);
+		if (!child) throw new Error('expected the decrease mark');
+		const parentA = stitchOf(layout, 'r0s9');
+		const parentB = stitchOf(layout, 'r0s10');
+
+		// The decrease is between the two stitches it merged: the two short hops
+		// around it add up to the one hop from stitch to stitch.
+		const toChild = clockwiseDelta(angleOf(center, parentA), angleOf(center, child));
+		const fromChild = clockwiseDelta(angleOf(center, child), angleOf(center, parentB));
+		const across = clockwiseDelta(angleOf(center, parentA), angleOf(center, parentB));
+		expect(toChild).toBeGreaterThan(0);
+		expect(fromChild).toBeGreaterThan(0);
+		expect(toChild + fromChild).toBeCloseTo(across);
+		expect(across).toBeLessThan(180);
+	});
+
+	it('centers a decrease between the two previous-round stitches it merges', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [dec] x 3\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const round1 = layout.items.filter((item) => item.rowIndex === 0);
+		const round2 = roundSteps(layout, 1);
+
+		expect(round2).toHaveLength(3);
+		round2.forEach((dec, i) => {
+			const left = round1[2 * i];
+			const right = round1[2 * i + 1];
+			if (!left || !right) throw new Error('expected parent stitches');
+			const mid = midAngle(angleOf(center, left), angleOf(center, right));
+			expect(angleDiff(angleOf(center, dec), mid)).toBeLessThan(driftDegrees(3));
+		});
+	});
+
+	it("keeps a plain round's stitches with the previous round's increase marks", () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: 12 sc\n'),
+			BOOK,
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const increases = marksOf(layout, 1);
+		const round3 = layout.items.filter((item) => item.rowIndex === 2);
+
+		// R2's six increases render as one V each, so their children only surface
+		// as R3's twelve plain sc. Each R3 pair 2i / 2i+1 remains with the V it
+		// came from while the closing side spends the room released by the
+		// now-fixed seam width.
+		expect(increases).toHaveLength(6);
+		expect(round3).toHaveLength(12);
+		const radius = roundRadius(layout, center, 2);
+		const pitch = (2 * Math.PI * radius) / round3.length;
+		const offsets: number[] = [];
+		increases.forEach((increase, i) => {
+			const left = round3[2 * i];
+			const right = round3[2 * i + 1];
+			if (!left || !right) throw new Error('expected two children');
+			const mid = midAngle(angleOf(center, left), angleOf(center, right));
+			const off = (angleDiff(angleOf(center, increase), mid) * Math.PI * radius) / 180;
+			offsets.push(off / pitch);
+		});
+		const openingPair = offsets[0];
+		if (openingPair === undefined) throw new Error('expected the pair beside the seam');
+		// The pair beside the newly expanded center seam may use a little over
+		// half a pitch; every pair after it stays within rounding distance of
+		// that ordinary allowance.
+		expect(openingPair).toBeLessThanOrEqual(0.6);
+		for (const offset of offsets.slice(1)) expect(offset).toBeLessThanOrEqual(0.51);
+	});
+
+	it('encloses every round with one continuous spiral guide, without needing grid: on', () => {
+		const layout = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\n'),
+			BOOK,
+		);
+
+		// A single open polyline, no closed circles or straight spokes.
+		expect(layout.gridGuide?.circles).toHaveLength(0);
+		expect(layout.gridGuide?.lines).toHaveLength(0);
+		expect(layout.gridGuide?.polylines).toHaveLength(1);
+
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const radiusAt = (rowIndex: number) => roundRadius(layout, center, rowIndex);
+		// The spiral winds from inside round 1 out past round 3: its per-point
+		// radius spans below the innermost round and beyond the outermost.
+		const polyline = layout.gridGuide?.polylines?.[0] ?? [];
+		const radii = polyline.map((p) => Math.hypot(p.x - center.x, p.y - center.y));
+		expect(Math.min(...radii)).toBeLessThan(radiusAt(0));
+		expect(Math.max(...radii)).toBeGreaterThan(radiusAt(2));
+		// Radius climbs overall (spiral), not one constant circle.
+		expect(Math.max(...radii) - Math.min(...radii)).toBeGreaterThan(radiusAt(1) - radiusAt(0));
+	});
+
+	describe('continuous style', () => {
+		const LINKED = { ...OPTIONS, roundStyle: 'continuous' } as const;
+
+		it('shares its rounds and numbering with traditional Japanese style', () => {
+			const source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [sc, inc] x 3\nR3: 9 sc\n';
+			const book = calculateLayout(parseChart(source), BOOK);
+			const linked = calculateLayout(parseChart(source), LINKED);
+
+			// Same rounds at the same radii, numbered the same, both enclosed by
+			// the band guide. Only the spacing within a round can differ, and
+			// only because traditional Japanese style draws the two stitches of an increase as
+			// one V, which needs less room than the two symbols linked draws —
+			// which also nudges where each round's seam falls.
+			expect(linked.labels?.map((label) => label.text)).toEqual(book.labels?.map((label) => label.text));
+			expect(linked.gridGuide?.polylines).toHaveLength(book.gridGuide?.polylines?.length ?? 0);
+			const bookCenter = book.items[0];
+			const linkedCenter = linked.items[0];
+			if (!bookCenter || !linkedCenter) throw new Error('expected MR centers');
+			for (const rowIndex of [0, 1, 2]) {
+				expect(roundRadius(linked, linkedCenter, rowIndex)).toBeCloseTo(
+					roundRadius(book, bookCenter, rowIndex),
+				);
+			}
+		});
+
+		it('draws every stitch an increase makes, and links both to the stitch below', () => {
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: inc, 5 sc\n'),
+				LINKED,
+			);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			// Unlike traditional Japanese style, all seven stitches keep their own symbol.
+			expect(round(layout, 1)).toHaveLength(7);
+			const [childA, childB] = [stitchOf(layout, 'r1s0'), stitchOf(layout, 'r1s1')];
+			expect(childA.sourceStitchIds).toEqual(['r0s0']);
+			expect(childB.sourceStitchIds).toEqual(['r0s0']);
+
+			expect(layout.shapingMarks).toHaveLength(1);
+			const link = layout.shapingMarks?.[0];
+			if (!link) throw new Error('expected an increase link');
+			const { apex, arms } = endpoints(link);
+			const parent = stitchOf(layout, 'r0s0');
+
+			// The apex reaches out from the stitch below, each arm back to one of
+			// the stitches worked into it — so the line crosses between rounds.
+			expect(angleDiff(angleOf(center, apex), angleOf(center, parent))).toBeLessThan(0.01);
+			expect(angleDiff(angleOf(center, arms[0] ?? apex), angleOf(center, childA))).toBeLessThan(0.01);
+			expect(angleDiff(angleOf(center, arms[1] ?? apex), angleOf(center, childB))).toBeLessThan(0.01);
+			expect(radiusOf(center, apex)).toBeGreaterThan(radiusOf(center, parent));
+			expect(radiusOf(center, apex)).toBeLessThan(radiusOf(center, arms[0] ?? apex));
+			expect(radiusOf(center, arms[0] ?? apex)).toBeLessThan(radiusOf(center, childA));
+		});
+
+		it('links a decrease down to each stitch it closed over', () => {
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: dec, 4 sc\n'),
+				LINKED,
+			);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			expect(round(layout, 1)).toHaveLength(5);
+			const link = layout.shapingMarks?.[0];
+			if (!link) throw new Error('expected a decrease link');
+			expect(link.kind).toBe('decrease');
+
+			const { apex, arms } = endpoints(link);
+			const child = stitchOf(layout, 'r1s0');
+			const [parentA, parentB] = [stitchOf(layout, 'r0s0'), stitchOf(layout, 'r0s1')];
+			expect(angleDiff(angleOf(center, apex), angleOf(center, child))).toBeLessThan(0.01);
+			expect(angleDiff(angleOf(center, arms[0] ?? apex), angleOf(center, parentA))).toBeLessThan(0.01);
+			expect(angleDiff(angleOf(center, arms[1] ?? apex), angleOf(center, parentB))).toBeLessThan(0.01);
+			expect(radiusOf(center, apex)).toBeLessThan(radiusOf(center, child));
+			expect(radiusOf(center, arms[0] ?? apex)).toBeGreaterThan(radiusOf(center, parentA));
+		});
+
+		// A tall N-together keeps the printed symbol it already has, and the link
+		// says which two stitches it actually closed over — which the symbol
+		// alone cannot.
+		it('links an N-together decrease while keeping its own symbol', () => {
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: dc2tog, 4 dc\n'),
+				LINKED,
+			);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			expect(round(layout, 1).map((item) => item.symbol)).toEqual(['dc2tog', 'dc', 'dc', 'dc', 'dc']);
+			expect(layout.shapingMarks).toHaveLength(1);
+			const { arms } = endpoints(layout.shapingMarks?.[0] as ShapingMark);
+			expect(angleDiff(angleOf(center, arms[0] ?? center), angleOf(center, stitchOf(layout, 'r0s0')))).toBeLessThan(
+				0.01,
+			);
+			expect(angleDiff(angleOf(center, arms[1] ?? center), angleOf(center, stitchOf(layout, 'r0s1')))).toBeLessThan(
+				0.01,
+			);
+		});
+
+		it('links nothing in the first round, which is worked into the ring', () => {
+			const layout = calculateLayout(parseChart('---\ntype: round\n---\nR1: 6 sc in MR\n'), LINKED);
+
+			expect(layout.shapingMarks).toBeUndefined();
+		});
+	});
+
+	// The seam is room of its own, not just wherever a round happened to end: the
+	// round's stitches leave it free, and what is drawn there is laid out inside
+	// it in the order the round is worked (see layout/seam.ts).
+	describe('the seam', () => {
+		const SOURCE =
+			'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: [2 sc, inc] x 6\nR5: 24 sc\n';
+		const ROUNDS = [0, 1, 2, 3, 4];
+
+		// Where the guide steps from one band out to the next: the straight run
+		// between the two rounded corners of each step, which is the one segment of
+		// its continuous polyline that crosses most of the gap between two bands.
+		// The corners themselves change radius a fraction of a px at a time.
+		function guideSteps(layout: LayoutResult, center: GridPoint): { from: GridPoint; to: GridPoint }[] {
+			const polyline = layout.gridGuide?.polylines?.[0] ?? [];
+			const steps: { from: GridPoint; to: GridPoint }[] = [];
+			for (let i = 1; i < polyline.length; i++) {
+				const from = polyline[i - 1];
+				const to = polyline[i];
+				if (!from || !to) continue;
+				if (Math.abs(radiusOf(center, to) - radiusOf(center, from)) > 5) steps.push({ from, to });
+			}
+			return steps;
+		}
+
+		it('keeps each ordinary-round final stitch on its side of the separator', () => {
+			const layout = calculateLayout(
+				parsePattern(`---
+type: round
+---
+R1: sl st, ch, color #8b5a2b, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+R3: sl st, ch, [sc, inc] x 6
+R4: sl st, ch, sc, inc, [2 sc, inc] x 5, sc
+R5: sl st, ch, 24 sc
+R6: sl st, ch, [3 sc, inc] x 6
+R7: sl st, ch, 30 sc
+R8: sl st, ch, color #f5f0df, 30 sc
+R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
+`),
+				{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+			);
+			const center = layout.items.find((item) => item.symbol === 'MR');
+			if (!center) throw new Error('expected MR center');
+			const separators = guideSteps(layout, center);
+
+			for (const rowIndex of [3, 4, 6, 7, 8]) {
+				const finalStitch = layout.items
+					.filter((item) => item.rowIndex === rowIndex && item.stitchId !== undefined)
+					.at(-1);
+				const separator = separators[rowIndex];
+				const label = layout.labels?.[rowIndex];
+				if (!finalStitch || !separator || !label) {
+					throw new Error(`expected final stitch, label, and R${rowIndex + 1} separator`);
+				}
+				const vx = separator.to.x - separator.from.x;
+				const vy = separator.to.y - separator.from.y;
+				const lengthSquared = vx * vx + vy * vy;
+				const projected =
+					lengthSquared === 0
+						? 0
+						: ((finalStitch.x - separator.from.x) * vx +
+								(finalStitch.y - separator.from.y) * vy) /
+							lengthSquared;
+				const t = Math.max(0, Math.min(1, projected));
+				const nearest = {
+					x: separator.from.x + t * vx,
+					y: separator.from.y + t * vy,
+				};
+				expect(
+					distance(finalStitch, nearest),
+					`R${rowIndex + 1} final stitch clearance`,
+				).toBeGreaterThan(symbolExtent(finalStitch.symbol));
+				const sideOf = (point: GridPoint) =>
+					vx * (point.y - separator.from.y) - vy * (point.x - separator.from.x);
+				expect(
+					sideOf(finalStitch) * sideOf(label),
+					`R${rowIndex + 1} final stitch must stay opposite its number`,
+				).toBeLessThan(0);
+			}
+		});
+
+		it('keeps room of its own at every round, with no stitch in it', () => {
+			// Linked style draws every stitch, so the gap the round really left at
+			// its seam can be read straight off the chart.
+			const layout = calculateLayout(parseChart(SOURCE), { ...OPTIONS, roundStyle: 'continuous' });
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			for (const rowIndex of ROUNDS) {
+				const label = layout.labels?.[rowIndex];
+				if (!label) throw new Error(`expected round ${rowIndex} to be numbered`);
+				const stitches = round(layout, rowIndex);
+				const radius = roundRadius(layout, center, rowIndex);
+				const arc = (deg: number) => (deg * Math.PI * radius) / 180;
+				const gaps = stitches.map((stitch, i) =>
+					arc(clockwiseDelta(angleOf(center, stitch), angleOf(center, stitches[(i + 1) % stitches.length] ?? stitch))),
+				);
+				const seam = gaps[gaps.length - 1] ?? 0;
+
+				// Room for the round number and the step out, at every round.
+				expect(seam).toBeGreaterThan(24);
+				// Half a round number plus half a stitch symbol: enough that the two
+				// cannot touch, whichever digits the number has.
+				const nearest = Math.min(
+					...stitches.map((stitch) => arc(angleDiff(angleOf(center, stitch), angleOf(center, label)))),
+				);
+				expect(nearest).toBeGreaterThan(10);
+			}
+		});
+
+		it('leaves the same readable margin before the number and after the round-change line', () => {
+			const contents: SeamContents = {
+				lastStitch: 'sc',
+				firstStitch: 'sc',
+				start: [],
+				end: [],
+				label: '1',
+			};
+
+			for (const radius of [22, 42, 100]) {
+				const first = -450;
+				const last = first + (seamArc(contents) / radius) * 180 / Math.PI;
+				const seam = placeSeam(contents, last, first, radius);
+				const arc = (from: number, to: number) => Math.abs(to - from) * Math.PI * radius / 180;
+				const beforeLabel = arc(first, seam.label) - symbolExtent('sc') - labelExtent('1');
+				const afterStep = arc(seam.step, last) - ROUND_CHANGE_ARC / 2 - symbolExtent('sc');
+				expect(beforeLabel).toBeCloseTo(10, 6);
+				expect(afterStep).toBeCloseTo(10, 6);
+			}
+		});
+
+		// A decrease is drawn down onto the stitches it closed over, and those sit
+		// either side of the one it makes — so a round that opens or closes with one
+		// draws out past its own first or last stitch. That reach is part of what
+		// the seam has to be asked for, or the ∧ is drawn across the round's own
+		// number and step.
+		//
+		// Read in continuous style, where every stitch draws a symbol, so the round's
+		// first and last really are the ends of what it drew. The layout underneath
+		// is the same one traditional Japanese style uses.
+		it('keeps the shaping at either end of a round out of the seam', () => {
+			const LINKED = { ...OPTIONS, roundStyle: 'continuous' } as const;
+			for (const source of [
+				'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: 18 sc\nR5: [sc, dec] x 6\nR6: [dec] x 6\n',
+				'---\ntype: round\n---\nR1: 12 sc in MR\nR2: 9 sc, dec, sc\nR3: 11 sc\n',
+				'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [sc, inc] x 6\nR4: [2 sc, inc] x 6\n',
+			]) {
+				const layout = calculateLayout(parseChart(source), LINKED);
+				const center = layout.items[0];
+				if (!center) throw new Error('expected MR center');
+
+				const steps = guideSteps(layout, center);
+				(layout.labels ?? []).forEach((label, rowIndex) => {
+					const step = steps[rowIndex];
+					if (!step) throw new Error(`expected round ${rowIndex} to step out`);
+					const radius = roundRadius(layout, center, rowIndex);
+					const margin = (180 * 6) / (Math.PI * radius); // 6px of arc, in degrees
+
+					// The channel the round change is drawn in: from the step out to
+					// the round number, which follows it. Nothing else belongs in it.
+					const from = angleOf(center, step.to) + margin;
+					const to = angleOf(center, label) - margin;
+					const channel = clockwiseDelta(from, to);
+
+					for (const mark of marksOf(layout, rowIndex)) {
+						for (const segment of mark.segments) {
+							for (const point of segment) {
+								const into = clockwiseDelta(from, angleOf(center, point));
+								expect(into > 0 && into < channel).toBe(false);
+							}
+						}
+					}
+				});
+			}
+		});
+
+		it("numbers each round between the round-change step and the round's first stitch", () => {
+			const layout = calculateLayout(parseChart(SOURCE), BOOK);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const steps = guideSteps(layout, center);
+			expect(steps).toHaveLength(ROUNDS.length);
+
+			for (const rowIndex of ROUNDS) {
+				const label = layout.labels?.[rowIndex];
+				const step = steps[rowIndex];
+				const first = roundSteps(layout, rowIndex)[0];
+				if (!label || !step || !first) throw new Error(`expected round ${rowIndex} to be complete`);
+
+				// Working order runs clockwise here, so from the step the round number
+				// comes first and the round's own stitches only after it.
+				const toLabel = clockwiseDelta(angleOf(center, step.to), angleOf(center, label));
+				const toFirst = clockwiseDelta(angleOf(center, step.to), angleOf(center, first));
+				expect(toLabel).toBeGreaterThan(0);
+				expect(toLabel).toBeLessThan(toFirst);
+			}
+		});
+
+		it('steps out to the next round near radially, however large the round', () => {
+			const layout = calculateLayout(parseChart(SOURCE), BOOK);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			for (const { from, to } of guideSteps(layout, center)) {
+				const radial = radiusOf(center, to) - radiusOf(center, from);
+				const mean = (radiusOf(center, to) + radiusOf(center, from)) / 2;
+				const across =
+					(((angleOf(center, to) - angleOf(center, from) + 540) % 360) - 180) * (Math.PI / 180) * mean;
+				const fromRing = (Math.atan2(Math.abs(radial), Math.abs(across)) * 180) / Math.PI;
+				expect(fromRing).toBeGreaterThan(70);
+			}
+		});
+	});
+
+	// Nothing about a chart's size is taken from stitch counts alone: a ring is as
+	// long as the symbols on it and the seam in it need. So the same pattern
+	// written in taller stitches is drawn on a larger ring rather than a crowded
+	// one, and neither ring has two symbols overlapping.
+	describe('ring sizing', () => {
+		function neighbourGaps(layout: LayoutResult, rowIndex: number): number[] {
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+			const radius = roundRadius(layout, center, rowIndex);
+			const stitches = round(layout, rowIndex);
+			return stitches.map((stitch, i) => {
+				const next = stitches[(i + 1) % stitches.length] ?? stitch;
+				const gap = clockwiseDelta(angleOf(center, stitch), angleOf(center, next));
+				return (gap * Math.PI * radius) / 180;
+			});
+		}
+
+		for (const [symbol, source] of [
+			['sc', '---\ntype: round\n---\nR1: 12 sc in MR\n'],
+			['dc', '---\ntype: round\n---\nR1: 12 dc in MR\n'],
+			['dtr', '---\ntype: round\n---\nR1: 12 dtr in MR\n'],
+		] as const) {
+			it(`draws a round of ${symbol} on a ring long enough to hold it`, () => {
+				const layout = calculateLayout(parseChart(source), BOOK);
+
+				for (const gap of neighbourGaps(layout, 0)) {
+					expect(gap).toBeGreaterThanOrEqual(2 * symbolExtent(symbol));
+				}
+			});
+		}
+
+		it('grows the ring with the stitches, for the same stitch count', () => {
+			const center = (layout: LayoutResult) => layout.items[0];
+			const radiusOfRound = (source: string) => {
+				const layout = calculateLayout(parseChart(source), BOOK);
+				const middle = center(layout);
+				if (!middle) throw new Error('expected MR center');
+				return roundRadius(layout, middle, 0);
+			};
+
+			expect(radiusOfRound('---\ntype: round\n---\nR1: 12 dtr in MR\n')).toBeGreaterThan(
+				radiusOfRound('---\ntype: round\n---\nR1: 12 sc in MR\n'),
+			);
+		});
+
+		it("makes room at the seam for the chains a round opens with, however many it writes", () => {
+			const layout = calculateLayout(
+				parseChart('---\ntype: round\n---\nR1: ch 3, 12 dc in MR, sl st\nR2: ch 3, [dc, inc] x 6, sl st\n'),
+				BOOK,
+			);
+			const center = layout.items[0];
+			if (!center) throw new Error('expected MR center');
+
+			for (const rowIndex of [0, 1]) {
+				// The chain and the join are the round's instructions: drawn at its
+				// seam, with no unitIndex of their own.
+				const seamItems = layout.items.filter(
+					(item) => item.rowIndex === rowIndex && item.unitIndex === undefined,
+				);
+				expect(seamItems).toHaveLength(4);
+				const radius = roundRadius(layout, center, rowIndex);
+				for (let i = 1; i < seamItems.length; i++) {
+					const before = seamItems[i - 1];
+					const here = seamItems[i];
+					if (!before || !here) throw new Error('expected two seam instructions');
+					const apart =
+						(angleDiff(angleOf(center, before), angleOf(center, here)) * Math.PI * radius) / 180;
+					expect(apart).toBeGreaterThanOrEqual(symbolExtent('ch'));
+				}
+			}
+		});
+	});
+
+	it('numbers each round with a label, and draws none in standard style', () => {
+		const book = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n'),
+			BOOK,
+		);
+		expect(book.labels?.map((label) => label.text)).toEqual(['1', '2']);
+
+		const standard = calculateLayout(
+			parseChart('---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\n'),
+			OPTIONS,
+		);
+		expect(standard.labels).toBeUndefined();
+	});
+});
+
 describe('color changes', () => {
 	it('tags stitches with the nearest preceding color and marks only the first stitch of each new color', () => {
 		const layout = calculateLayout(parseChart('R1: 8 sc, color white, 8 sc, color black, 8 sc\n'), OPTIONS);
@@ -367,5 +1722,949 @@ describe('color changes', () => {
 
 		expect(layout.items.every((item) => item.color === undefined)).toBe(true);
 		expect(layout.colorMarkers).toBeUndefined();
+	});
+});
+
+describe('sizing a round by what it draws', () => {
+	function radiiOf(source: string, roundStyle: 'japanese' | 'continuous'): number[] {
+		const layout = calculateLayout(parseChart(source), { grid: false, roundStyle });
+		const centre = { x: layout.width / 2, y: layout.height / 2 };
+		const byRound = new Map<number, number[]>();
+		// A round whose stitches are all drawn as the V that stands for them has
+		// no symbols of its own, so its marks are what says where it is.
+		for (const drawn of [...layout.items, ...(layout.shapingMarks ?? [])]) {
+			if (drawn.rowIndex === undefined) continue;
+			const radius = Math.hypot(drawn.x - centre.x, drawn.y - centre.y);
+			byRound.set(drawn.rowIndex, [...(byRound.get(drawn.rowIndex) ?? []), radius]);
+		}
+		return [...byRound.entries()]
+			.sort((a, b) => a[0] - b[0])
+			.map(([, radii]) => radii.reduce((sum, radius) => sum + radius, 0) / radii.length);
+	}
+
+	const doubling = '---\ntype: round\n---\nR1: 22 sc\nR2: [inc] x 22\n';
+
+	it('does not push a round of increases out for stitches it does not draw', () => {
+		// R2 doubles the stitch count but draws twenty-two V marks, not
+		// forty-four symbols, so it grows by a ring spacing rather than by what
+		// forty-four symbols would need.
+		const [first, second] = radiiOf(doubling, 'japanese');
+
+		expect(second! - first!).toBeLessThan(40);
+	});
+
+	it('still gives that round room for every symbol where every symbol is drawn', () => {
+		const [, japanese] = radiiOf(doubling, 'japanese');
+		const [, continuous] = radiiOf(doubling, 'continuous');
+
+		expect(continuous!).toBeGreaterThan(japanese!);
+	});
+
+	it('keeps neighbouring stitches clear of each other either way', () => {
+		for (const style of ['japanese', 'continuous'] as const) {
+			const layout = calculateLayout(parseChart(doubling), { grid: false, roundStyle: style });
+			// Book style draws this round entirely as marks, so what is checked
+			// there is the round below it.
+			const round = layout.items.filter((item) => item.rowIndex === (style === 'japanese' ? 0 : 1));
+			for (let index = 1; index < round.length; index++) {
+				const previous = round[index - 1];
+				const current = round[index];
+				const gap =
+					distance(previous!, current!) - symbolExtent(previous!.symbol) - symbolExtent(current!.symbol);
+				expect(`${style} gap ${gap > 0}`).toBe(`${style} gap true`);
+			}
+		}
+	});
+});
+
+describe('how far apart a chart draws its rounds', () => {
+	function bandOf(source: string, options: { ringSpacing?: number } = {}): number {
+		const layout = calculateLayout(parseChart(source), { grid: false, roundStyle: 'japanese', ...options });
+		const centre = { x: layout.width / 2, y: layout.height / 2 };
+		const radii = new Map<number, number>();
+		for (const drawn of [...layout.items, ...(layout.shapingMarks ?? [])]) {
+			if (drawn.rowIndex === undefined) continue;
+			const radius = Math.hypot(drawn.x - centre.x, drawn.y - centre.y);
+			radii.set(drawn.rowIndex, Math.max(radii.get(drawn.rowIndex) ?? 0, radius));
+		}
+		const ordered = [...radii.entries()].sort((a, b) => a[0] - b[0]).map(([, radius]) => radius);
+		return (ordered[2] ?? 0) - (ordered[1] ?? 0);
+	}
+
+	const short = '---\ntype: round\n---\nR1: 12 sc in MR\nR2: 12 sc\nR3: 12 sc\n';
+	const tall = '---\ntype: round\n---\nR1: 12 dtr in MR\nR2: 12 dtr\nR3: 12 dtr\n';
+
+	it('steps a round out by what its own stitches are tall', () => {
+		// A round of single crochets sits closer to the round below than a round
+		// of double trebles does, because that is what the stitches are.
+		expect(bandOf(short)).toBeLessThan(bandOf(tall));
+		expect(bandOf(short)).toBeLessThan(2 * symbolExtent('sc') + 8);
+	});
+
+	it('gives a round of short stitches a band it nearly fills', () => {
+		// The band was three times the height of the stitches in it before this
+		// was read off the stitches themselves.
+		expect(bandOf(short)).toBeGreaterThan(symbolExtent('sc'));
+	});
+
+	it('uses the spacing a chart asks for instead', () => {
+		expect(bandOf(short, { ringSpacing: 40 })).toBeCloseTo(40, 0);
+	});
+});
+
+describe('a chart that names its own round spacing', () => {
+	it('steps every round out by exactly that spacing even when ancestry is crowded', () => {
+		const source = `---
+type: round
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+`;
+		for (const roundStyle of ['radial', 'japanese', 'continuous'] as const) {
+			const layout = calculateLayout(parseChart(source), { ringSpacing: 20, grid: false, roundStyle });
+			const center = layout.items.find((item) => item.symbol === 'MR');
+			if (!center) throw new Error('expected MR center');
+			const radii = [0, 1, 2, 3].map((rowIndex) => {
+				const step =
+					layout.items.find((item) => item.rowIndex === rowIndex && item.unitIndex !== undefined) ??
+					layout.shapingMarks?.find((mark) => mark.rowIndex === rowIndex);
+				if (!step) throw new Error(`expected round ${rowIndex + 1}`);
+				return distance(center, step);
+			});
+			const deltas = radii.slice(1).map((radius, index) => radius - radii[index]!);
+
+			expect(
+				deltas.every((delta) => Math.abs(delta - 20) < 0.01),
+				`${roundStyle}: expected fixed 20px spacing, received ${deltas.join(', ')}`,
+			).toBe(true);
+		}
+	});
+});
+
+describe('where a chart changes rounds', () => {
+	it('keeps the first increase upright while tightening the first round around the center', () => {
+		const layout = calculateLayout(
+			parsePattern(`---
+type: round
+---
+R1: sl st, ch, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+`),
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+		);
+		const center = layout.items.find((item) => item.symbol === 'MR');
+		const first = layout.items.find((item) => item.stitchId === 'r0s0');
+		const firstIncrease = layout.shapingMarks?.find(
+			(mark) => mark.kind === 'increase' && mark.rowIndex === 1 && mark.unitIndex === 0,
+		);
+		const [left, apex, right] = firstIncrease?.segments[0] ?? [];
+		if (!center || !first || !left || !apex || !right) {
+			throw new Error('expected center, first stitch, and first increase');
+		}
+		const bearing = (point: { x: number; y: number }) =>
+			(Math.atan2(point.y - center.y, point.x - center.x) * 180) / Math.PI;
+
+		expect(bearing(first)).toBeCloseTo(-90, 6);
+		expect(Math.min(bearing(left), bearing(right))).toBeLessThan(-90);
+		expect(Math.max(bearing(left), bearing(right))).toBeGreaterThan(-90);
+		expect(Math.abs(distance(apex, left) - distance(apex, right))).toBeLessThan(0.5);
+		expect(symbolExtent(center.symbol)).toBe(5);
+		expect(distance(center, first)).toBeGreaterThan(28);
+		expect(distance(center, first)).toBeLessThan(29);
+	});
+
+	it('puts the first round number at -50°, its first stitch at twelve o’clock, and keeps the center compact', () => {
+		const layout = calculateLayout(
+			parsePattern('---\ntype: round\n---\nR1: sl st, ch, 6 sc in MR\n'),
+			{ ringSpacing: 20, grid: false, roundStyle: 'continuous' },
+		);
+		const center = layout.items.find((item) => item.symbol === 'MR');
+		const label = layout.labels?.[0];
+		if (!center || !label) throw new Error('expected center and first round number');
+
+		const bearing = (Math.atan2(label.y - center.y, label.x - center.x) * 180) / Math.PI;
+		const first = layout.items.find((item) => item.rowIndex === 0 && item.stitchId !== undefined);
+		if (!first) throw new Error('expected first stitch');
+		const firstBearing = (Math.atan2(first.y - center.y, first.x - center.x) * 180) / Math.PI;
+		const firstRadius = distance(center, first);
+		expect(bearing).toBeCloseTo(-50, 6);
+		expect(firstBearing).toBeCloseTo(-90, 6);
+		expect(firstRadius).toBeGreaterThan(28);
+		expect(firstRadius).toBeLessThan(29);
+	});
+
+	it('keeps a sliced chart’s first written round number clear of its closing join', () => {
+		for (const [round, stitches] of [
+			[4, '22 sc'],
+			[16, '4 sc, dec, 10 sc, dec, 6 sc'],
+		] as const) {
+			const layout = calculateLayout(
+				parsePattern(`---\ntype: round\n---\nR${round}: ${stitches}, sl st\n`),
+				{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+			);
+			const label = layout.labels?.[0];
+			const join = layout.items.find(
+				(item) => item.rowIndex === 0 && item.symbol === 'sl st',
+			);
+			if (!label || !join) throw new Error(`expected R${round} number and closing join`);
+
+			const clearance =
+				distance(label, join) -
+				labelExtent(label.text) -
+				symbolExtent(join.symbol) * (join.scale ?? 1);
+			expect(clearance, `R${round} number crowds its closing join`).toBeGreaterThan(1.99);
+		}
+	});
+
+	it('keeps every round number clear throughout the pictured R4–R8 and R16–R19 slices', () => {
+		const sources = [
+			`R4: 22 sc, sl st
+R5: 9 sc, inc, 10 sc, inc, sc, sl st
+R6: [8 sc, inc, 2 sc, inc] x 2, sl st
+R7: [8 sc, inc, 4 sc, inc] x 2, sl st
+R8: [8 sc, inc, 6 sc, inc] x 2, sl st`,
+			`R16: 4 sc, dec, 10 sc, dec, 6 sc, sl st
+R17: [inc] x 22, sl st
+R18: [10 sc, inc] x 4, sl st
+R19: 5 sc, [inc, 11 sc] x 3, inc, 6 sc, sl st`,
+		];
+		for (const source of sources) {
+			const layout = calculateLayout(
+				parsePattern(`---\ntype: round\n---\n${source}\n`),
+				{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+			);
+			for (const [rowIndex, label] of (layout.labels ?? []).entries()) {
+				const roundItems = layout.items.filter((item) => item.rowIndex === rowIndex);
+				const clearance = Math.min(
+					...roundItems.map(
+						(item) =>
+							distance(label, item) -
+							labelExtent(label.text) -
+							symbolExtent(item.symbol) * (item.scale ?? 1),
+					),
+				);
+				expect(clearance, `${label.text} crowds a stitch or seam instruction`).toBeGreaterThan(1.99);
+			}
+		}
+	});
+
+	it('keeps partial-chart round numbers on the left side of their closing joins', () => {
+		const sources = [
+			`R4: 22 sc, sl st
+R5: 9 sc, inc, 10 sc, inc, sc, sl st
+R6: [8 sc, inc, 2 sc, inc] x 2, sl st
+R7: [8 sc, inc, 4 sc, inc] x 2, sl st
+R8: [8 sc, inc, 6 sc, inc] x 2, sl st`,
+			`R16: 4 sc, dec, 10 sc, dec, 6 sc, sl st
+R17: [inc] x 22, sl st
+R18: [10 sc, inc] x 4, sl st
+R19: 5 sc, [inc, 11 sc] x 3, inc, 6 sc, sl st`,
+		];
+		for (const source of sources) {
+			const layout = calculateLayout(
+				parsePattern(`---
+type: round
+---
+${source}
+`),
+				{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+			);
+			for (const [rowIndex, label] of (layout.labels ?? []).entries()) {
+				const join = layout.items.find(
+					(item) => item.rowIndex === rowIndex && item.symbol === 'sl st',
+				);
+				const polyline = layout.gridGuide?.polylines?.[0] ?? [];
+				const minX = Math.min(...polyline.map((point) => point.x));
+				const maxX = Math.max(...polyline.map((point) => point.x));
+				const minY = Math.min(...polyline.map((point) => point.y));
+				const maxY = Math.max(...polyline.map((point) => point.y));
+				const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+				const separators = polyline
+					.slice(1)
+					.map((to, index) => ({ from: polyline[index], to }))
+					.filter(
+						(segment) =>
+							segment.from !== undefined &&
+							Math.abs(distance(center, segment.to) - distance(center, segment.from)) > 5,
+					);
+				const separator = separators[rowIndex];
+				if (!join || !separator?.from) {
+					throw new Error(`expected closing join and separator beside ${label.text}`);
+				}
+				expect(
+					label.x + labelExtent(label.text),
+					`${label.text} is not wholly left of its closing join`,
+				).toBeLessThan(join.x - symbolExtent(join.symbol));
+				const bearing = (point: GridPoint) =>
+					(Math.atan2(point.y - center.y, point.x - center.x) * 180) / Math.PI;
+				const clockwise = (from: number, to: number) =>
+					(((from - to) % 360) + 360) % 360;
+				const toLabel = clockwise(bearing(separator.to), bearing(label));
+				expect(toLabel, `${label.text} crossed its round separator`).toBeGreaterThan(0);
+				expect(toLabel, `${label.text} crossed its round separator`).toBeLessThan(180);
+			}
+		}
+	});
+
+	it('leans each outer round number another half degree toward twelve o’clock', () => {
+		const layout = calculateLayout(
+			parseChart(
+				'---\ntype: round\n---\nR1: 6 sc in MR\nR2: [sc, inc] x 3\nR3: [2 sc, inc] x 3\nR4: [3 sc, inc] x 3\nR5: 15 sc\nR6: 15 sc\n',
+			),
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+		);
+		const center = layout.items[0];
+		if (!center) throw new Error('expected MR center');
+		const bearing = (item: { x: number; y: number }) =>
+			(Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
+
+		const labels = layout.labels ?? [];
+		expect(labels).toHaveLength(6);
+		const numbers = labels.map(bearing);
+
+		for (const [index, number] of numbers.entries()) {
+			expect(number).toBeCloseTo(-50 - index * 0.5, 9);
+		}
+	});
+
+	it('keeps exact one-to-one ancestry through a forty-round numbered chart', () => {
+		// Forty rounds of a body: plain rounds with an increase round every
+		// fourth, each working into the round below exactly once, which is where
+		// the seam used to wander round the chart.
+		const rounds: string[] = [];
+		let count = 22;
+		for (let round = 1; round <= 40; round++) {
+			if (round % 4 === 0) {
+				const plain = count / 2 - 1;
+				rounds.push(`R${round}: [${plain} sc, inc] x 2, sl st`);
+				count += 2;
+			} else {
+				rounds.push(`R${round}: ${count} sc${round === 1 ? ' in MR' : ''}, sl st`);
+			}
+		}
+		const layout = calculateLayout(parseChart(`---\ntype: round\n---\n${rounds.join('\n')}\n`), {
+			ringSpacing: 20,
+			grid: false,
+			roundStyle: 'japanese',
+		});
+		const centre = layout.items.find((item) => item.symbol === 'MR');
+		if (!centre) throw new Error('expected MR center');
+		const angles = (layout.labels ?? []).map(
+			(label) => (Math.atan2(label.y - centre.y, label.x - centre.x) * 180) / Math.PI,
+		);
+		const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+		const bearing = (item: { x: number; y: number }) =>
+			(Math.atan2(item.y - centre.y, item.x - centre.x) * 180) / Math.PI;
+		const bearingDelta = (from: number, to: number) =>
+			Math.abs(Math.atan2(Math.sin((from - to) * Math.PI / 180), Math.cos((from - to) * Math.PI / 180))) *
+			180 /
+			Math.PI;
+
+		expect(angles.length).toBeGreaterThan(30);
+		for (const angle of angles) {
+			expect(angle).toBeGreaterThan(-90);
+			expect(angle).toBeLessThan(0);
+		}
+		for (let rowIndex = 1; rowIndex < rounds.length; rowIndex++) {
+			if ((rowIndex + 1) % 4 === 0) continue;
+			const stitches = layout.items.filter(
+				(item) => item.rowIndex === rowIndex && item.stitchId !== undefined,
+			);
+			const sources = stitches.map((stitch) => stitch.sourceStitchIds?.[0]);
+			const isOneToOne =
+				stitches.every((stitch) => stitch.sourceStitchIds?.length === 1) &&
+				sources.every((source): source is string => source !== undefined) &&
+				new Set(sources).size === stitches.length;
+			if (!isOneToOne || stitches.some((stitch) => !byId.has(stitch.sourceStitchIds?.[0]))) continue;
+			for (const stitch of stitches) {
+				const parent = byId.get(stitch.sourceStitchIds?.[0]);
+				if (!parent) throw new Error(`expected parent for ${stitch.stitchId}`);
+				expect(
+					bearingDelta(bearing(stitch), bearing(parent)),
+					`R${rowIndex + 1} ${stitch.stitchId}`,
+				).toBeLessThan(0.01);
+			}
+		}
+	});
+
+	it('inherits a one-to-one seam angle while its physical width grows with radius', () => {
+		const source =
+			'---\ntype: round\n---\n' +
+			Array.from({ length: 2 }, (_, index) =>
+				`R${index + 1}: 6 sc${index === 0 ? ' in MR' : ''}`,
+			).join('\n');
+
+		for (const style of ['japanese', 'continuous'] as const) {
+			const layout = calculateLayout(parsePattern(source), {
+				ringSpacing: 20,
+				grid: false,
+				roundStyle: style,
+			});
+			const center = layout.items.find((item) => item.symbol === 'MR');
+			if (!center) throw new Error('expected center');
+			const seams = Array.from({ length: 2 }, (_, rowIndex) => {
+				const stitches = layout.items
+					.filter((item) => item.rowIndex === rowIndex && item.symbol === 'sc')
+					.sort((a, b) => (a.unitIndex ?? 0) - (b.unitIndex ?? 0));
+				const first = stitches[0];
+				const last = stitches.at(-1);
+				if (!first || !last) throw new Error(`expected stitches on round ${rowIndex + 1}`);
+				const firstAngle = Math.atan2(first.y - center.y, first.x - center.x);
+				const lastAngle = Math.atan2(last.y - center.y, last.x - center.x);
+				const angle = Math.abs(Math.atan2(Math.sin(firstAngle - lastAngle), Math.cos(firstAngle - lastAngle)));
+				const radius = distance(center, first);
+				return { angle, width: radius * angle };
+			});
+
+			expect(seams[1]?.angle).toBeCloseTo(seams[0]?.angle ?? 0, 9);
+			expect(seams[1]?.width).toBeGreaterThan(seams[0]?.width ?? 0);
+		}
+	});
+
+	it('keeps marker clearance inside the inherited seam of the full long-tailed-tit head pattern', () => {
+		const layout = calculateLayout(
+			parsePattern(`---
+type: round
+---
+R1: sl st, ch, color #8b5a2b, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+R3: sl st, ch, [sc, inc] x 6
+R4: sl st, ch, sc, inc, [2 sc, inc] x 5, sc
+R5: sl st, ch, 24 sc
+R6: sl st, ch, [3 sc, inc] x 6
+R7: sl st, ch, 30 sc
+R8: sl st, ch, color #f5f0df, 30 sc
+R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
+`),
+			{ ringSpacing: 20, grid: false, roundStyle: 'continuous' },
+		);
+		const center = layout.items.find((item) => item.symbol === 'MR');
+		if (!center) throw new Error('expected center');
+		const seams = Array.from({ length: 9 }, (_, rowIndex) => {
+			const stitches = layout.items.filter((item) => item.rowIndex === rowIndex && item.stitchId !== undefined);
+			const first = stitches[0];
+			const last = stitches.at(-1);
+			const label = layout.labels?.[rowIndex];
+			if (!first || !last || !label) throw new Error(`expected a numbered seam on round ${rowIndex + 1}`);
+			const firstAngle = Math.atan2(first.y - center.y, first.x - center.x);
+			const lastAngle = Math.atan2(last.y - center.y, last.x - center.x);
+			const labelAngle = Math.atan2(label.y - center.y, label.x - center.x);
+			const arc = (from: number, to: number) => {
+				const angle = Math.abs(Math.atan2(Math.sin(from - to), Math.cos(from - to)));
+				return distance(center, first) * angle;
+			};
+			return {
+				width: arc(firstAngle, lastAngle),
+				openingSide: arc(firstAngle, labelAngle),
+				closingSide: arc(labelAngle, lastAngle),
+			};
+		});
+
+		const widths = seams.map((seam) => seam.width);
+		// The original seam remains a minimum. Exact outer rounds inherit its
+		// angle, so its physical width grows with radius rather than moving their
+		// stitches off ancestry.
+		expect(Math.min(...widths)).toBeGreaterThanOrEqual(50.9);
+		expect(Math.max(...widths)).toBeGreaterThan(Math.min(...widths));
+		const sideWidths = (['openingSide', 'closingSide'] as const).map((side) => ({
+			side,
+			widths: seams.map((seam) => seam[side]),
+		}));
+		for (const { widths: values } of sideWidths) {
+			expect(Math.min(...values)).toBeGreaterThanOrEqual(10);
+		}
+		const labelAngles = (layout.labels ?? []).map((label) =>
+			Math.atan2(label.y - center.y, label.x - center.x),
+		);
+		for (const [index, angle] of labelAngles.entries()) {
+			expect((angle * 180) / Math.PI).toBeCloseTo(-50 - index * 0.5, 6);
+		}
+	});
+
+	it('keeps a plain stitch lineage opposite the numbered seam on one radial line', () => {
+		const layout = calculateLayout(
+			parsePattern(`---
+type: round
+---
+R1: sl st, ch, color #8b5a2b, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+R3: sl st, ch, [sc, inc] x 6
+R4: sl st, ch, sc, inc, [2 sc, inc] x 5, sc
+R5: sl st, ch, 24 sc
+R6: sl st, ch, [3 sc, inc] x 6
+R7: sl st, ch, 30 sc
+R8: sl st, ch, color #f5f0df, 30 sc
+R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
+`),
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+		);
+		const center = layout.items.find((item) => item.symbol === 'MR');
+		if (!center) throw new Error('expected center');
+		const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+		const bearing = (item: { x: number; y: number }) =>
+			(Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
+		const delta = (from: number, to: number) =>
+			Math.abs(Math.atan2(Math.sin((from - to) * Math.PI / 180), Math.cos((from - to) * Math.PI / 180))) *
+			180 /
+			Math.PI;
+
+		// The numbered seam is at -50°, so its opposite side is 130°. R7–R9
+		// work one stitch into each stitch below; the lineage nearest that clear
+		// side of the chart should therefore read as one straight radial column.
+		for (const rowIndex of [6, 7, 8]) {
+			const stitches = layout.items.filter(
+				(item) => item.rowIndex === rowIndex && item.stitchId !== undefined,
+			);
+			const first = stitches[0];
+			if (!first) throw new Error(`expected stitches on round ${rowIndex + 1}`);
+			const firstParent = byId.get(first.sourceStitchIds?.[0]);
+			if (!firstParent) throw new Error(`expected a first-stitch parent on round ${rowIndex + 1}`);
+			expect(delta(bearing(first), bearing(firstParent))).toBeLessThan(0.01);
+			const inherited = stitches.filter((candidate) => byId.has(candidate.sourceStitchIds?.[0]));
+			const inheritedFirst = inherited[0];
+			if (!inheritedFirst) throw new Error(`expected inherited stitches on round ${rowIndex + 1}`);
+			const stitch = inherited.reduce(
+				(nearest, candidate) =>
+					delta(bearing(candidate), 130) < delta(bearing(nearest), 130)
+						? candidate
+						: nearest,
+				inheritedFirst,
+			);
+			const parent = byId.get(stitch.sourceStitchIds?.[0]);
+			if (!parent) throw new Error(`expected a parent on round ${rowIndex + 1}`);
+			expect(delta(bearing(stitch), bearing(parent))).toBeLessThan(0.01);
+		}
+	});
+
+	it('keeps every one-to-one outer-round stitch directly above the stitch it is worked into', () => {
+		const layout = calculateLayout(
+			parsePattern(`---
+type: round
+---
+R1: sl st, ch, color #8b5a2b, 6 sc in MR
+R2: sl st, ch, [inc] x 6
+R3: sl st, ch, [sc, inc] x 6
+R4: sl st, ch, sc, inc, [2 sc, inc] x 5, sc
+R5: sl st, ch, 24 sc
+R6: sl st, ch, [3 sc, inc] x 6
+R7: sl st, ch, 30 sc
+R8: sl st, ch, color #f5f0df, 30 sc
+R9: sl st, ch, 15 sc, 2 hdc, dc, 2 hdc, 10 sc
+`),
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+		);
+		const center = layout.items.find((item) => item.symbol === 'MR');
+		if (!center) throw new Error('expected center');
+		const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+		const bearing = (item: { x: number; y: number }) =>
+			(Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
+		const delta = (from: number, to: number) =>
+			Math.abs(Math.atan2(Math.sin((from - to) * Math.PI / 180), Math.cos((from - to) * Math.PI / 180))) *
+			180 /
+			Math.PI;
+
+		for (const rowIndex of [7, 8]) {
+			for (const stitch of layout.items.filter(
+				(item) => item.rowIndex === rowIndex && item.stitchId !== undefined,
+			)) {
+				expect(stitch.sourceStitchIds).toHaveLength(1);
+				const parent = byId.get(stitch.sourceStitchIds?.[0]);
+				if (!parent) throw new Error(`expected parent for ${stitch.stitchId}`);
+				expect(delta(bearing(stitch), bearing(parent))).toBeLessThan(0.01);
+			}
+		}
+	});
+
+	it.each([6, 30])(
+		'keeps a minimal %i-stitch one-to-one round exactly on its parents',
+		(stitchCount) => {
+			const layout = calculateLayout(
+				parsePattern(`---
+type: round
+---
+R1: ${stitchCount} sc in MR
+R2: ${stitchCount} sc
+`),
+				{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+			);
+			const center = layout.items.find((item) => item.symbol === 'MR');
+			if (!center) throw new Error('expected center');
+			const byId = new Map(layout.items.filter((item) => item.stitchId).map((item) => [item.stitchId, item]));
+			const bearing = (item: { x: number; y: number }) =>
+				(Math.atan2(item.y - center.y, item.x - center.x) * 180) / Math.PI;
+			const delta = (from: number, to: number) =>
+				Math.abs(
+					Math.atan2(
+						Math.sin((from - to) * Math.PI / 180),
+						Math.cos((from - to) * Math.PI / 180),
+					),
+				) *
+				180 /
+				Math.PI;
+
+			for (const stitch of layout.items.filter(
+				(item) => item.rowIndex === 1 && item.stitchId !== undefined,
+			)) {
+				const parent = byId.get(stitch.sourceStitchIds?.[0]);
+				if (!parent) throw new Error(`expected parent for ${stitch.stitchId}`);
+				expect(delta(bearing(stitch), bearing(parent))).toBeLessThan(0.01);
+			}
+		},
+	);
+});
+
+describe('what a round draws is never drawn over something else', () => {
+	// Every style the plugin can draw a round chart in, so a fix for one is not a
+	// regression in another.
+	const STYLES = ['radial', 'japanese', 'continuous'] as const;
+
+	// How far a drawn symbol reaches along its round, in px. Its own size, except
+	// where it is drawn turned across the ring and scaled down — what a round
+	// opens with — and then it reaches its short way about, at the size it is
+	// really drawn (see layout/seam.ts).
+	function reachAlongRound(item: RenderItem): number {
+		const own = item.turned === true ? symbolHalfHeight(item.symbol) : symbolExtent(item.symbol);
+		return own * (item.scale ?? 1);
+	}
+
+	// The closest two things a round draws come to touching, in px: negative
+	// means their symbols overlap.
+	function tightest(layout: LayoutResult): number {
+		const byRound = new Map<number, RenderItem[]>();
+		for (const item of layout.items) {
+			if (item.rowIndex === undefined) continue;
+			byRound.set(item.rowIndex, [...(byRound.get(item.rowIndex) ?? []), item]);
+		}
+		let closest = Infinity;
+		for (const items of byRound.values()) {
+			for (let index = 1; index < items.length; index++) {
+				const previous = items[index - 1]!;
+				const item = items[index]!;
+				const clear = distance(previous, item) - reachAlongRound(previous) - reachAlongRound(item);
+				closest = Math.min(closest, clear);
+			}
+		}
+		return closest;
+	}
+
+	function tightestRealStitchPair(layout: LayoutResult): {
+		clearance: number;
+		rowIndex: number;
+		first: RenderItem;
+		second: RenderItem;
+	} {
+		const byRound = new Map<number, RenderItem[]>();
+		for (const item of layout.items) {
+			if (item.rowIndex === undefined || item.stitchId === undefined) continue;
+			byRound.set(item.rowIndex, [...(byRound.get(item.rowIndex) ?? []), item]);
+		}
+		let closest:
+			| { clearance: number; rowIndex: number; first: RenderItem; second: RenderItem }
+			| undefined;
+		for (const [rowIndex, items] of byRound) {
+			for (let firstIndex = 0; firstIndex < items.length; firstIndex++) {
+				for (let secondIndex = firstIndex + 1; secondIndex < items.length; secondIndex++) {
+					const first = items[firstIndex]!;
+					const second = items[secondIndex]!;
+					const clearance =
+						distance(first, second) -
+						symbolExtent(first.symbol) * (first.scale ?? 1) -
+						symbolExtent(second.symbol) * (second.scale ?? 1);
+					if (closest === undefined || clearance < closest.clearance) {
+						closest = { clearance, rowIndex, first, second };
+					}
+				}
+			}
+		}
+		if (!closest) throw new Error('expected real stitch pairs');
+		return closest;
+	}
+
+	// The round the increase and the single crochet were drawn on top of each
+	// other in: a small round whose chain and join have to be drawn at the seam
+	// beside its stitches, in a chart with no lace anywhere in it.
+	const EYE = '---\ntype: round\n---\nR1: mr, ch, sc6, slst\nR2: ch, [sc2, inc] rep, slst\n';
+
+	for (const style of STYLES) {
+		it(`leaves the smallest round's stitches clear of each other (${style})`, () => {
+			const layout = calculateLayout(parsePattern(EYE), { ringSpacing: 20, grid: false, roundStyle: style });
+
+			expect(tightest(layout)).toBeGreaterThan(0);
+		});
+	}
+
+	for (const style of STYLES) {
+		it(`leaves a round of nothing but increases clear of itself (${style})`, () => {
+			const source = '---\ntype: round\n---\nR1: 6 sc in MR\nR2: [inc] x 6\nR3: [inc] x 12\nR4: [inc] x 24\n';
+			const layout = calculateLayout(parsePattern(source), { grid: false, roundStyle: style });
+
+			// In japanese style a pair is drawn as one V and given a V's room; in
+			// the styles that draw both stitches it needs both stitches' room.
+			expect(tightest(layout)).toBeGreaterThan(0);
+		});
+	}
+
+	it('does not pull an inner increase into a giant star beneath an extreme grouped round', () => {
+		const firstTwoRounds = `---
+type: round
+---
+R1: 5 sc in MR, sl st
+R2: [inc] x 5, sl st
+`;
+		const baseline = calculateLayout(parsePattern(firstTwoRounds), {
+			ringSpacing: 20,
+			grid: false,
+			roundStyle: 'japanese',
+		});
+		const withGroupedRound = calculateLayout(
+			parsePattern(`---
+type: round
+---
+R1: 5 sc in MR, sl st
+R2: [inc] x 5, sl st
+R3: [(dtr, dtr)] x 5
+`),
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+		);
+		const increaseArmLengths = (layout: LayoutResult): number[] =>
+			(layout.shapingMarks ?? [])
+				.filter((mark) => mark.kind === 'increase' && mark.rowIndex === 1)
+				.flatMap((mark) =>
+					mark.segments.flatMap((segment) => {
+						const [left, apex, right] = segment;
+						return left && apex && right ? [distance(left, apex), distance(apex, right)] : [];
+					}),
+				);
+		const baselineArms = increaseArmLengths(baseline);
+		const groupedRoundArms = increaseArmLengths(withGroupedRound);
+
+		expect(baselineArms).toHaveLength(10);
+		expect(groupedRoundArms).toHaveLength(10);
+		expect(Math.max(...groupedRoundArms), 'a later round stretched an existing increase').toBeLessThanOrEqual(
+			Math.max(...baselineArms) + 1e-6,
+		);
+	});
+
+	it('keeps every stitch clear in an extreme grouped round', () => {
+		const chart = parsePattern(`---
+type: round
+---
+R1: 5 sc in MR, sl st
+R2: [inc] x 5, sl st
+R3: [(ch 4), (dtr, dtr), (dtr, dtr), (ch 4), sl st] x 5
+`);
+		const layout = calculateLayout(chart, { ringSpacing: 20, grid: false, roundStyle: 'japanese' });
+		const stitches = layout.items.filter(
+			(item) => item.rowIndex === 2 && item.stitchId !== undefined,
+		);
+		// Two four-chain runs, four double-treble stitches, and one slip stitch are
+		// expanded per repeat; only the final slip stitch is the closing join.
+		expect(stitches).toHaveLength(64);
+		const closest = tightestRealStitchPair(layout);
+		expect(
+			closest.clearance,
+			`${closest.first.symbol} ${closest.first.stitchId} at ${closest.first.rotation}° overlapped ` +
+				`${closest.second.symbol} ${closest.second.stitchId} at ${closest.second.rotation}° ` +
+				`(distance ${distance(closest.first, closest.second)})`,
+		).toBeGreaterThan(0);
+	});
+
+	it('keeps ordinary stitches visibly separate in a dense fixed-spacing Japanese chart', () => {
+		const rounds: string[] = [];
+		let count = 22;
+		for (let round = 1; round <= 25; round++) {
+			if (round % 4 === 0) {
+				const plain = count / 2 - 1;
+				rounds.push(`R${round}: [${plain} sc, inc] x 2, sl st`);
+				count += 2;
+			} else {
+				rounds.push(`R${round}: ${count} sc${round === 1 ? ' in MR' : ''}, sl st`);
+			}
+		}
+		const layout = calculateLayout(parsePattern(`---\ntype: round\n---\n${rounds.join('\n')}\n`), {
+			ringSpacing: 20,
+			grid: false,
+			roundStyle: 'japanese',
+		});
+		const closest = tightestRealStitchPair(layout);
+		expect(closest.clearance).toBeGreaterThan(0);
+
+		const finalRound = layout.items.filter(
+			(item) => item.rowIndex === 24 && item.stitchId !== undefined,
+		);
+		const scales = new Set(finalRound.map((item) => item.scale ?? 1));
+		expect(scales).toEqual(new Set([1]));
+	});
+
+	it('keeps all 40 stitches visible after several differently spaced increase rounds', () => {
+		const source = `---
+type: round
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6, sl st
+R5: [5 sc, inc] x 4
+R6: [inc, 6 sc] x 4
+R7: [inc, 7 sc] x 4
+R8: [inc, 8 sc] x 4
+R9: 40 sc
+R10: 40 sc
+R11: 40 sc
+R12: 40 sc
+R13: 40 sc
+R14: 40 sc
+R15: [dec, 8 sc] x 4, sl st
+`;
+		const layout = calculateLayout(parsePattern(source), {
+			ringSpacing: 20,
+			grid: false,
+			roundStyle: 'japanese',
+		});
+
+		for (let rowIndex = 8; rowIndex <= 13; rowIndex++) {
+			const stitches = layout.items.filter(
+				(item) => item.rowIndex === rowIndex && item.stitchId !== undefined,
+			);
+			expect(stitches, `R${rowIndex + 1} must still draw every stitch`).toHaveLength(40);
+			expect(
+				new Set(stitches.map((item) => item.scale ?? 1)),
+				`R${rowIndex + 1} must retain the configured stitch size`,
+			).toEqual(new Set([1]));
+
+			for (let firstIndex = 0; firstIndex < stitches.length; firstIndex++) {
+				for (let secondIndex = firstIndex + 1; secondIndex < stitches.length; secondIndex++) {
+					const first = stitches[firstIndex]!;
+					const second = stitches[secondIndex]!;
+					expect(
+						distance(first, second) -
+							symbolExtent(first.symbol) * (first.scale ?? 1) -
+							symbolExtent(second.symbol) * (second.scale ?? 1),
+						`R${rowIndex + 1} must keep every pair visually separate`,
+					).toBeGreaterThan(0);
+				}
+			}
+		}
+
+		const shortStitchScales = new Set(
+			layout.items
+				.filter((item) => item.symbol === 'sc' && item.stitchId !== undefined)
+				.map((item) => item.scale ?? 1),
+		);
+		expect(
+			shortStitchScales,
+			'every short stitch must keep the configured symbol size',
+		).toEqual(new Set([1]));
+
+		const finalStitches = layout.items.filter(
+			(item) => item.rowIndex === 14 && item.stitchId !== undefined,
+		);
+		expect(finalStitches).toHaveLength(32);
+		expect(layout.shapingMarks?.filter((mark) => mark.rowIndex === 14)).toHaveLength(4);
+		expect(new Set(finalStitches.map((item) => item.scale ?? 1))).toEqual(new Set([1]));
+
+		for (const mark of (layout.shapingMarks ?? []).filter((candidate) => candidate.kind === 'increase')) {
+			const [left, apex, right] = mark.segments[0] ?? [];
+			if (!left || !apex || !right) throw new Error('expected a complete increase V');
+			expect(
+				Math.abs(distance(apex, left) - distance(apex, right)),
+				`R${mark.rowIndex + 1} increase must remain a balanced V`,
+			).toBeLessThan(0.5);
+		}
+
+		const center = layout.items.find((item) => item.symbol === 'MR');
+		if (!center) throw new Error('expected the magic-ring center');
+		const r8Positions = new Map<string, GridPoint>();
+		for (const item of layout.items.filter(
+			(candidate) => candidate.rowIndex === 7 && candidate.stitchId !== undefined,
+		)) {
+			r8Positions.set(item.stitchId!, item);
+		}
+		const r8Increases = (layout.shapingMarks ?? [])
+			.filter((mark) => mark.rowIndex === 7 && mark.kind === 'increase')
+			.sort((first, second) => first.unitIndex - second.unitIndex);
+		for (const [repeatIndex, mark] of r8Increases.entries()) {
+			const [firstChild, , secondChild] = mark.segments[0] ?? [];
+			if (!firstChild || !secondChild) throw new Error('expected both R8 increase endpoints');
+			const firstIndex = repeatIndex * 10;
+			r8Positions.set(`r7s${firstIndex}`, firstChild);
+			r8Positions.set(`r7s${firstIndex + 1}`, secondChild);
+		}
+		const bearing = (point: GridPoint) =>
+			(Math.atan2(point.y - center.y, point.x - center.x) * 180) / Math.PI;
+		const bearingDelta = (first: GridPoint, second: GridPoint) =>
+			Math.abs(
+				Math.atan2(
+					Math.sin(((bearing(first) - bearing(second)) * Math.PI) / 180),
+					Math.cos(((bearing(first) - bearing(second)) * Math.PI) / 180),
+				),
+			) *
+			180 /
+			Math.PI;
+		for (const stitch of layout.items.filter(
+			(candidate) => candidate.rowIndex === 8 && candidate.stitchId !== undefined,
+		)) {
+			const parent = r8Positions.get(stitch.sourceStitchIds?.[0] ?? '');
+			if (!parent) throw new Error(`expected the R8 parent of ${stitch.stitchId}`);
+			expect(
+				bearingDelta(stitch, parent),
+				`${stitch.stitchId} must remain directly above its R8 parent or V endpoint`,
+			).toBeLessThan(0.01);
+		}
+	});
+
+	it('keeps the configured short-stitch size through staggered increase rounds', () => {
+		const layout = calculateLayout(
+			parsePattern(`---
+type: round
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
+R5: [5 sc, inc] x 4
+R6: [inc, 6 sc] x 4
+R7: [inc, 7 sc] x 4
+`),
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+		);
+
+		expect(
+			new Set(
+				layout.items
+					.filter((item) => item.symbol === 'sc' && item.stitchId !== undefined)
+					.map((item) => item.scale ?? 1),
+			),
+		).toEqual(new Set([1]));
+	});
+
+	it('marks the stitches the increase was written on, not the ones a chain later', () => {
+		// The round opens with a chain, which is drawn but makes no stitch. Counted
+		// as if it did, every stitch after it looked up the mapping of the step
+		// before, and the V was drawn across a plain single crochet.
+		const layout = calculateLayout(parsePattern(EYE), { ringSpacing: 20, grid: false, roundStyle: 'japanese' });
+		const marks = (layout.shapingMarks ?? []).filter((mark: ShapingMark) => mark.rowIndex === 1);
+
+		expect(marks).toHaveLength(2);
+		// Two increases in a round of eight: the pairs they stand for are drawn as
+		// the marks, leaving four single crochets of the round drawn as themselves.
+		const drawn = layout.items.filter((item) => item.rowIndex === 1 && item.symbol === 'sc');
+		expect(drawn).toHaveLength(4);
+	});
+});
+
+describe('the fan only appears where the pattern asked for lace', () => {
+	it('draws no motif stitch in any style when lace is off', () => {
+		const source =
+			'---\ntype: round\n---\nR1: MR, ch 3, 11 dc in MR, sl st to top of beginning ch-3.\n' +
+			'R2: ch 3, (dc, ch 2, dc) in next dc, sl st to top of beginning ch-3.\n';
+
+		for (const style of ['radial', 'japanese', 'continuous'] as const) {
+			const layout = calculateLayout(parsePattern(source), { ringSpacing: 20, grid: false, roundStyle: style });
+
+			expect(layout.motifStitches ?? []).toHaveLength(0);
+		}
 	});
 });

@@ -1,5 +1,5 @@
-import type { CrochetWeaverSettings } from '../settings-data';
-import type { GridConfig, GridShape, ResolvedGridOptions } from '../types';
+import type { CrochetWeaverSettings } from '../settings/data';
+import type { GridConfig, GridShape, ResolvedGridOptions } from './types';
 
 export function resolveGridOptions(
 	config: GridConfig,

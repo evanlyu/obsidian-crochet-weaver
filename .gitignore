@@ -6,8 +6,11 @@
 # Dependencies
 node_modules/
 
-# Generated parser (npm run generate-parser reads src/grammar.peggy)
-src/parser.ts
+# Generated parser (npm run generate-parser reads src/pattern/grammar.peggy)
+src/pattern/parser.ts
+
+# Generated skill bundle (npm run generate-skill reads skills/crochet-weaver-pattern/)
+src/skill-content.ts
 
 # Build and release artifacts
 main.js

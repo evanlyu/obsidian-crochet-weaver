@@ -1,13 +1,25 @@
-import type { ChartGridGuide, ColorMarker, LayoutResult, RenderItem, RowConnector } from '../types';
-import { COLOR_MARKER_RADIUS, PADDING, symbolExtent } from './constants';
+import type {
+	ChartGridGuide,
+	ChartLabel,
+	ColorMarker,
+	LayoutResult,
+	MotifStitch,
+	RenderItem,
+	RowConnector,
+	ShapingMark,
+} from '../types';
+import { COLOR_MARKER_RADIUS, labelExtent, PADDING, symbolExtent } from './constants';
 
 export function normalize(
 	items: RenderItem[],
 	rowConnectors?: RowConnector[],
 	gridGuide?: ChartGridGuide,
 	colorMarkers?: ColorMarker[],
+	labels?: ChartLabel[],
+	shapingMarks?: ShapingMark[],
+	motifStitches?: MotifStitch[],
 ): LayoutResult {
-	if (items.length === 0) {
+	if (items.length === 0 && (motifStitches?.length ?? 0) === 0) {
 		return {
 			items,
 			width: PADDING * 2,
@@ -15,6 +27,9 @@ export function normalize(
 			rowConnectors,
 			gridGuide,
 			colorMarkers: emptyToUndefined(colorMarkers),
+			labels: emptyToUndefined(labels),
+			shapingMarks: emptyToUndefined(shapingMarks),
+			motifStitches: emptyToUndefined(motifStitches),
 		};
 	}
 	let minX = Infinity;
@@ -40,11 +55,36 @@ export function normalize(
 		minY = Math.min(minY, line.y1, line.y2);
 		maxY = Math.max(maxY, line.y1, line.y2);
 	}
+	for (const polyline of gridGuide?.polylines ?? []) {
+		for (const point of polyline) {
+			minX = Math.min(minX, point.x);
+			maxX = Math.max(maxX, point.x);
+			minY = Math.min(minY, point.y);
+			maxY = Math.max(maxY, point.y);
+		}
+	}
 	for (const marker of colorMarkers ?? []) {
 		minX = Math.min(minX, marker.x - COLOR_MARKER_RADIUS);
 		maxX = Math.max(maxX, marker.x + COLOR_MARKER_RADIUS);
 		minY = Math.min(minY, marker.y - COLOR_MARKER_RADIUS);
 		maxY = Math.max(maxY, marker.y + COLOR_MARKER_RADIUS);
+	}
+	for (const label of labels ?? []) {
+		const extent = labelExtent(label.text);
+		minX = Math.min(minX, label.x - extent);
+		maxX = Math.max(maxX, label.x + extent);
+		minY = Math.min(minY, label.y - extent);
+		maxY = Math.max(maxY, label.y + extent);
+	}
+	for (const mark of [...(shapingMarks ?? []), ...(motifStitches ?? [])]) {
+		for (const segment of mark.segments) {
+			for (const point of segment) {
+				minX = Math.min(minX, point.x);
+				maxX = Math.max(maxX, point.x);
+				minY = Math.min(minY, point.y);
+				maxY = Math.max(maxY, point.y);
+			}
+		}
 	}
 	const dx = PADDING - minX;
 	const dy = PADDING - minY;
@@ -65,8 +105,22 @@ export function normalize(
 			x2: line.x2 + dx,
 			y2: line.y2 + dy,
 		})),
+		polylines: gridGuide.polylines?.map((polyline) => polyline.map((point) => ({ x: point.x + dx, y: point.y + dy }))),
 	};
 	const shiftedMarkers = colorMarkers?.map((marker) => ({ ...marker, x: marker.x + dx, y: marker.y + dy }));
+	const shiftedLabels = labels?.map((label) => ({ ...label, x: label.x + dx, y: label.y + dy }));
+	const shiftedMotifs = motifStitches?.map((stitch) => ({
+		...stitch,
+		x: stitch.x + dx,
+		y: stitch.y + dy,
+		segments: stitch.segments.map((segment) => segment.map((point) => ({ x: point.x + dx, y: point.y + dy }))),
+	}));
+	const shiftedShaping = shapingMarks?.map((mark) => ({
+		...mark,
+		x: mark.x + dx,
+		y: mark.y + dy,
+		segments: mark.segments.map((segment) => segment.map((point) => ({ x: point.x + dx, y: point.y + dy }))),
+	}));
 	return {
 		items,
 		width: maxX - minX + PADDING * 2,
@@ -74,6 +128,9 @@ export function normalize(
 		rowConnectors,
 		gridGuide: shiftedGuide,
 		colorMarkers: emptyToUndefined(shiftedMarkers),
+		labels: emptyToUndefined(shiftedLabels),
+		shapingMarks: emptyToUndefined(shiftedShaping),
+		motifStitches: emptyToUndefined(shiftedMotifs),
 	};
 }
 

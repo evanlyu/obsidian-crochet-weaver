@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeLocale, resolveLocale, stitchName, t } from '../src/i18n';
+import { LANGUAGE_PREFERENCES, normalizeLocale, resolveLocale, stitchName, t, TRANSLATION_KEYS } from '../src/i18n';
 
 describe('plugin localization', () => {
 	it('normalizes Obsidian language codes to supported locales', () => {
@@ -9,7 +9,23 @@ describe('plugin localization', () => {
 		expect(normalizeLocale('zh-Hant')).toBe('zh-TW');
 		expect(normalizeLocale('zh-TW')).toBe('zh-TW');
 		expect(normalizeLocale('ja-JP')).toBe('ja');
-		expect(normalizeLocale('fr')).toBe('en');
+		expect(normalizeLocale('ko')).toBe('ko');
+		expect(normalizeLocale('de-DE')).toBe('de');
+		expect(normalizeLocale('fr')).toBe('fr');
+		expect(normalizeLocale('es-MX')).toBe('es');
+		// A language the plugin does not speak reads in English.
+		expect(normalizeLocale('it')).toBe('en');
+	});
+
+	// Every locale has to answer for every string, or a chart in that language
+	// would render a key instead of a word.
+	it('translates every key in every locale it offers', () => {
+		for (const preference of LANGUAGE_PREFERENCES) {
+			if (preference === 'auto') continue;
+			for (const key of TRANSLATION_KEYS) {
+				expect(t(preference, key).length, `${preference} / ${key}`).toBeGreaterThan(0);
+			}
+		}
 	});
 
 	it('resolves explicit preferences before app language detection', () => {
@@ -36,10 +52,23 @@ describe('plugin localization', () => {
 		expect(stitchName('zh-TW', 'not-a-real-stitch')).toBe('not-a-real-stitch');
 	});
 
-	it('translates the AI-docs settings copy for all four locales', () => {
-		expect(t('en', 'settings.aiDocs.name')).toBe('Copy AI pattern-authoring instructions');
-		expect(t('zh-TW', 'settings.aiDocs.name')).toBe('複製提供給 AI 的說明');
-		expect(t('zh-CN', 'settings.aiDocs.copied')).toBe('已复制！');
-		expect(t('ja', 'settings.aiDocs.copied')).toBe('コピーしました！');
+	it('names the copy-the-skill setting in every locale', () => {
+		expect(t('en', 'settings.skill.name')).toBe('Copy the pattern skill');
+		expect(t('zh-TW', 'settings.skill.name')).toBe('複製織圖 skill');
+		expect(t('zh-CN', 'settings.skill.copied')).toBe('已复制！');
+		expect(t('ja', 'settings.skill.copied')).toBe('コピーしました！');
+		expect(t('ko', 'settings.skill.name')).toBe('도안 skill 복사');
+	});
+
+	// Where to report something is only useful if it is readable, and the address
+	// itself has to survive translation intact.
+	it('names both ways to get in touch, in every locale', () => {
+		for (const locale of ['en', 'zh-TW', 'zh-CN', 'ja'] as const) {
+			expect(t(locale, 'settings.contact.desc')).toContain('crochet@kiyudesign.com');
+			expect(t(locale, 'settings.contact.name').length).toBeGreaterThan(0);
+			expect(t(locale, 'settings.contact.issue').length).toBeGreaterThan(0);
+			expect(t(locale, 'settings.contact.mail').length).toBeGreaterThan(0);
+			expect(t(locale, 'settings.contact.copy').length).toBeGreaterThan(0);
+		}
 	});
 });

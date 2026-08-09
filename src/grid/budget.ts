@@ -1,5 +1,5 @@
 import type { TranslationKey } from '../i18n';
-import type { ResolvedGridOptions } from '../types';
+import type { ResolvedGridOptions } from './types';
 
 export const GRID_BUDGET = {
 	maxRounds: 40,

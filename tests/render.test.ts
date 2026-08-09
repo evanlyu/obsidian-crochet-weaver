@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { renderCrochetError } from '../src/errors';
-import { renderSVG } from '../src/render';
+import { renderCrochetError } from '../src/pattern/errors';
+import { renderSVG } from '../src/render/chart';
 import type { LayoutResult, RenderOptions } from '../src/types';
 
 const OPTIONS: RenderOptions = {
 	scale: 1,
 	strokeWidth: 1.5,
 	highlightIncDec: true,
+	highlightColor: '#8b5cf6',
 	chartMarkerColor: '#1971c2',
 };
 
@@ -15,6 +16,27 @@ function makeLayout(symbol: string): LayoutResult {
 		width: 100,
 		height: 80,
 		items: [{ symbol, x: 20, y: 20, rotation: 0 }],
+	};
+}
+
+// An increase: the stitch below it is worked into, and the V that stands for
+// the two stitches it makes (those have no symbol of their own on the chart).
+function shapedLayout(): LayoutResult {
+	return {
+		width: 100,
+		height: 80,
+		items: [{ symbol: 'sc', x: 20, y: 40, rotation: 0, rowIndex: 0, unitIndex: 0, stitchId: 'r0s0' }],
+		shapingMarks: [
+			{
+				kind: 'increase',
+				x: 20,
+				y: 15,
+				rotation: 0,
+				rowIndex: 1,
+				unitIndex: 0,
+				segments: [[{ x: 10, y: 10 }, { x: 20, y: 30 }, { x: 30, y: 10 }]],
+			},
+		],
 	};
 }
 
@@ -278,6 +300,60 @@ describe('SVG rendering', () => {
 		expect(children.indexOf(marker as Element)).toBeLessThan(children.indexOf(use as Element));
 	});
 
+	it('draws round-number labels as text elements with the round-number class', () => {
+		const container = document.createElement('div');
+		const layout: LayoutResult = {
+			width: 100,
+			height: 80,
+			items: [{ symbol: 'sc', x: 20, y: 20, rotation: 0 }],
+			labels: [{ x: 40, y: 30, text: '3' }],
+		};
+
+		renderSVG(layout, container, OPTIONS);
+
+		const label = container.querySelector('text.crochet-weaver-round-number');
+		expect(label?.textContent).toBe('3');
+		expect(label?.getAttribute('x')).toBe('40');
+		expect(label?.getAttribute('fill')).toBe('currentColor');
+	});
+
+	it('draws no labels when the layout has none', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('sc'), container, OPTIONS);
+
+		expect(container.querySelector('.crochet-weaver-round-number')).toBeNull();
+	});
+
+	it('replaces a labeled center anchor glyph with centered Japanese text', () => {
+		const container = document.createElement('div');
+		const layout: LayoutResult = {
+			width: 100,
+			height: 80,
+			items: [{ symbol: 'MR', x: 50, y: 40, rotation: 0, centerLabel: 'わ' }],
+		};
+
+		renderSVG(layout, container, OPTIONS);
+
+		const label = container.querySelector('text.crochet-weaver-center-label');
+		expect(label?.textContent).toBe('わ');
+		expect(label?.getAttribute('x')).toBe('0');
+		expect(label?.getAttribute('y')).toBe('0');
+		expect(label?.getAttribute('transform')).toBe('translate(50 40) rotate(0)');
+		expect(label?.getAttribute('text-anchor')).toBe('middle');
+		expect(label?.getAttribute('dominant-baseline')).toBe('central');
+		expect(container.querySelector('use[href$="-sym-MR"]')).toBeNull();
+	});
+
+	it('keeps an unlabeled magic-ring center as the generic glyph', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('MR'), container, OPTIONS);
+
+		expect(container.querySelector('use[href$="-sym-MR"]')).not.toBeNull();
+		expect(container.querySelector('.crochet-weaver-center-label')).toBeNull();
+	});
+
 	it('draws no color markers when the layout has none', () => {
 		const container = document.createElement('div');
 
@@ -292,6 +368,96 @@ describe('SVG rendering', () => {
 		renderSVG(makeLayout('sc'), container, OPTIONS);
 
 		expect(container.querySelector('.crochet-weaver-grid-guide')).toBeNull();
+	});
+
+	it('draws a shaping symbol as one open path through the points the layout gave it', () => {
+		const container = document.createElement('div');
+
+		renderSVG(shapedLayout(), container, OPTIONS);
+
+		const path = container.querySelector('path.crochet-weaver-shaping');
+		expect(path?.getAttribute('d')).toBe('M 10 10 L 20 30 L 30 10');
+		expect(path?.getAttribute('fill')).toBe('none');
+		expect(path?.getAttribute('stroke')).toBe('currentColor');
+		expect(path?.getAttribute('stroke-width')).toBe('1.5');
+		// Nothing about the shape comes from the shared symbol library.
+		expect(container.querySelector('use[href*="sym-inc"]')).toBeNull();
+	});
+
+	it('draws increases and decreases in the configured highlight color', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('dc2tog'), container, { ...OPTIONS, highlightColor: '#ff8800' });
+
+		const symbol = container.querySelector('use');
+		expect(symbol?.classList.contains('crochet-weaver-accent')).toBe(true);
+		expect(symbol?.getAttribute('style')).toContain('#ff8800');
+	});
+
+	it('accents shaping symbols only when increase/decrease highlighting is on', () => {
+		const highlighted = document.createElement('div');
+		renderSVG(shapedLayout(), highlighted, OPTIONS);
+		expect(highlighted.querySelector('.crochet-weaver-shaping')?.classList.contains('crochet-weaver-accent')).toBe(
+			true,
+		);
+
+		const plain = document.createElement('div');
+		renderSVG(shapedLayout(), plain, { ...OPTIONS, highlightIncDec: false });
+		expect(plain.querySelector('.crochet-weaver-shaping')?.classList.contains('crochet-weaver-accent')).toBe(false);
+	});
+
+	it('draws a loop marker on a shaping symbol, at its own place on the round', () => {
+		const container = document.createElement('div');
+		const layout = shapedLayout();
+		const [mark] = layout.shapingMarks ?? [];
+		if (!mark) throw new Error('expected a shaping mark');
+		layout.shapingMarks = [{ ...mark, loop: 'blo' }];
+
+		renderSVG(layout, container, OPTIONS);
+
+		const loopMark = container.querySelector('path[d="M -4 9 Q 0 13 4 9"]');
+		// Rotated with the mark, so the loop it means faces the round below.
+		expect(loopMark?.getAttribute('transform')).toBe('translate(20 15) rotate(0)');
+	});
+
+	it('highlights a shaping symbol together with the step that made it', () => {
+		const container = document.createElement('div');
+
+		renderSVG(shapedLayout(), container, OPTIONS, 'en', { rowIndex: 1, unitIndex: 0 });
+
+		const path = container.querySelector('path.crochet-weaver-shaping');
+		expect(path?.classList.contains('crochet-weaver-stitch-highlight')).toBe(true);
+		expect(path?.getAttribute('style')).toContain('#1971c2');
+	});
+
+	it('scales the drawing without detaching connector endpoints from their stitches', () => {
+		const plain = document.createElement('div');
+		const scaled = document.createElement('div');
+
+		renderSVG(shapedLayout(), plain, OPTIONS);
+		renderSVG(shapedLayout(), scaled, { ...OPTIONS, scale: 2.5 });
+
+		const plainSvg = plain.querySelector('svg');
+		const scaledSvg = scaled.querySelector('svg');
+		// Scaling is applied to the drawing surface, so stitch and connector
+		// coordinates — and therefore the connections between them — are identical.
+		expect(scaledSvg?.getAttribute('viewBox')).toBe(plainSvg?.getAttribute('viewBox'));
+		expect(scaledSvg?.getAttribute('width')).toBe('250');
+		expect(scaledSvg?.getAttribute('height')).toBe('200');
+		expect(scaled.querySelector('.crochet-weaver-shaping')?.getAttribute('d')).toBe(
+			plain.querySelector('.crochet-weaver-shaping')?.getAttribute('d'),
+		);
+		expect(scaled.querySelector('use')?.getAttribute('transform')).toBe(
+			plain.querySelector('use')?.getAttribute('transform'),
+		);
+	});
+
+	it('draws no shaping paths when the layout has none', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('sc'), container, OPTIONS);
+
+		expect(container.querySelector('.crochet-weaver-shaping')).toBeNull();
 	});
 
 	it('renders parse locations in error boxes with a generic localized message instead of raw PEG text', () => {

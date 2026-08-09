@@ -10,16 +10,17 @@ Crochet Weaver renders crochet stitch charts from text patterns inside Obsidian 
 - Support flat rows, concentric rounds, and continuous spirals.
 - Use common crochet symbols for chains, single crochet, half double crochet, double crochet, treble stitches, slip stitch, increases, decreases, bobbles, popcorns, and post stitches.
 - Add row-level `blo` / `flo` markers and round anchors such as magic ring or chain ring.
-- Show a configurable-color marker at the first stitch of the next round on concentric charts.
+- **Chart lace the way it is written**: say where a stitch goes (`5 dc in next ch-2 sp`, `sc in center dc of next 7-dc shell`), and shells fan from the space they are worked into, chain runs are drawn as the curve they hang in, and V-stitches, picots, joins, turns and "repeat R11-R14" rounds are read as written.
+- Keep every graph-driven stitch on its real ancestry while numbered round changes stay clear inside their measured seam.
 - Render `crochet-tool` blocks as a readable row checklist with stitch counts, progress controls, and a per-row stitch counter.
 - **Embed the progress tool or a read-only pattern-text list directly next to a `crochet` chart** (`tool: on` / `text: on`), so you never have to paste the same pattern into two code blocks.
 - **Highlight the current row and target stitch on the chart itself** when the progress tool is embedded, in a configurable color.
 - **Mark yarn color changes** with a `color <name>` step, mid-row or per-round — the chart flags each switch with a small colored ring (without repainting the stitches themselves), and the tool/text panels spell it out as "change to `<color>`".
-- **Show pattern text in a fully translated, readable style** (`readable: on`) instead of raw shorthand — e.g. `短針6` instead of `6 sc` — in any of the four supported languages.
+- **Show pattern text in a fully translated, readable style** (`readable: on`) instead of raw shorthand — e.g. `短針6` instead of `6 sc` — in any of the eight interface languages.
 - **Pan and scroll charts that are larger than their note pane** instead of squeezing them to fit — drag with the mouse, or use native touch/trackpad scrolling; a chart that overflows opens centered.
 - **Copy the AI pattern-authoring reference from Settings**, in any of four languages, ready to paste into an AI chat for help converting or writing patterns.
 - Store all progress locally in the plugin data file.
-- Fully localized UI: English, Traditional Chinese, Simplified Chinese, and Japanese.
+- Fully localized UI in eight languages: English, Traditional Chinese, Simplified Chinese, Japanese, Korean, German, French, and Spanish.
 
 ## Quick Start
 
@@ -76,7 +77,48 @@ R2: [sc, inc] x 6
 R3: [2 sc, inc] x 6, sl st
 ```
 
-Use an explicit `id` when you want progress to survive edits to the pattern text. If `id` is omitted, Crochet Weaver derives a local hash from the code block content, so editing the block can reset progress.
+Use an explicit `id` when you want progress to survive edits to the pattern text. It must contain 1–80 ASCII letters, digits, `_`, or `-`; an omitted or invalid `id` falls back to a local hash of the block content, so editing the block can reset progress.
+
+## Let an AI write the pattern for you
+
+You do not have to learn the syntax to use the plugin. Hand an AI assistant the **crochet-weaver-pattern skill** once, then give it any written pattern — from a book, a PDF, a shop listing, or your own shorthand — and paste back what it returns.
+
+1. **Copy the skill.** Settings → Crochet Weaver → **Copy the pattern skill**, and press the button for the language you want (English, 繁體中文, 简体中文, 日本語).
+2. **Start a chat** with any assistant (Claude, ChatGPT, whichever you use) and paste the skill in as the first message. It is self-contained: nothing else has to be installed or fetched.
+3. **Paste your pattern** and ask for a chart. For example:
+
+    > Here is the pattern for the head of an amigurumi bunny. Convert it into one Crochet Weaver `crochet` block, `type: round`, with the progress tool on.
+    >
+    > R1: 6 sc in magic ring (6)
+    > R2: inc in each st around (12)
+    > R3: (sc, inc) around (18)
+    > R4–R6: sc around (18)
+    > R7: (sc, dec) around (12)
+
+4. **Paste the block it returns** into a note, in Reading or Live Preview mode:
+
+    ````markdown
+    ```crochet
+    ---
+    type: round
+    tool: on
+    id: bunny-head
+    ---
+    R1: 6 sc in MR
+    R2: [inc] x 6
+    R3: [sc, inc] x 6
+    R4: 18 sc
+    R5: 18 sc
+    R6: 18 sc
+    R7: [sc, dec] x 6
+    ```
+    ````
+
+5. **Check it before you crochet it.** The chart and the row list are generated from what the assistant wrote, so read the stitch counts in the progress panel against the source's own `(N)` numbers. If a row is off, say so in the chat — the skill tells the assistant how counting works, so "R7 should end on 12 stitches" is usually enough to get a fix.
+
+**Using Claude Code?** Drop [`skills/crochet-weaver-pattern/`](skills/crochet-weaver-pattern/) into your project's or your home `.claude/skills/` folder and the skill loads itself whenever you paste a crochet pattern.
+
+**If something can't be converted**, the assistant is told to say so rather than guess — an unsupported stitch, or an instruction that has no chart meaning. Those are worth reading; a silently "working" chart that drops a stitch is worse than a note that says it could not.
 
 ## Pattern Syntax
 
@@ -92,14 +134,22 @@ scale: 1.5
 stroke: 2
 spacing: 40
 highlight: on
-rotation: smart | all | none
+style: radial | japanese | continuous
+lace: on | off
+sector: on | degrees
+wholeRounds: positive-integer
+grid: on | off
+rounds: positive-integer
+rows: positive-integer
+columns: positive-integer
 tool: on | off
 text: on | off
+readable: on | off
 position: right | left | below
 ---
 ```
 
-Global plugin settings are used by default. Valid frontmatter values override those settings for one chart. Invalid values fall back to the global settings. `tool`, `text`, and `position` fall back to their own global defaults the same way (see [Settings](#settings)).
+Global plugin settings are used by default where an option has one. Valid frontmatter values override those settings for one chart; invalid values fall back to the corresponding global default or are ignored for presentation-only options such as `sector`. The lace, sector, grid-guide, and panel options are explained in their sections below.
 
 ### Rows
 
@@ -162,17 +212,84 @@ Quantity prefixes are supported:
 R1: 10 ch, 6 sc
 ```
 
-Repeats use square brackets:
+Repeats use square brackets, written `x 6` or `rep 6` — both mean the same:
 
 ```crochet
 R2: [sc, inc] x 6
+R2: [sc, inc] rep 6
 ```
+
+A bare `rep` repeats the group until the round below is used up, so you don't have to count:
+
+```crochet
+R1: mr, ch, sc6, slst
+R2: ch, [2 sc, inc] rep, slst
+```
+
+Each go at `[2 sc, inc]` works into three stitches and R1 has six, so that is two goes. If the round below doesn't divide evenly the chart says so rather than guessing.
+
+A stitch's count can go either side of its name — `6 sc`, `sc6` and `sc 6` are the same — and a slip stitch may be written `sl st`, `slst`, `sl-st` or `sl_st`.
+
+A round's opening chain and closing slip stitch are drawn at the seam. The join always counts zero. A beginning chain counts as the one stitch it replaces when written as `ch 3 (counts as dc)`, or when an unannotated chain is joined at its top; `ch 1 (does not count as a st)` and a chain joined elsewhere count zero.
 
 Groups use parentheses and render as a fan from one stitch position — this is also how N-into-one increases and shells are written (there are no dedicated `2dc-in-1` names; `(dc, dc)` or `(5 dc)` draws exactly that chart symbol):
 
 ```crochet
 R3: (dc, ch, dc), sc, (5 dc)
 ```
+
+### Lace and motifs
+
+A lace pattern says where each stitch goes instead of counting along the round below, and Crochet Weaver reads that directly:
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: MR, ch 3 (counts as dc), 23 dc in MR,
+    sl st to top of beginning ch-3. (24 dc)
+
+R2: ch 1 (does not count as a st),
+    sc in same st, ch 1,
+    [sc in next dc, ch 1] x23,
+    sl st to first sc.
+    (24 sc + 24 ch-1 sp = 48 sts)
+
+R3: sl st into next ch-1 sp,
+    ch 3, 2 dc in same ch-1 sp,
+    sc in next ch-1 sp,
+    [3 dc in next ch-1 sp,
+     sc in next ch-1 sp] x11,
+    sl st to top of beginning ch-3.
+    (12 reps, 4 sts per rep)
+
+R4: turn,
+    [V2 in next sc, ch 1,
+     sc in center dc of next 3-dc shell,
+     picot, ch 1] x12,
+    sl st to join.
+```
+
+| Written | What it means |
+| --- | --- |
+| `in next dc` / `in next ch-2 sp` / `in next picot` | the next place of that kind, passing over whatever is in between |
+| `in same st` / `in same ch-1 sp` | the place the step before used — its stitches join that motif |
+| `in center dc of next 7-dc shell` | the middle stitch of the next 7-double shell |
+| `5 dc in next ch-2 sp` | one shell of five, worked into one space and drawn as a fan |
+| `V2` / `V3` | `(dc, ch 2, dc)` / `(dc, ch 3, dc)` into one place, with a space of its own |
+| `ch 3 (counts as dc)` | the beginning chain stands in for a stitch |
+| `sl st into next ch-1 sp` | move across to that space; nothing is worked into it yet |
+| `turn` | written first: this round is worked the other way round |
+| `R15-R18: repeat R11-R14.` | expands into real rounds before the chart is drawn |
+
+Add `lace: on` to the frontmatter to have the chart printed the way a book prints lace: no lines drawn around the rounds, no round numbers, and the symbols drawn larger against the openwork. It changes only what is drawn around the pattern, never what the pattern is.
+
+Add `wholeRounds: 4` alongside it to draw the first four rounds entire and fan out only after them — the middle of a piece is where the pattern is still being set up, so a book draws it whole. Rounds sit as far apart as their own stitches are tall — a round of single crochets closer than a round of double trebles — unless a chart or the settings names a `spacing`. Add `sector: 90` (or `sector: on`, which means 90) to draw **one wedge of the chart instead of the whole circle** — a round of twelve identical motifs says everything it has to say in one slice of itself, which is how a book prints it. The whole chart is still worked out; the wedge is what gets drawn, starting at the seam, and a motif that falls on the edge is kept whole rather than sliced in half.
+
+A run of chains between two stitches becomes one chain space the next round can work into, and every chain of it is still drawn and countable. An unannotated beginning chain counts as the stitch it replaces when the round closes to the top of it — so a pattern written this way needs nothing added to it.
+
+Lace is drawn by the `japanese` and `continuous` round styles, which place every stitch from what it is worked into; `radial` spreads a round evenly, as it always has.
 
 ### Color changes
 
@@ -209,6 +326,31 @@ type: round
 ---
 R1: 6 sc in MR
 R2: [sc, inc] x 6, sl st
+```
+
+`style: japanese` switches a round chart to Japanese-pattern-book styling: a continuous spiral guide winds through the rounds (as crochet-in-the-round really is one spiralling line), stepping out to the next round at each starting seam, with each round numbered in red at that seam. An `in MR` center is printed as `わ`; an `in ch ring` center keeps the chain-stitch ovals that form the ring rather than using the unverified abbreviation `ち`.
+
+Shaping is drawn the way the books do it: as a symbol of its own round, in line with the plain stitches. An `inc` is a **V** whose point sits on the round's inner edge at its parent and whose two arms end at the actual positions of the two child stitches. A `dec` (or an `scNtog`) is the **∧**: its feet lean toward the stitches it closed over and its point stands above them; unusually wide decreases are compacted so the mark stays readable. Nothing floats in the gap between two rounds, and every endpoint continues to describe real stitch ancestry.
+
+Underneath, every stitch is placed from the previous-round stitch it is worked into, and records it: an ordinary stitch keeps its unique parent's angle exactly, an increase's two stitches balance around their shared source, and a decrease sits between all of its sources. With automatic spacing (`spacing` omitted), a crowded round grows to the smallest radius where those parent-derived angles fit. With an explicit `spacing`, every round-to-round gap stays exactly that size. Before placement, the densest round may raise the first round's absolute radius just enough for every configured-size symbol and seam to fit; all later radii still differ by exactly the configured spacing. Exact parent angles are retained whenever symbols fit; if inherited targets collide, a deterministic minimum-movement pass restores working order and clearance without applying a local per-round scale. Corrected bearings reconcile inward only while each earlier-round source is covered exactly once. A round that deliberately selects only some sources, or wraps across a source more than once, is an ancestry boundary: it resolves its own clearance without pulling an earlier V or stitch out of shape. Every stitch therefore keeps the size resolved from the user's setting across all rounds. These rules are based on measured geometry rather than a particular round, stitch type, count, or pattern phrase; they keep balanced V marks and never delete a stitch.
+
+`style: continuous` uses that same layout and spells the correspondence out instead of printing it: every stitch keeps its own symbol — including **both** stitches an increase makes — and lines are drawn from them to the stitch below they are worked into. Useful for checking a pattern, or for reading a chart when you don't already know the book symbols.
+
+In both, ordinary one-to-one stitches are never arbitrarily grouped or packed: each prefers the stitch below it. A round written as a repeat — `[2 sc, inc] x 6` — still reads as six wedges, because its six increases follow the six stitches they are worked into. A round that neither writes repeats nor shapes — the straight sides of a basket, `R9: 40 sc` — copies the round below. A free-form round that deliberately skips places still uses every recorded source as its preferred target; if fixed-spacing clearance requires projection, that correction stops at a partial or repeatedly used ancestry boundary instead of dragging the earlier round or replacing the mapping with unrelated even spacing.
+
+The first stitch worked into the center ring stays at twelve o'clock. Round numbers start just to its right and target another half degree toward twelve o'clock on each outer round, forming a subtle inward guide instead of a rigid spoke. The seam reserves room for its join, step, number, and opening chain when geometry permits; 10px side clearance is a minimum, while configured round spacing is exact. Any additional ancestry-derived seam room remains available, and the number/separator packet moves only inside that measured surplus—it stops before the final stitch instead of rotating the stitches to reach its preferred bearing. The layout follows the continuously clear path from the measured seam slot toward the preferred bearing and stops at the first collision, so a number remains on the opening side of its separator and wholly before its closing join even when clear space exists beyond them. This uses measured digit and symbol footprints and works the same when a partial chart begins at R4, R16, or any other round.
+
+The default `style: radial` keeps the original evenly spread layout with the stock `inc`/`dec` glyphs; the global **Round chart style** setting changes the default for all charts.
+
+```crochet
+---
+type: round
+style: japanese
+---
+R1: 6 sc in MR
+R2: [inc] x 6
+R3: [sc, inc] x 6
+R4: [2 sc, inc] x 6
 ```
 
 ### Spiral
@@ -270,7 +412,7 @@ R4: [2 sc, inc] x 6, sl st
 
 A `crochet` block's `tool` and `text` frontmatter keys (or their matching global settings) let the chart carry its own progress panel, so the pattern only ever needs to be written once:
 
-- `tool: on` — embeds the full interactive progress tool (row checklist, progress bar, per-row stitch counter with `+1` / `−1` / reset, previous/complete/reset controls).
+- `tool: on` — embeds the full interactive progress tool (row checklist, progress bar, weighted per-row stitch counter with add / subtract / reset, previous/complete/reset controls).
 - `text: on` — embeds a read-only shorthand list of the rows (label, normalized steps, stitch count), with no progress tracking or buttons. Useful if you just want the notation next to the picture.
 - If both are truthy, `tool` wins (it already shows everything `text` would).
 - `position: right | left | below` controls where the panel sits relative to the chart. `right` (default) and `left` sit side by side and wrap to a stacked layout on narrow widths; `below` always stacks.
@@ -288,23 +430,25 @@ When the tool is embedded next to its chart (`tool: on`), the chart highlights y
 
 Open the plugin settings tab to configure global defaults:
 
-- **Language**: follow Obsidian or choose English, Traditional Chinese, Simplified Chinese, or Japanese.
+- **Language**: follow Obsidian or choose one of eight — English, Traditional Chinese, Simplified Chinese, Japanese, Korean, German, French, or Spanish. Stitch names and every message are translated in all of them; the AI pattern-authoring reference is written in the first four.
 - **Chart scale**: chart display scale.
 - **Symbol stroke width**: SVG stroke width.
 - **Round spacing**: spacing between round or spiral rings.
 - **Highlight increases and decreases**: accent `inc` and `dec` stitches.
+- **Increase and decrease color**: the color those symbols are drawn in when the highlight above is on.
 - **Chart tool current-position color**: color used to highlight the current row/stitch on a chart with an embedded progress tool.
 - **Show progress tool by default**: embed the progress tool on every `crochet` chart unless overridden per chart with `tool: on/off`.
 - **Show pattern text by default**: embed the read-only pattern text on every `crochet` chart unless overridden per chart with `text: on/off`.
+- **Pattern text style**: show raw shorthand or fully translated readable stitch names, overridable per chart with `readable: on/off`.
 - **Panel position**: default position (right / left / below) for an embedded tool or text panel, overridable per chart with `position:`.
 - **Show background grid guide**: draw the round/row reference guide behind every `crochet` chart by default, overridable per chart with `grid: on/off`.
-- **Round symbol rotation**: `smart`, `all`, or `none` rotation for round and spiral symbols.
+- **Round chart style**: `radial` (evenly spread stitches), `japanese` (round separators, parent-placed stitches, printed V/∧ shaping, and round numbers), or `continuous` (same layout, every stitch drawn and joined by lines to the round below).
 - **Grid default shape**: `polar` or `rect` default for new `crochet-grid` blocks.
 - **Grid default rounds**: default ring count for a `polar` grid.
 - **Grid default columns**: default column/spoke count for a grid block.
 - **Grid default rows**: default row count for a `rect` grid.
 
-Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `rotation`, `tool`, `text`, `position`, `grid`). `chartMarkerColor` is global-only. `crochet-grid` blocks use their own config keys (`shape`, `rounds`, `columns`, `rows`, plus `scale`/`stroke`/`spacing`); the `grid` guide overlay on a real `crochet` chart adds `rounds`/`rows`/`columns` on top of that chart's own frontmatter, always as an extension of its real extent.
+Settings marked "overridable per chart" can be set with the matching frontmatter key (`scale`, `stroke`, `spacing`, `highlight`, `style`, `tool`, `text`, `position`, `grid`). `chartMarkerColor` is global-only. `crochet-grid` blocks use their own config keys (`shape`, `rounds`, `columns`, `rows`, plus `scale`/`stroke`/`spacing`); the `grid` guide overlay on a real `crochet` chart adds `rounds`/`rows`/`columns` on top of that chart's own frontmatter, always as an extension of its real extent.
 
 ## Safety Limits
 
@@ -357,11 +501,11 @@ Lint the project:
 npm run lint
 ```
 
-The parser is generated from `src/grammar.peggy` into `src/parser.ts`. Do not edit `src/parser.ts` by hand.
+The parser is generated from `src/pattern/grammar.peggy` into `src/pattern/parser.ts`. Do not edit the generated file by hand.
 
-### AI-assisted authoring
+### The pattern skill
 
-If you use an AI assistant to write or convert crochet patterns into Crochet Weaver's syntax, point it at [`docs/ai-pattern-authoring.md`](docs/ai-pattern-authoring.md) — a self-contained reference to the pattern language written for that purpose, also available in [繁體中文](docs/ai-pattern-authoring.zh-TW.md), [简体中文](docs/ai-pattern-authoring.zh-CN.md), and [日本語](docs/ai-pattern-authoring.ja.md). You can also copy any of these straight from the plugin's settings tab (Settings → "Copy AI pattern-authoring instructions"). A ready-to-use Claude Code skill lives at [`.claude/skills/crochet-weaver-pattern/`](.claude/skills/crochet-weaver-pattern/).
+The knowledge an assistant needs lives in [`skills/crochet-weaver-pattern/`](skills/crochet-weaver-pattern/) — `SKILL.md` plus `.zh-TW`, `.zh-CN` and `.ja` versions. See [Let an AI write the pattern for you](#let-an-ai-write-the-pattern-for-you) for the workflow. When you edit a SKILL file, run `npm run generate-skill` so the copy bundled into the plugin (`src/skill-content.ts`) matches; the build, tests and lint all run it first, and a test compares the two byte for byte.
 
 ## Manual Install
 

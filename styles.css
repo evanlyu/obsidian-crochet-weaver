@@ -26,7 +26,8 @@
 }
 
 .crochet-weaver-accent {
-	color: var(--color-accent); /* Accent color for increase/decrease symbols. */
+	/* Fallback only: the "Increase and decrease color" setting sets `color` inline. */
+	color: var(--color-accent);
 }
 
 .crochet-weaver-row-highlight {
@@ -44,6 +45,21 @@
 .crochet-weaver-grid-guide {
 	color: var(--text-faint);
 	opacity: 0.6;
+}
+
+/* Round numbers along the starting seam of a book-style round chart —
+   small and red, matching how Japanese pattern books print them. */
+.crochet-weaver-round-number {
+	color: var(--color-red, #c0392b);
+	font-size: 9px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Traditional Japanese charts print わ at an adjustable yarn-ring start. */
+.crochet-weaver-center-label {
+	font-size: 11px;
+	font-weight: 500;
 }
 
 .crochet-weaver-chart-row {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { GRID_GUIDE_BUDGET, validateChartBudget, validateGridGuideBudget } from '../src/budget';
+import { GRID_GUIDE_BUDGET, validateChartBudget, validateGridGuideBudget } from '../src/pattern/budget';
 import { calculateLayout } from '../src/layout';
-import { parse } from '../src/parser';
-import { renderCrochetTool } from '../src/tool';
+import { parse } from '../src/pattern/parser';
+import { parseChart as parsePattern } from '../src/pattern/parse-chart';
+import { renderCrochetTool } from '../src/panel/tool';
 import type { CrochetAst } from '../src/types';
 
 const OPTIONS = {
@@ -82,5 +83,28 @@ describe('grid guide budget validation', () => {
 		expect(() =>
 			validateGridGuideBudget('round', { grid: true, gridColumns: GRID_GUIDE_BUDGET.maxColumns + 1 }),
 		).toThrow(/columns/i);
+	});
+});
+
+describe('chart budget: rounds written as repeats of other rounds', () => {
+	it('reports a repeat range that would expand past the row limit', () => {
+		expect(() => parsePattern('R1: 6 sc in MR\n\nR2-R9999: repeat R1.\n')).toThrow(/too many rows/);
+	});
+
+	it('counts the stitches an expanded round draws', () => {
+		const ast = parsePattern('R1: 6 sc in MR\n\nR2: 6 sc\n\nR3-R6: repeat R2.\n');
+
+		expect(ast.rows).toHaveLength(6);
+		expect(() => validateChartBudget(ast)).not.toThrow();
+	});
+
+	it('counts a motif by the stitches it makes, and an instruction as at most one', () => {
+		const ast = parsePattern('R1: 6 sc in MR\n\nR2: turn, skip 1, 9 dc in next ch-2 sp, sl st to join.\n');
+
+		expect(() => validateChartBudget(ast)).not.toThrow();
+	});
+
+	it('still reports a motif quantity beyond the stitch limit', () => {
+		expect(() => validateChartBudget(parsePattern('R1: 5000 dc in next ch-2 sp\n'))).toThrow(/Stitch count/);
 	});
 });
