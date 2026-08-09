@@ -748,11 +748,18 @@ The system SHALL place graph-driven stitches from their recorded sources and SHA
 
 #### Scenario: Readability correction remains connected to earlier rounds
 - **WHEN** minimum-displacement projection changes the displayed angles of a fixed-spacing round
+- **AND** the relationship covers every source stitch of the preceding round exactly once
 - **THEN** the system SHALL reconcile those corrected angles inward through recorded graph relationships
 - **AND** a one-to-one source SHALL move to its child's displayed angle
 - **AND** an increase source SHALL remain at the angular midpoint of its displayed children
 - **AND** multiple decrease sources SHALL retain their relative opening while their midpoint aligns with the displayed decrease target
 - **AND** configured radii and stitch counts SHALL remain unchanged
+
+#### Scenario: Partial or repeated ancestry stops inward correction
+- **WHEN** a projected round uses only part of the preceding round's sources or uses any source more than once
+- **THEN** that relationship SHALL form an inward-reconciliation boundary
+- **AND** the earlier round's stitch bearings and shaping geometry SHALL remain unchanged
+- **AND** the projected round SHALL resolve its own working order and clearance without inventing one replacement bearing for an ambiguous source
 
 ### Requirement: Honor configured round spacing
 The system SHALL treat a positive round spacing resolved from chart frontmatter or plugin settings as an exact radial interval for `type: round` charts in radial, Japanese, and continuous styles.
@@ -761,6 +768,12 @@ The system SHALL treat a positive round spacing resolved from chart frontmatter 
 - **WHEN** a chart resolves a positive round spacing of N pixels
 - **THEN** every round after the first SHALL have a radius exactly N pixels greater than the preceding round
 - **AND** stitch count, shaping density, seam contents, marker alignment, and readability correction SHALL NOT increase that interval
+
+#### Scenario: An extreme later round fits by raising the common base radius
+- **WHEN** a later fixed-spacing round needs more circumference than its inherited absolute radius can provide for configured-size symbols and its seam
+- **THEN** the layout SHALL derive the minimum first-round radius from the most demanding round's measured pairwise gaps and seam
+- **AND** every later round SHALL remain exactly N pixels beyond the preceding round
+- **AND** the system SHALL NOT overlap, hide, or locally scale symbols to preserve a smaller absolute first radius
 
 #### Scenario: Readable ancestry remains exact at fixed spacing
 - **WHEN** a graph-driven round fits configured-size symbols at its configured radius and exact ancestry targets
@@ -797,6 +810,11 @@ The system SHALL prevent real stitch symbols in explicitly spaced round charts f
 #### Scenario: Written non-neighbours are also checked
 - **WHEN** free-form ancestry places two stitches close together even though they are not adjacent in the written item list
 - **THEN** the same all-pairs clearance calculation SHALL include that pair
+
+#### Scenario: Non-lace chain stitches use their stamped width
+- **WHEN** chain stitches are drawn directly on a round instead of hanging on a lace chain-space curve
+- **THEN** pairwise clearance and fixed-base sizing SHALL use each chain symbol's full drawn extent
+- **AND** the shortened chord budget reserved for a curved lace chain run SHALL NOT be applied
 
 #### Scenario: Reported staged-increase chart keeps every stitch
 - **WHEN** a Japanese fixed-spacing chart grows 6→12→18→24→28→32→36→40 stitches, continues with six 40-stitch rounds, and then decreases to 36

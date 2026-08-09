@@ -199,11 +199,11 @@ export type RoundStyle = 'radial' | 'japanese' | 'continuous';
 // Layout options resolved from global settings and per-chart frontmatter.
 export interface LayoutOptions {
 	// How far apart consecutive rounds are drawn, in px. A named value is exact
-	// for every gap after the first round; dense rounds keep it by uniformly
-	// scaling their symbols to the largest clear size. Undefined means "as far
-	// as the stitches need" — a round of single crochets sits a single crochet's
-	// height from the round below it, a round of trebles a treble's — and may
-	// grow farther to keep its drawing clear.
+	// for every gap after the first round; the whole chart may raise round 1's
+	// absolute radius so a dense later round fits at the configured symbol size.
+	// Undefined means "as far as the stitches need" — a round of single crochets
+	// sits a single crochet's height from the round below it, a round of trebles a
+	// treble's — and may grow farther to keep its drawing clear.
 	ringSpacing?: number;
 	// See RoundStyle; undefined behaves as 'radial'. Ignored by flat and
 	// spiral charts.

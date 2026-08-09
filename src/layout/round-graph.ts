@@ -160,12 +160,15 @@ export function layoutRoundGraph(
 	const seamAngles: number[] = [];
 	const placed: StitchRound[] = [];
 	const projectedRounds = new Set<number>();
+	const fixedRoundSpacing = options.ringSpacing !== undefined;
+	const fixedFirstRadius = fixedRoundSpacing
+		? minimumFixedFirstRadius(graph, options, style, lace)
+		: 0;
 	let previousRound: StitchRound | undefined;
 	let previousColor: string | undefined;
 	let radius = 0;
 	let previousRadius = 0;
 	let previousCount = -1;
-	const fixedRoundSpacing = options.ringSpacing !== undefined;
 	for (const round of graph.rounds) {
 		if (round.stitches.length === 0) continue;
 		const contents = seamContentsOf(round, options.lace !== true, lace);
@@ -182,6 +185,7 @@ export function layoutRoundGraph(
 		const mustFit = roundCircumference(round, contents, reach, radius, lace, style, false);
 		const roomy = roundCircumference(round, contents, reach, radius, lace, style, true);
 		radius = nextRadius(radius, previousCount, mustFit, step, roomy);
+		if (previousCount < 0) radius = Math.max(radius, fixedFirstRadius);
 		// On the innermost numbered round, keep the seam's physical width from
 		// becoming a sharper-than-one-radian wedge. A generous marker margin is
 		// otherwise paid for by dragging the first stitches far around the tiny
@@ -768,6 +772,42 @@ function roundCircumference(
 	return stitches + seamArc(contents) + reachArc;
 }
 
+// Explicit spacing fixes the difference between radii, not the absolute radius
+// of the first round. Look across the whole chart before placing it and choose
+// the smallest first radius whose later fixed-step rings have enough arc for
+// their actual symbol-to-symbol gaps and seam. Without this lower bound, an
+// early 5→10→64 expansion can be asked to fit sixty-four full-size symbols on
+// a ring sized only from the five stitches at the centre — an impossible
+// constraint no angular projection can repair.
+function minimumFixedFirstRadius(
+	graph: StitchGraph,
+	options: LayoutOptions,
+	style: 'japanese' | 'continuous',
+	lace: boolean,
+): number {
+	let first = true;
+	let radiusOffset = 0;
+	let minimum = 0;
+	for (const round of graph.rounds) {
+		if (round.stitches.length === 0) continue;
+		if (!first) {
+			radiusOffset += roundStep(
+				round.stitches.map((stitch) => stitch.symbol),
+				options.ringSpacing,
+			);
+		}
+		first = false;
+
+		const gaps = minStitchGaps(round, 1, style, lace).map((degrees) => (degrees * Math.PI) / 180);
+		const seam = seamContentsOf(round, options.lace !== true, lace);
+		const last = gaps.length - 1;
+		if (last >= 0) gaps[last] = Math.max(gaps[last] ?? 0, seamArc(seam));
+		const requiredRadius = gaps.reduce((total, gap) => total + gap, 0) / (2 * Math.PI);
+		minimum = Math.max(minimum, requiredRadius - radiusOffset);
+	}
+	return minimum;
+}
+
 // How much ring a round needs for what it actually draws.
 //
 // A stitch an increase or a decrease stands for has no symbol of its own in
@@ -991,6 +1031,22 @@ function reconcileProjectedAncestry(
 	while (round !== undefined) {
 		const previous = previousStitchRound(graph.rounds, round);
 		if (previous === undefined) break;
+		const sourceCoverage = new Map<string, number>();
+		for (const group of round.groups) {
+			for (const id of group.sourceIds) {
+				if (graph.byId.get(id)?.roundIndex !== previous.roundIndex) continue;
+				sourceCoverage.set(id, (sourceCoverage.get(id) ?? 0) + 1);
+			}
+		}
+		// A round worked into selected places is intentionally only partially
+		// attached to the round below. Moving those selected sources while leaving
+		// the skipped ones fixed would tear an earlier increase/decrease open. A
+		// projected correction may only travel through a relationship that covers
+		// the whole displayed round exactly once. Partial free-form ancestry and a
+		// motif that wraps across the same source more than once are both semantic
+		// boundaries: neither has one unambiguous replacement bearing to write
+		// inward, independent of stitch kind, count, or pattern wording.
+		if (previous.stitches.some((stitch) => sourceCoverage.get(stitch.id) !== 1)) break;
 
 		const candidates = new Map<string, number[]>();
 		for (const group of round.groups) {
@@ -1078,7 +1134,7 @@ function placementConstraints(
 ): { aligned: number[]; minGaps: number[]; seamTarget: number } {
 	const count = round.stitches.length;
 	const step = 360 / count;
-	const minGaps = minStitchGaps(round, radius, style, lace).map((gap) => Math.min(step, gap));
+	const minGaps = minStitchGaps(round, radius, style, lace);
 	// The gap after the last stitch is the seam, which has its own contents to
 	// hold (layout/seam.ts) and so is asked for by arc rather than by symbol.
 	minGaps[count - 1] = Math.max(
@@ -1174,7 +1230,10 @@ function minStitchGaps(
 		// share one angle and be drawn over each other, and given a share each
 		// the round would be spent on chains laid end to end.
 		if (makesSpace(stitch.symbol)) {
-			if (!lace) return ringRoom(stitch.symbol) / 2;
+			// Outside lace mode every chain is stamped directly on the ring, so it
+			// needs its full drawn half-width like any other symbol. The shortened
+			// chord budget belongs only to a lace chain run hanging on a curve.
+			if (!lace) return symbolExtent(stitch.symbol);
 			return runStarts.has(stitch.id) ? ringRoom(stitch.symbol) / 2 : 0;
 		}
 		const mark = markOf(stitch);

@@ -2406,6 +2406,71 @@ describe('what a round draws is never drawn over something else', () => {
 		});
 	}
 
+	it('does not pull an inner increase into a giant star beneath an extreme grouped round', () => {
+		const firstTwoRounds = `---
+type: round
+---
+R1: 5 sc in MR, sl st
+R2: [inc] x 5, sl st
+`;
+		const baseline = calculateLayout(parsePattern(firstTwoRounds), {
+			ringSpacing: 20,
+			grid: false,
+			roundStyle: 'japanese',
+		});
+		const withGroupedRound = calculateLayout(
+			parsePattern(`---
+type: round
+---
+R1: 5 sc in MR, sl st
+R2: [inc] x 5, sl st
+R3: [(dtr, dtr)] x 5
+`),
+			{ ringSpacing: 20, grid: false, roundStyle: 'japanese' },
+		);
+		const increaseArmLengths = (layout: LayoutResult): number[] =>
+			(layout.shapingMarks ?? [])
+				.filter((mark) => mark.kind === 'increase' && mark.rowIndex === 1)
+				.flatMap((mark) =>
+					mark.segments.flatMap((segment) => {
+						const [left, apex, right] = segment;
+						return left && apex && right ? [distance(left, apex), distance(apex, right)] : [];
+					}),
+				);
+		const baselineArms = increaseArmLengths(baseline);
+		const groupedRoundArms = increaseArmLengths(withGroupedRound);
+
+		expect(baselineArms).toHaveLength(10);
+		expect(groupedRoundArms).toHaveLength(10);
+		expect(Math.max(...groupedRoundArms), 'a later round stretched an existing increase').toBeLessThanOrEqual(
+			Math.max(...baselineArms) + 1e-6,
+		);
+	});
+
+	it('keeps every stitch clear in an extreme grouped round', () => {
+		const chart = parsePattern(`---
+type: round
+---
+R1: 5 sc in MR, sl st
+R2: [inc] x 5, sl st
+R3: [(ch 4), (dtr, dtr), (dtr, dtr), (ch 4), sl st] x 5
+`);
+		const layout = calculateLayout(chart, { ringSpacing: 20, grid: false, roundStyle: 'japanese' });
+		const stitches = layout.items.filter(
+			(item) => item.rowIndex === 2 && item.stitchId !== undefined,
+		);
+		// Two four-chain runs, four double-treble stitches, and one slip stitch are
+		// expanded per repeat; only the final slip stitch is the closing join.
+		expect(stitches).toHaveLength(64);
+		const closest = tightestRealStitchPair(layout);
+		expect(
+			closest.clearance,
+			`${closest.first.symbol} ${closest.first.stitchId} at ${closest.first.rotation}° overlapped ` +
+				`${closest.second.symbol} ${closest.second.stitchId} at ${closest.second.rotation}° ` +
+				`(distance ${distance(closest.first, closest.second)})`,
+		).toBeGreaterThan(0);
+	});
+
 	it('keeps ordinary stitches visibly separate in a dense fixed-spacing Japanese chart', () => {
 		const rounds: string[] = [];
 		let count = 22;

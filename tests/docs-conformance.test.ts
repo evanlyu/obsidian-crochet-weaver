@@ -34,6 +34,28 @@ const CURRENT_FRONTMATTER_KEYS = [
 	'readable',
 	'position',
 ] as const;
+const FIXED_SPACING_GEOMETRY_TERMS = [
+	['README.md', ['densest round', 'covered exactly once']],
+	['README.zh-TW.md', ['最擁擠的一圈', '恰好被覆蓋一次']],
+	['README.zh-CN.md', ['最拥挤的一圈', '恰好被覆盖一次']],
+	['README.ja.md', ['最も混み合う段', 'ちょうど 1 回ずつ覆われる']],
+	[
+		'skills/crochet-weaver-pattern/SKILL.md',
+		['raises the absolute radius of round 1', 'covers every preceding-round source exactly once'],
+	],
+	[
+		'skills/crochet-weaver-pattern/SKILL.zh-TW.md',
+		['只把第 1 圈的絕對半徑提高', '恰好完整覆蓋前一圈每個來源一次'],
+	],
+	[
+		'skills/crochet-weaver-pattern/SKILL.zh-CN.md',
+		['只把第 1 圈的绝对半径提高', '恰好完整覆盖前一圈每个来源一次'],
+	],
+	[
+		'skills/crochet-weaver-pattern/SKILL.ja.md',
+		['1 段目の絶対半径を大きく', 'ちょうど 1 回ずつ完全に覆う'],
+	],
+] as const;
 
 function read(path: string): string {
 	return readFileSync(path, 'utf8');
@@ -127,4 +149,16 @@ describe('localized pattern-skill contract', () => {
 			expect(crochetBlocks(contents)).toEqual(expected);
 		}
 	});
+});
+
+describe('fixed-spacing geometry documentation', () => {
+	for (const [path, terms] of FIXED_SPACING_GEOMETRY_TERMS) {
+		it(`${path} documents whole-chart preflight and safe ancestry reconciliation`, () => {
+			const contents = read(path);
+
+			for (const term of terms) {
+				expect(contents, `${path} documents ${term}`).toContain(term);
+			}
+		});
+	}
 });
