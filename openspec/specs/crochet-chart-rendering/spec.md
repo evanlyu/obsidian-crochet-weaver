@@ -71,11 +71,14 @@ The system SHALL lay out `type: round` charts as concentric rounds, and SHALL of
 
 #### Scenario: Magic ring anchor
 - **WHEN** a round chart starts from a row anchored `in MR`
-- **THEN** the chart SHALL include a center magic-ring symbol
+- **THEN** the chart SHALL include a center magic-ring anchor
+- **AND** `style: japanese` SHALL print that anchor as the centered Japanese label `わ`
+- **AND** other round styles SHALL retain the generic hollow-ring symbol
 
 #### Scenario: Chain ring anchor
 - **WHEN** a round chart starts from a row anchored `in ch ring`
 - **THEN** the chart SHALL include a center ring made from chain symbols
+- **AND** `style: japanese` SHALL preserve those chain symbols rather than replace them with a `ち` label
 
 #### Scenario: Join slip stitch
 - **WHEN** a round contains a trailing `sl st` after other units
@@ -92,9 +95,12 @@ The system SHALL lay out `type: round` charts as concentric rounds, and SHALL of
 #### Scenario: Round numbers form a slight inward guide
 - **WHEN** a numbered graph-driven round chart is drawn
 - **THEN** the first stitch worked into the center ring SHALL remain at twelve o'clock independently of the first round number
-- **AND** the first number SHALL sit at a -50 degree bearing
-- **AND** each outer round number SHALL move another 0.5 degrees toward twelve o'clock, forming a subtle inward incline instead of either a rigid spoke or a spiralling column
+- **AND** the first number SHALL target a -50 degree bearing
+- **AND** each outer round number SHALL target another 0.5 degrees toward twelve o'clock, forming a subtle inward incline instead of either a rigid spoke or a spiralling column
 - **AND** a large ordinary round SHALL align its number and round-change step without rigidly rotating its opening, closing instructions, or real stitch positions
+- **AND** each target SHALL be accepted only when the entire path from the measured seam slot to that target remains clear of the round separator and every stitch or seam instruction actually drawn on that round
+- **AND** the number SHALL stop at the first collision boundary, remaining on the opening side of the separator and before the closing join instead of crossing either to reach a later clear bearing
+- **AND** this clearance rule SHALL depend on measured label and symbol geometry rather than on the written round number, including when a partial chart begins after R1
 
 #### Scenario: Round-change step stays near radial
 - **WHEN** the guide steps from one round's band out to the next
@@ -120,6 +126,7 @@ The system SHALL take every chart size from the symbols, motifs, curves, seam in
 #### Scenario: The seam is sized by what it holds
 - **WHEN** a round opens with more than one chain, closes with a join, or is numbered with more than one digit
 - **THEN** the room reserved at its seam SHALL grow by what each of those is drawn at, so none of them is drawn over another
+- **AND** a filled join dot SHALL retain a readable layout footprint outside its inked circle so nearby labels and linework remain distinct
 
 #### Scenario: Flat charts follow their own symbols
 - **WHEN** a flat chart contains stitches wider or taller than a single crochet
@@ -404,45 +411,68 @@ The system SHALL build a stitch graph from the pattern's own operations in which
 - **AND** later unrelated reuse of that source SHALL still fail validation
 
 ### Requirement: Place round stitches from their ancestry
-The system SHALL position each stitch or shell motif of a graph-driven round from the stitch or chain space it is worked into, SHALL never reorder a round's written units or a motif's children, and SHALL keep a minimum gap between neighboring rendered symbols, curved chain runs, and shell fans sized from what is actually drawn at that radius.
+The system SHALL derive each stitch or shell motif of every graph-driven round from the stitch or chain space it is worked into and SHALL never reorder a round's written units or a motif's children. With automatic round spacing, every valid parent-derived angle SHALL remain a hard semantic constraint and the radius SHALL grow until the rendered contents fit. With explicit round spacing, the configured radial interval SHALL remain exact and parent-derived angles SHALL remain exact while symbols fit at their configured size; inherited collisions SHALL use deterministic minimum-displacement order-and-gap projection without changing that configured symbol size.
 
-#### Scenario: Plain round follows its parents
-- **WHEN** a round works one ordinary stitch into each stitch of the round below
-- **THEN** every stitch outside a necessary local seam correction SHALL keep the angle of its parent exactly, so the broad side opposite the seam remains in radial columns
-- **AND** inherited crowding from earlier shaping MAY relax only where the round is not an exact one-to-one ordinary copy
+#### Scenario: Plain stitch follows its parent through shaping
+- **WHEN** an ordinary stitch has one previous-round source, including in a round that also increases, decreases, or deliberately skips places
+- **AND** the round's symbols fit at their configured size at its ancestry targets
+- **THEN** that stitch SHALL keep exactly the angle of its source so its lineage remains radial
+- **AND** seam fitting, radius fitting, separator placement, and round-number alignment SHALL NOT move it
 
 #### Scenario: A stitch the next round shapes across keeps its angle
 - **WHEN** the next round works an increase or a decrease into a stitch of this round
-- **THEN** that stitch SHALL keep the angle its ancestry gave it and SHALL not be moved by any evening-out pass, since the V or ∧ drawn there is aimed at where it sits
+- **THEN** that stitch SHALL prefer the angle its ancestry gave it
+- **AND** any readability projection SHALL keep the V or ∧ connected to its actual displayed parent and child endpoints
 
 #### Scenario: Shaping stitches sit with the stitches they belong to
 - **WHEN** a round contains increases or decreases
-- **THEN** an increase's two stitches SHALL straddle the stitch below them and a decrease SHALL sit between the stitches it merged, with the remaining slack shared among the plain stitches near the shaping
+- **THEN** an increase's children SHALL use balanced angular offsets around the stitch below them
+- **AND** a decrease SHALL sit at the seam-safe circular mean of the stitches it merged
+- **AND** ordinary stitches elsewhere in the same round SHALL remain on their own parent angles unless measured readability requires the same bounded projection
 
 #### Scenario: Seam-crossing shaping
 - **WHEN** a decrease merges stitches that lie on opposite sides of the 0°/360° seam
 - **THEN** its position SHALL be computed on the shortest arc between them, not by averaging raw angles, so it never lands on the opposite side of the chart
 
-#### Scenario: Working order is never traded away
-- **WHEN** any spacing or relaxation pass adjusts a round
-- **THEN** the stitches SHALL remain in working order and no symbol SHALL overlap its neighbor
+#### Scenario: Automatic radius satisfies all hard geometry
+- **WHEN** no explicit round spacing is configured and parent-derived angles at the natural radius do not provide enough room for neighboring symbols, shaping, or the seam
+- **THEN** the current round radius SHALL grow to the smallest feasible radius at which those same semantic angles satisfy every minimum clearance
 
-#### Scenario: Round that cannot inherit an alignment
-- **WHEN** a round does not work into the round below exactly once for each of its stitches
-- **THEN** that round SHALL fall back to even spacing while still recording its real mapping
+#### Scenario: Explicit round spacing is exact
+- **WHEN** a positive round spacing is resolved from chart frontmatter or plugin settings
+- **THEN** every round after the first SHALL sit exactly that many pixels beyond the previous round
+- **AND** symbol density, shaping, seam clearance, and round-number alignment SHALL NOT increase that interval
+- **AND** collision-free ancestry-derived angles SHALL remain unchanged
+- **AND** colliding targets SHALL receive deterministic minimum angular correction
+- **AND** every real stitch symbol SHALL retain the size resolved from the user's symbol-size setting
+
+#### Scenario: Working order is never traded away
+- **WHEN** any radius or bounded invalid-mapping fallback is evaluated
+- **THEN** the stitches SHALL remain in working order
+- **AND** automatic spacing SHALL prevent neighboring symbol overlap
+- **AND** explicit spacing SHALL prevent overlap through minimum-displacement projection without local per-round symbol scaling
+
+#### Scenario: Deliberately skipped places retain ancestry
+- **WHEN** a free-form round deliberately skips one or more previous-round places
+- **THEN** every stitch that the round does work SHALL still be positioned from its recorded source
+- **AND** the round SHALL NOT fall back to even spacing merely because its mapping is not bijective
+
+#### Scenario: Contradictory mapping remains bounded
+- **WHEN** graph validation reports a source order that cannot satisfy one turn at any bounded radius
+- **THEN** the layout SHALL preserve working order and minimum clearance with a deterministic projection anchored to the first semantic target
+- **AND** it SHALL NOT grow the chart without bound or silently replace all ancestry with even spacing
 
 #### Scenario: The seam keeps room of its own
-- **WHEN** a round of a graph-driven round chart is spaced
+- **WHEN** a round of a graph-driven round chart is placed
 - **THEN** the gap between its last stitch and its first SHALL be at least as wide as what is drawn at the seam needs — a slot each for the round's closing join, the step out to the next round, the round number, and the round's opening chain — so no stitch is drawn over any of them
 - **AND** those SHALL be laid out in that order from the closing side of the round to the opening side, putting the round number between the step and the round's first stitch
-- **AND** where the round leaves more room than the seam asked for, the extra SHALL sit either side of the seam's contents rather than to one side of them
+- **AND** any extra inherited room SHALL remain available rather than being consumed solely for presentation alignment
 
-#### Scenario: A large plain numbered seam may keep bounded extra room
-- **WHEN** a sufficiently large numbered round works one ordinary stitch into each stitch below and inherits a wider seam than its minimum
-- **THEN** it SHALL retain no more than 10 px of that additional opening room
-- **AND** any correction beyond that allowance SHALL fade smoothly to zero within the nearest quarter of the round on each seam edge
-- **AND** the broad opposite side SHALL remain exactly on its ancestry rather than rotating or redistributing around the whole round
-- **AND** small rounds and shaping rounds SHALL keep their stricter balanced placement because they do not have enough plain neighboring gaps to localize the correction safely
+#### Scenario: A numbered seam inherits its available angle
+- **WHEN** a numbered round inherits a wider seam than its minimum
+- **THEN** it SHALL retain the full inherited angular seam rather than narrowing it by moving stitches
+- **AND** the round number, separator, and closing instructions SHALL move only within the available seam space
+- **AND** the inherited seam MAY become physically wider at a larger radius because exact stitch correspondence takes priority over a fixed-width corridor
 
 #### Scenario: Motif fans from its source
 - **WHEN** a grouped motif is worked into one stitch or chain space
@@ -478,10 +508,11 @@ The system SHALL position each stitch or shell motif of a graph-driven round fro
 ### Requirement: Draw shaping as a symbol of its own round
 In `japanese` style the system SHALL draw an increase and a decrease as a mark belonging to its own round, in line with that round's plain stitches and inside that round's band, never as a mark floating in the gap between two rounds.
 
-#### Scenario: Increase drawn as a V
+#### Scenario: Increase drawn as a balanced V
 - **WHEN** a round contains an `inc`
 - **THEN** a V SHALL be drawn with its point on the round's inner edge at the real parent position
-- **AND** its two arms SHALL end at the real angular positions of the two child stitches it makes, preserving child order without forcing artificial symmetry or width capping
+- **AND** its two arms SHALL end at the real angular positions of the two child stitches
+- **AND** those child positions SHALL be balanced around their parent so the V is isosceles while preserving child order
 
 #### Scenario: Decrease drawn as a ∧
 - **WHEN** a round contains a `dec` or an N-together decrease drawn as a shaping mark
@@ -490,7 +521,7 @@ In `japanese` style the system SHALL draw an increase and a decrease as a mark b
 #### Scenario: A wide decrease stays legible
 - **WHEN** a decrease inherits a very wide or one-sided set of source positions
 - **THEN** its opening SHALL be compacted to the room of the source symbols and shifted under its point so it still reads as one ∧
-- **AND** this compaction SHALL NOT be applied to an increase, whose parent and child endpoints carry exact ancestry
+- **AND** this compaction SHALL NOT be applied to an increase, whose balanced parent and child endpoints carry exact ancestry
 
 ### Requirement: Link stitches to the stitches they are worked into
 In `continuous` style the system SHALL keep every stitch's own symbol and SHALL draw connector lines from lace motif stitches to the stitch or chain space they are worked into, with every endpoint landing on a real stitch or space position.
@@ -640,3 +671,137 @@ The system SHALL accept the original bounded note form of `crochet-dev` R1 throu
 - **THEN** every expanded round SHALL keep its own row label and expected structured count
 - **AND** strict written count validation SHALL run on the expanded rows before rendering
 
+### Requirement: Keep the numbered center expansion upright and compact
+The system SHALL treat the first stitch worked into a center ring as the fixed twelve-o'clock origin, SHALL keep the red numbered marker's side clearance as a minimum rather than an exact seam width, SHALL preserve every readable graph-driven ancestry target independent of round number or shaping mix, and SHALL keep final stitches wholly on the closing side of their round separators. Geometry-triggered readability correction SHALL remain bounded, ordered, and independent of any particular pattern.
+
+#### Scenario: Compact first round
+- **WHEN** a default-scale numbered round chart starts with a joined opening chain and six single crochets in a magic ring
+- **THEN** the magic-ring symbol SHALL have a 5px radius
+- **AND** its first produced stitch SHALL remain at a -90 degree bearing
+- **AND** its center radius SHALL remain between 28px and 29px
+- **AND** neither the magic ring, opening instructions, round number, nor first-round stitches SHALL overlap
+
+#### Scenario: Any valid increase round remains balanced
+- **WHEN** a numbered graph-driven round contains one or more increases
+- **THEN** every increase's children SHALL remain centred on the stitch from which they are made
+- **AND** every rendered V SHALL keep its exact parent and child endpoints
+- **AND** its two arm lengths SHALL differ by less than 0.5px at default scale
+- **AND** with automatic spacing, lack of space SHALL be solved by radius growth rather than seam compaction or asymmetric child movement
+- **AND** with explicit spacing, the configured interval SHALL remain unchanged, any collision projection SHALL retain balanced V arms, and every stitch symbol SHALL retain the configured size
+
+#### Scenario: Ordinary ancestry remains exact through arbitrary shaping
+- **WHEN** an ordinary stitch appears before, between, or after shaping in a numbered graph-driven round
+- **AND** its round remains readable at exact ancestry targets
+- **THEN** it SHALL keep exactly the angle of its own source
+- **AND** later ordinary rounds SHALL inherit that same radial lineage
+
+#### Scenario: Final stitch and separator
+- **WHEN** independently aligning a numbered marker would put a round's final stitch on the number side of its separator
+- **THEN** the layout SHALL cap movement of the number, separator, and closing instructions to measured seam surplus
+- **AND** the final symbol SHALL remain wholly on the closing side of the separator
+- **AND** no real stitch SHALL move to make room for presentation geometry
+
+#### Scenario: Closing seam packet
+- **WHEN** a numbered seam contains closing instructions after its separator
+- **THEN** those instructions SHALL move with the number and separator as one ordered packet
+- **AND** the packet SHALL move no farther than the seam's surplus beyond its full promised arc
+
+#### Scenario: Numbered marker clearance is a minimum
+- **WHEN** a numbered seam has more room than the number and round-change marker require
+- **THEN** the marker SHALL retain at least 10px of clearance on each side
+- **AND** the layout SHALL keep any additional ancestry-derived room that remains
+- **AND** that additional room SHALL NOT be interpreted as requiring the seam to collapse to exactly 10px
+
+#### Scenario: Outer guide remains stable
+- **WHEN** a numbered round aligns its marker column
+- **THEN** the first number SHALL target -50 degrees and each outer number SHALL target an additional -0.5 degree incline
+- **AND** a marker SHALL move continuously from its measured seam slot and stop before that target at the first point where continuing would cross the final symbol or any seam instruction
+- **AND** separator safety, readable ancestry, and stitch clarity SHALL take priority over exact marker bearing
+- **AND** retained angular seam room MAY become physically wider on later radii while the marker packet remains ordered inside it
+
+### Requirement: Preserve exact one-to-one round ancestry
+The system SHALL place graph-driven stitches from their recorded sources and SHALL preserve exact one-to-one parent angles whenever the resulting fixed-spacing round fits symbols at their configured size. Automatic spacing SHALL adjust radius rather than move valid ancestry targets. Explicit spacing SHALL keep the configured interval exact; if exact inherited targets would overlap at the configured symbol size, the system SHALL apply a deterministic minimum-displacement projection instead of resizing, hiding, or overlapping stitches.
+
+#### Scenario: Every readable ordinary child stays over its parent
+- **WHEN** a current ordinary stitch has exactly one previous-round source
+- **AND** its round fits configured-size symbols at exact ancestry targets
+- **THEN** it SHALL keep exactly the angle of that source
+- **AND** seam fitting, radius fitting, and marker alignment SHALL NOT move it
+
+#### Scenario: Marker cannot reach its preferred bearing
+- **WHEN** placing a numbered separator at its preferred bearing would cross the final stitch
+- **THEN** the marker, separator, and closing instructions SHALL stop at the farthest safe bearing within measured seam surplus
+- **AND** no stitch SHALL move solely to make room for presentation geometry
+
+#### Scenario: Non-bijective valid rounds preserve mapped ancestry
+- **WHEN** a round increases, decreases, deliberately skips, or otherwise does not map one current stitch to one unique previous-round stitch
+- **THEN** every valid recorded source relationship SHALL determine its preferred target angle
+- **AND** automatic spacing SHALL solve collision clearance by radius growth without an even-spacing fallback
+- **AND** explicit spacing SHALL preserve its exact interval and SHALL retain those targets unless configured-size symbols would overlap
+
+#### Scenario: Colliding inherited centers receive minimum correction
+- **WHEN** distinct fixed-spacing stitches inherit centers too close to draw at the configured symbol size
+- **THEN** the system SHALL preserve written order and the first semantic target
+- **AND** it SHALL minimize angular displacement from all preferred ancestry targets
+- **AND** it SHALL retain every source relationship and every stitch
+- **AND** it SHALL NOT assign a local render scale to the affected round
+
+#### Scenario: Readability correction remains connected to earlier rounds
+- **WHEN** minimum-displacement projection changes the displayed angles of a fixed-spacing round
+- **THEN** the system SHALL reconcile those corrected angles inward through recorded graph relationships
+- **AND** a one-to-one source SHALL move to its child's displayed angle
+- **AND** an increase source SHALL remain at the angular midpoint of its displayed children
+- **AND** multiple decrease sources SHALL retain their relative opening while their midpoint aligns with the displayed decrease target
+- **AND** configured radii and stitch counts SHALL remain unchanged
+
+### Requirement: Honor configured round spacing
+The system SHALL treat a positive round spacing resolved from chart frontmatter or plugin settings as an exact radial interval for `type: round` charts in radial, Japanese, and continuous styles.
+
+#### Scenario: Every configured interval is identical
+- **WHEN** a chart resolves a positive round spacing of N pixels
+- **THEN** every round after the first SHALL have a radius exactly N pixels greater than the preceding round
+- **AND** stitch count, shaping density, seam contents, marker alignment, and readability correction SHALL NOT increase that interval
+
+#### Scenario: Readable ancestry remains exact at fixed spacing
+- **WHEN** a graph-driven round fits configured-size symbols at its configured radius and exact ancestry targets
+- **THEN** every valid parent-derived angle SHALL remain unchanged
+- **AND** increase children SHALL remain balanced around their parent
+- **AND** every stitch symbol SHALL retain the configured size
+
+#### Scenario: Near-coincident ancestry is corrected at fixed spacing
+- **WHEN** exact graph-derived centers would overlap at the configured symbol size
+- **THEN** the configured radial interval SHALL remain unchanged
+- **AND** the layout SHALL apply deterministic order-and-clearance projection instead of symbol scaling
+- **AND** projection SHALL be based on measured geometry rather than a specific round, count, or pattern phrase
+
+#### Scenario: Automatic spacing remains adaptive
+- **WHEN** no positive round spacing is resolved
+- **THEN** the layout MAY grow a crowded round to its smallest collision-safe radius
+
+### Requirement: Keep fixed-spacing round symbols clear
+The system SHALL prevent real stitch symbols in explicitly spaced round charts from visually overlapping, disappearing, or changing size from one round to another. It SHALL retain exact centers while configured-size symbols fit, SHALL use bounded minimum angular correction when inherited centers collide, and SHALL never change configured round radii, stitch counts, or the symbol size resolved from settings.
+
+#### Scenario: Dense round retains configured symbol size
+- **WHEN** two or more real stitch symbols in one fixed-spacing round would lack visual clearance at full size
+- **THEN** the system SHALL apply deterministic angular clearance
+- **AND** every real stitch symbol SHALL keep the size resolved from the user's symbol-size setting
+- **AND** the system SHALL NOT assign a local per-round scale
+
+#### Scenario: Inherited near-collision is separated without scaling
+- **WHEN** exact inherited centers would overlap at the configured symbol size
+- **THEN** the system SHALL restore working order and minimum gaps with deterministic minimum displacement
+- **AND** the first semantic target SHALL remain anchored
+- **AND** corrected angles SHALL reconcile inward so the projected stitches remain visually connected to their displayed parents or shaping endpoints
+- **AND** later one-to-one rounds SHALL inherit the corrected displayed parent angles coherently
+
+#### Scenario: Written non-neighbours are also checked
+- **WHEN** free-form ancestry places two stitches close together even though they are not adjacent in the written item list
+- **THEN** the same all-pairs clearance calculation SHALL include that pair
+
+#### Scenario: Reported staged-increase chart keeps every stitch
+- **WHEN** a Japanese fixed-spacing chart grows 6→12→18→24→28→32→36→40 stitches, continues with six 40-stitch rounds, and then decreases to 36
+- **THEN** each 40-stitch round SHALL render all forty real stitch symbols with positive visual clearance
+- **AND** every short-stitch symbol in every round SHALL retain the configured size
+- **AND** the first 40-stitch round SHALL keep every stitch directly above its displayed parent stitch or increase-V endpoint
+- **AND** the decrease round SHALL retain 32 ordinary symbols plus four decrease marks
+- **AND** every increase mark SHALL remain a balanced V

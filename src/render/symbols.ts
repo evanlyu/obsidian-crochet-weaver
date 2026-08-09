@@ -50,14 +50,15 @@ export const SYMBOLS: Record<string, SymbolSpec> = {
 		],
 		stem: { bars: 3, head: 'bar' },
 	},
-	// Slip stitch: filled dot.
-	'sl st': { extent: 3, circle: { r: 2.5, filled: true } },
+	// Slip stitch: filled dot. Its layout footprint is slightly larger than the
+	// inked circle so the tiny mark remains distinct beside text and linework.
+	'sl st': { extent: 3.7, circle: { r: 2.5, filled: true } },
 	// Increase: V shape, sized to match sc's footprint so it doesn't read as a tall stitch.
 	inc: { extent: 6, paths: ['M -4 -4 L 0 4 L 4 -4'] },
 	// Decrease: inverted V shape, same footprint as inc.
 	dec: { extent: 6, paths: ['M -4 4 L 0 -4 L 4 4'] },
 	// Magic ring: hollow circle.
-	MR: { extent: 6, circle: { r: 6 } },
+	MR: { extent: 5, circle: { r: 5 } },
 	// Bobble: bundled puff shape.
 	bobble: {
 		extent: 9,

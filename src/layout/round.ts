@@ -28,7 +28,15 @@ export function layoutRound(ast: CrochetAst, options: LayoutOptions): LayoutResu
 	const style = options.roundStyle;
 	if (style === 'japanese' || style === 'continuous') {
 		return layoutRoundGraph(ast, options, style, (previousRadius, previousCount, circumference, step, roomy) =>
-			nextRadius(previousRadius, previousCount, circumference, step, innerRadiusOf(ast), roomy),
+			nextRadius(
+				previousRadius,
+				previousCount,
+				circumference,
+				step,
+				innerRadiusOf(ast),
+				options.ringSpacing !== undefined,
+				roomy,
+			),
 		);
 	}
 	return layoutRoundStandard(ast, options);
@@ -100,6 +108,7 @@ function layoutRoundStandard(ast: CrochetAst, options: LayoutOptions): LayoutRes
 			unitsArc(units) + seamArc(seam),
 			roundStep(symbolsOf(units), options.ringSpacing),
 			innerRadius,
+			options.ringSpacing !== undefined,
 		);
 
 		const angleStep = 360 / units.length;
@@ -173,8 +182,14 @@ export function nextRadius(
 	circumference: number,
 	step: number,
 	innerRadius: number,
+	fixedStep = false,
 	roomy = circumference,
 ): number {
+	// A named spacing is literal: after the first round, every following round
+	// is exactly one configured step farther out. Crowding is allowed to remain
+	// visible instead of silently changing the scale from one round to another.
+	if (prevCount >= 0 && fixedStep) return prevRadius + step;
+
 	// A round sits a step out from the one below, unless its own symbols will
 	// not go round a ring that size — then it is given the ring they need and no
 	// more. The roomier ring is what a round would like, and it is taken only

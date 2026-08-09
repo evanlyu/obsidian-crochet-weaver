@@ -4,10 +4,20 @@ import { arcToDegrees } from './angles';
 import { CH_RING_COUNT, chRingRadius, OPENING_TURN_SCALE, symbolExtent, SYMBOL_CLEARANCE } from './constants';
 import { flattenGroup, type LayoutUnit } from './steps';
 
-export function pushCenterAnchor(ast: CrochetAst, items: RenderItem[]) {
+export function pushCenterAnchor(
+	ast: CrochetAst,
+	items: RenderItem[],
+	presentation: 'generic' | 'japanese' = 'generic',
+) {
 	const anchor = ast.rows[0]?.anchor ?? writtenAnchor(ast);
 	if (anchor === CENTER_RING) {
-		items.push({ symbol: 'MR', x: 0, y: 0, rotation: 0 });
+		items.push({
+			symbol: 'MR',
+			x: 0,
+			y: 0,
+			rotation: 0,
+			...(presentation === 'japanese' ? { centerLabel: 'わ' } : {}),
+		});
 	} else if (anchor === 'ch ring') {
 		const ringRadius = chRingRadius();
 		for (let i = 0; i < CH_RING_COUNT; i++) {

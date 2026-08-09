@@ -41,9 +41,9 @@ import { CHAIN, JOINING_STITCH } from '../render/symbols';
 const SEAM_AIR = 2;
 
 // Extra breathing room around the round-change pair: before the red round
-// number on its opening side, and after the step on its closing side. Equal on
-// both sides so the pair reads as one balanced marker rather than leaning into
-// either neighbouring instruction or stitch.
+// number on its opening side, and after the step on its closing side. Together
+// with the ordinary 2px gap between seam items this makes a 10px minimum on
+// each side — a lower bound, not a request to collapse a roomier seam to 10px.
 const ROUND_CHANGE_SIDE_AIR = 8;
 
 // The step out to the next round's band: the width it is drawn at. It is drawn

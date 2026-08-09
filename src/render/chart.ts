@@ -212,6 +212,20 @@ export function renderSVG(
 		const own = (item.scale ?? 1) * symbolScale;
 		const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation})${own === 1 ? '' : ` scale(${own})`}`;
 
+		if (item.centerLabel !== undefined) {
+			const textEl = doc.createElementNS(SVG_NS, 'text');
+			textEl.classList.add('crochet-weaver-center-label');
+			textEl.setAttribute('x', '0');
+			textEl.setAttribute('y', '0');
+			textEl.setAttribute('transform', transform);
+			textEl.setAttribute('text-anchor', 'middle');
+			textEl.setAttribute('dominant-baseline', 'central');
+			textEl.setAttribute('fill', 'currentColor');
+			textEl.textContent = item.centerLabel;
+			svg.appendChild(textEl);
+			continue;
+		}
+
 		const symbolEl = doc.createElementNS(SVG_NS, 'use');
 		symbolEl.setAttribute('href', `#${symbolId(uid, item.symbol)}`);
 		symbolEl.setAttribute('transform', transform);

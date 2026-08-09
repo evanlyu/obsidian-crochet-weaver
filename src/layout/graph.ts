@@ -626,9 +626,10 @@ export function validateStitchGraph(graph: StitchGraph): GraphIssue[] {
 	return issues;
 }
 
-// Whether this round's stitches can be placed from their ancestry: it must
-// account for every place of the round below exactly once, or the two rounds do
-// not line up and there is no correspondence to follow.
+// Whether this round accounts for every place of the round below exactly once.
+// This is a validation fact, not a layout gate: a free-form round that
+// deliberately skips places still keeps the ancestry of every stitch it does
+// work.
 export function consumesPreviousRoundExactly(graph: StitchGraph, roundIndex: number): boolean {
 	const round = graph.rounds[roundIndex];
 	const previous = previousRound(graph, roundIndex);

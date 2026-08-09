@@ -198,11 +198,12 @@ export type RoundStyle = 'radial' | 'japanese' | 'continuous';
 
 // Layout options resolved from global settings and per-chart frontmatter.
 export interface LayoutOptions {
-	// How far apart consecutive rounds are drawn, in px. Undefined means "as far
+	// How far apart consecutive rounds are drawn, in px. A named value is exact
+	// for every gap after the first round; dense rounds keep it by uniformly
+	// scaling their symbols to the largest clear size. Undefined means "as far
 	// as the stitches need" — a round of single crochets sits a single crochet's
-	// height from the round below it, a round of trebles a treble's — which is
-	// how a pattern book draws them and the only chart size that was still a
-	// fixed number rather than read off what the chart draws.
+	// height from the round below it, a round of trebles a treble's — and may
+	// grow farther to keep its drawing clear.
 	ringSpacing?: number;
 	// See RoundStyle; undefined behaves as 'radial'. Ignored by flat and
 	// spiral charts.
@@ -248,6 +249,10 @@ export interface RenderItem {
 	x: number;
 	y: number;
 	rotation: number;
+	// A presentation label that replaces this anchor's generic glyph without
+	// changing its semantic symbol or measured extent. Currently used by the
+	// traditional Japanese round style to print the MR center as "わ".
+	centerLabel?: string;
 	loop?: 'blo' | 'flo';
 	rowIndex?: number;
 	unitIndex?: number;

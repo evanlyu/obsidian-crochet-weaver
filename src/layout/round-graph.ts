@@ -10,16 +10,15 @@ import type {
 } from '../types';
 import {
 	arcToDegrees,
-	canTaperSeamEdges,
-	closeSeam,
 	enforceOrderAndGap,
 	fitTurn,
 	meanAngle,
-	relaxSpacing,
 	shortestAngleDelta,
 } from './angles';
 import {
+	labelExtent,
 	OPENING_SLIP_STITCH_OFFSET,
+	ROUND_CHANGE_ARC,
 	symbolArc,
 	symbolArcRoomy,
 	symbolExtent,
@@ -29,7 +28,6 @@ import {
 import { buildShapingMark } from './shaping';
 import {
 	buildStitchGraph,
-	consumesPreviousRoundExactly,
 	FOUNDATION_ID,
 	type GraphStitch,
 	type StitchGraph,
@@ -37,6 +35,7 @@ import {
 } from './graph';
 import { bandBoundaries, buildBandGuide } from './grid-guide';
 import { curveChainRuns, fanMotifs, fanSpread, ringRoom } from './lace';
+import { tangentialSymbolScale } from './clarity';
 import { CENTER_RING, CHAIN, makesSpace } from '../render/symbols';
 import { buildStitchLink } from './links';
 import { normalize } from './normalize';
@@ -59,10 +58,13 @@ import { isStackedOpeningSlipStitch, tagLoop, unitSymbols, type LayoutUnit } fro
 // A round is not spread out on its own: every stitch starts from the
 // previous-round stitch(es) it is worked into (see layout/graph.ts), so a plain
 // stitch sits over its parent, an increase's two stitches straddle the parent
-// they share, and a decrease sits between the stitches it closed over. Only
-// then is the round made drawable — order and minimum spacing are imposed as
-// constraints, and the leftover slack is shared between plain stitches — so
-// spacing never rearranges the correspondence it is smoothing.
+// they share, and a decrease sits between the stitches it closed over. With
+// natural spacing those semantic angles are immutable and the ring grows until
+// order, symbol clearance and the numbered seam all fit. With configured
+// spacing every ring remains exactly one configured step from the previous
+// one. Exact angles remain preferred, but an inherited collision at the
+// configured symbol size receives the least order-preserving angular
+// correction. Fixed-spacing layout never changes that configured symbol size.
 //
 // The two styles differ only in how shaping is *drawn* from that same layout:
 // `japanese` replaces an increase or decrease with the V or ∧ printed charts
@@ -88,12 +90,6 @@ function maxIncreaseSpread(symbol: string): number {
 	return symbolArc(symbol) + SYMBOL_CLEARANCE;
 }
 
-// How far the redistribution pass may move a plain stitch from where the round
-// was placed, as a share of the round's average stitch pitch. Small, because it
-// is spent again on every round: crowding closes up over the rounds above it,
-// which is how real fabric takes it up, rather than in one jump.
-const MAX_DRIFT_SHARE = 0.2;
-
 // How far apart the two stitches of an increase sit: the opening of the V drawn
 // across them, and no more — the pair is one symbol, so it takes one stitch's
 // worth of the round and the stitches after it follow straight on. Read off the
@@ -110,16 +106,16 @@ const ROUND_NUMBER_BEARING = -50;
 // number column a subtle upward-narrowing trapezoid rather than a rigid spoke.
 const ROUND_NUMBER_BEARING_STEP = -0.5;
 
-// The marker's 10px side margins are minimums, not a command to close every
-// larger inherited seam to exactly that width. Retain up to this much extra
-// room so stitches near the opening can stay closer to their ancestry, without
-// letting the corridor grow without bound on outer rounds.
-const NUMBERED_SEAM_EXTRA_ROOM = 10;
-
 // The innermost seam needs enough radius that generous marker margins do not
 // turn into an extreme wedge, but it need not be as large as the seam is long:
 // retaining this share keeps the center compact while preserving alignment.
-const COMPACT_INNER_SEAM_RADIUS_SHARE = 0.68;
+const COMPACT_INNER_SEAM_RADIUS_SHARE = 0.56;
+
+// Visible air between a round number and any stitch/instruction beside it.
+// The seam owns the larger round-change margins; this final screen-space check
+// keeps a preferred label bearing from crossing a symbol after the seam has
+// capped how far its contents can safely move.
+const ROUND_NUMBER_ITEM_CLEARANCE = 2;
 
 function markOpening(symbol: string): number {
 	return symbolArc(symbol) * MARK_OPENING_SHARE;
@@ -148,9 +144,10 @@ export function layoutRoundGraph(
 	// What the chart draws at its middle, which the first round stands on.
 	const center = centerExtent(ast);
 	const items: RenderItem[] = [];
-	pushCenterAnchor(ast, items);
+	pushCenterAnchor(ast, items, style === 'japanese' ? 'japanese' : 'generic');
 
 	const colorMarkers: ColorMarker[] = [];
+	const colorMarkersByStitchId = new Map<string, ColorMarker>();
 	// Which render item each stitch became, so the lace pass can hang a chain
 	// run on its curve, and what a motif's stitches are drawn as.
 	const itemsById = new Map<string, RenderItem>();
@@ -162,11 +159,13 @@ export function layoutRoundGraph(
 	const steps: number[] = [];
 	const seamAngles: number[] = [];
 	const placed: StitchRound[] = [];
+	const projectedRounds = new Set<number>();
 	let previousRound: StitchRound | undefined;
 	let previousColor: string | undefined;
 	let radius = 0;
 	let previousRadius = 0;
 	let previousCount = -1;
+	const fixedRoundSpacing = options.ringSpacing !== undefined;
 	for (const round of graph.rounds) {
 		if (round.stitches.length === 0) continue;
 		const contents = seamContentsOf(round, options.lace !== true, lace);
@@ -189,7 +188,20 @@ export function layoutRoundGraph(
 		// center ring; a slightly larger first radius keeps that stitch near the
 		// top and leaves later shaping aligned with its parents.
 		if (previousCount < 0 && contents.label !== undefined) {
-			radius = Math.max(radius, seamArc(contents) * innerSeamRadiusShare(graph, round));
+			radius = Math.max(radius, seamArc(contents) * COMPACT_INNER_SEAM_RADIUS_SHARE);
+		}
+		if (!fixedRoundSpacing) {
+			radius = fitAncestryRadius(
+				graph,
+				round,
+				previousRound,
+				radius,
+				step,
+				style,
+				contents,
+				reach,
+				lace,
+			);
 		}
 
 		// Where this round's stitches reach to: the far edge of its own band.
@@ -204,19 +216,9 @@ export function layoutRoundGraph(
 			reach,
 			topRadius,
 			lace,
+			fixedRoundSpacing,
+			projectedRounds,
 		);
-		const expandsNumberedOpening = canExpandNumberedOpening(graph, round, previousRound);
-		if (contents.label !== undefined && !expandsNumberedOpening) {
-			angles = alignRoundNumber(
-				graph,
-				round,
-				previousRound,
-				contents,
-				angles,
-				radius,
-				roundNumberBearing,
-			);
-		}
 		// The first stitch worked into the center ring is the chart's radial
 		// origin. Keep it at twelve o'clock independently of the nearby numbered
 		// seam; every round above can then inherit this line without being
@@ -239,10 +241,15 @@ export function layoutRoundGraph(
 		// sit at the seam — nothing is worked into them, so they take no place
 		// in the ring of stitches, only a slot of the seam's own gap.
 		const start = items.length;
-		const rawSeam = seamOf(contents, angles, radius, seamReachOf(graph, round, previousRound, angles));
+		const finalReach = seamReachOf(graph, round, previousRound, angles);
+		const rawSeam = seamOf(contents, angles, radius, finalReach);
 		const seam =
-			contents.label !== undefined && expandsNumberedOpening
-				? alignNumberedSeamContents(rawSeam, roundNumberBearing)
+			contents.label !== undefined
+				? alignNumberedSeamContents(
+						rawSeam,
+						roundNumberBearing,
+						numberedMarkerTurnRoom(contents, angles, radius, finalReach),
+					)
 				: rawSeam;
 		// The chain a round opens with. In lace it is drawn the way a book draws
 		// it: standing out of the chart at the seam, its chains stacked one above
@@ -308,7 +315,9 @@ export function layoutRoundGraph(
 				itemsById.set(stitch.id, item);
 			}
 			if (stitch.color !== undefined && stitch.color !== previousColor) {
-				colorMarkers.push({ x: stitch.layout?.x ?? 0, y: stitch.layout?.y ?? 0, color: stitch.color });
+				const marker = { x: stitch.layout?.x ?? 0, y: stitch.layout?.y ?? 0, color: stitch.color };
+				colorMarkers.push(marker);
+				colorMarkersByStitchId.set(stitch.id, marker);
 				previousColor = stitch.color;
 			}
 		}
@@ -337,12 +346,20 @@ export function layoutRoundGraph(
 		// with nothing drawn across it. A lace chart prints none, the way a
 		// pattern book prints lace.
 		if (options.lace !== true) {
-			const labelAngle = previousRound === undefined ? roundNumberBearing : seam.label;
+			const text = contents.label ?? String(round.num);
+			const labelAngle = fitRoundNumberBearing(
+				seam.label,
+				roundNumberBearing,
+				seam.step,
+				radius,
+				text,
+				items.slice(start),
+			);
 			const labelRadians = (labelAngle * Math.PI) / 180;
 			labels.push({
 				x: radius * Math.cos(labelRadians),
 				y: radius * Math.sin(labelRadians),
-				text: contents.label ?? String(round.num),
+				text,
 			});
 		}
 
@@ -352,6 +369,21 @@ export function layoutRoundGraph(
 		previousCount = round.stitches.length;
 		previousRadius = radius;
 		previousRound = round;
+	}
+
+	// A fixed-radius round sometimes has to spread inherited near-collisions so
+	// its stitches remain legible. Reconcile that correction inward through the
+	// graph before drawing shaping: a plain child stays on its parent, an
+	// increase's parent stays between its children, and a decrease keeps the
+	// relative opening of its sources. This makes the correction one coherent
+	// ancestry layout instead of a visually detached outer ring.
+	if (!lace) {
+		reconcileProjectedAncestry(
+			graph,
+			projectedRounds,
+			itemsById,
+			colorMarkersByStitchId,
+		);
 	}
 
 	// Shaping is drawn last, from the angles every round finally settled on and
@@ -415,17 +447,6 @@ export function layoutRoundGraph(
 	);
 }
 
-// A compact center is safe unless the very next round decreases: those marks
-// have to land between pairs of first-round stitches, so that exceptional
-// center keeps the full seam-derived radius to protect their correspondence.
-function innerSeamRadiusShare(graph: StitchGraph, round: StitchRound): number {
-	const index = graph.rounds.indexOf(round);
-	const next = graph.rounds.slice(index + 1).find((candidate) => candidate.stitches.length > 0);
-	return next?.stitches.some((stitch) => stitch.shaping === 'decrease')
-		? 1
-		: COMPACT_INNER_SEAM_RADIUS_SHARE;
-}
-
 function anchorFirstAtTop(angles: readonly number[]): number[] {
 	const first = angles[0];
 	if (first === undefined) return [...angles];
@@ -433,36 +454,108 @@ function anchorFirstAtTop(angles: readonly number[]): number[] {
 	return angles.map((angle) => angle + turn);
 }
 
-// A broad ordinary round has enough neighbouring gaps to absorb its closing
-// correction without disturbing the opening or opposite-side ancestry. Small
-// and shaping rounds keep the stricter established placement.
-function canExpandNumberedOpening(
-	graph: StitchGraph,
-	round: StitchRound,
-	previous: StitchRound | undefined,
-): boolean {
-	return (
-		previous !== undefined &&
-		previous.stitches.length === round.stitches.length &&
-		consumesPreviousRoundExactly(graph, round.roundIndex) &&
-		canTaperSeamEdges(round.stitches.length) &&
-		round.stitches.every((stitch) => stitch.shaping === 'normal' && stitch.sourceSlots.length === 1)
-	);
-}
-
 // A numbered seam has two independently meaningful sides. Its opening belongs
 // with the first stitch and may stay farther away when ancestry leaves more
 // than the minimum 10px; its number and step form the fixed round-change
-// marker. Move only that pair to the requested bearing, leaving the opening,
-// closing instructions and all real stitch positions untouched.
-function alignNumberedSeamContents(seam: SeamRegion, targetLabel: number): SeamRegion {
-	const turn = shortestAngleDelta(seam.label, targetLabel);
+// marker. Move that pair and any closing instructions toward the requested
+// bearing, leaving the opening and all real stitch positions untouched. The
+// movement is capped to the seam's actual surplus, so the closing packet can
+// never pass the final stitch or its minimum clearance.
+function alignNumberedSeamContents(
+	seam: SeamRegion,
+	targetLabel: number,
+	maximumTurn: number,
+): SeamRegion {
+	const wanted = shortestAngleDelta(seam.label, targetLabel);
+	const turn = Math.max(0, Math.min(wanted, maximumTurn));
 	return {
 		start: seam.start,
 		label: seam.label + turn,
 		step: seam.step + turn,
-		end: seam.end,
+		end: seam.end.map((angle) => angle + turn),
 	};
+}
+
+// The seam's own label slot is always safe. Walk continuously from that slot
+// toward the shared numbered bearing and stop at the first collision boundary.
+// The separator is part of that collision geometry: a number may move away
+// from it, but never through it to reach a later clear space beside the closing
+// join. This preserves the seam's semantic order for a chart that starts at
+// any round, without branching on a round number or instruction combination.
+function fitRoundNumberBearing(
+	safeBearing: number,
+	preferredBearing: number,
+	separatorBearing: number,
+	radius: number,
+	text: string,
+	roundItems: readonly RenderItem[],
+): number {
+	const separatorRadians = (separatorBearing * Math.PI) / 180;
+	const separator = {
+		x: radius * Math.cos(separatorRadians),
+		y: radius * Math.sin(separatorRadians),
+	};
+	const clearance = (bearing: number): number => {
+		const radians = (bearing * Math.PI) / 180;
+		const label = {
+			x: radius * Math.cos(radians),
+			y: radius * Math.sin(radians),
+		};
+		const separatorClearance =
+			Math.hypot(label.x - separator.x, label.y - separator.y) -
+			labelExtent(text) -
+			ROUND_CHANGE_ARC / 2;
+		return Math.min(
+			separatorClearance,
+			...roundItems.map(
+				(item) =>
+					Math.hypot(label.x - item.x, label.y - item.y) -
+					labelExtent(text) -
+					symbolExtent(item.symbol) * (item.scale ?? 1),
+			),
+		);
+	};
+
+	const turn = shortestAngleDelta(safeBearing, preferredBearing);
+	let safeShare = 0;
+	const sampleArc = arcToDegrees(1, radius);
+	const samples = Math.max(1, Math.ceil(Math.abs(turn) / sampleArc));
+	for (let sample = 1; sample <= samples; sample++) {
+		const share = sample / samples;
+		const bearing = safeBearing + turn * share;
+		if (clearance(bearing) >= ROUND_NUMBER_ITEM_CLEARANCE) {
+			safeShare = share;
+			continue;
+		}
+
+		let crowdedShare = share;
+		for (let attempt = 0; attempt < 24; attempt++) {
+			const refined = (safeShare + crowdedShare) / 2;
+			const refinedBearing = safeBearing + turn * refined;
+			if (clearance(refinedBearing) >= ROUND_NUMBER_ITEM_CLEARANCE) safeShare = refined;
+			else crowdedShare = refined;
+		}
+		return safeBearing + turn * safeShare;
+	}
+	return preferredBearing;
+}
+
+// The seam is packed from the opening side, leaving all surplus beside the
+// final stitch. That surplus is exactly how far its number, step, and closing
+// instructions may slide together without crossing the separator or consuming
+// any symbol/margin room promised by seamArc.
+function numberedMarkerTurnRoom(
+	contents: SeamContents,
+	angles: readonly number[],
+	radius: number,
+	reach: { start: number; end: number },
+): number {
+	const first = angles[0];
+	const last = angles.at(-1);
+	if (first === undefined || last === undefined) return 0;
+	const availableGap = last - reach.end - (first - 360 + reach.start);
+	const promisedGap = arcToDegrees(seamArc(contents), radius);
+	return Math.max(0, availableGap - promisedGap);
 }
 
 // The space left between two chains of an opening run, in px. Enough to read as
@@ -722,6 +815,63 @@ function placeRoom(round: StitchRound, room: (symbol: string) => number): number
 
 // One angle per stitch, in working order, as continuous degrees decreasing
 // clockwise (see layout/angles.ts).
+//
+// In automatic-spacing mode, radius is the presentation variable allowed to
+// repair a collision in a valid ancestry mapping. Grow the ring until the
+// semantic targets satisfy the same minimum-gap and seam constraints used by
+// placement. Fixed-spacing mode never calls this solver.
+function fitAncestryRadius(
+	graph: StitchGraph,
+	round: StitchRound,
+	previous: StitchRound | undefined,
+	minimum: number,
+	step: number,
+	style: 'japanese' | 'continuous',
+	contents: SeamContents,
+	reach: { start: number; end: number },
+	lace: boolean,
+): number {
+	if (previous === undefined || round.stitches.length < 2) return minimum;
+	const fits = (radius: number): boolean => {
+		const topRadius = radius + step / 2;
+		const drawn = drawnRound(round);
+		const { aligned, minGaps, seamTarget } = placementConstraints(
+			graph,
+			drawn,
+			previous,
+			radius,
+			style,
+			contents,
+			reach,
+			topRadius,
+			lace,
+		);
+		return fitsMinimumGaps(aligned, minGaps, seamTarget);
+	};
+	if (fits(minimum)) return minimum;
+
+	let lower = minimum;
+	let upper = minimum;
+	let found = false;
+	for (let attempt = 0; attempt < 12; attempt++) {
+		upper = Math.max(upper + step, upper * 2);
+		if (!fits(upper)) continue;
+		found = true;
+		break;
+	}
+	// A contradictory source order can never fit inside one turn. Keep the
+	// bounded constraint projection below as a deterministic fallback instead
+	// of making an invalid pattern produce an unbounded chart.
+	if (!found) return minimum;
+
+	for (let iteration = 0; iteration < 24; iteration++) {
+		const middle = (lower + upper) / 2;
+		if (fits(middle)) upper = middle;
+		else lower = middle;
+	}
+	return upper;
+}
+
 function placeRound(
 	graph: StitchGraph,
 	round: StitchRound,
@@ -732,14 +882,32 @@ function placeRound(
 	reach: { start: number; end: number },
 	topRadius: number,
 	lace: boolean,
+	fixedRoundSpacing: boolean,
+	projectedRounds: Set<number>,
 ): number[] {
 	// A round drawn the other way about the chart is laid out in the order it is
 	// drawn — outermost angle first — and handed back in working order, so
 	// everything below can assume, as it always has, that angles fall as the
 	// round goes on.
-	const drawn = round.direction === -1 ? [...round.stitches].reverse() : round.stitches;
-	const angles = placeDrawnOrder(graph, { ...round, stitches: drawn }, previous, radius, style, contents, reach, topRadius, lace);
+	const drawn = drawnRound(round);
+	const angles = placeDrawnOrder(
+		graph,
+		drawn,
+		previous,
+		radius,
+		style,
+		contents,
+		reach,
+		topRadius,
+		lace,
+		fixedRoundSpacing,
+		projectedRounds,
+	);
 	return round.direction === -1 ? [...angles].reverse() : angles;
+}
+
+function drawnRound(round: StitchRound): StitchRound {
+	return round.direction === -1 ? { ...round, stitches: [...round.stitches].reverse() } : round;
 }
 
 function placeDrawnOrder(
@@ -752,8 +920,162 @@ function placeDrawnOrder(
 	reach: { start: number; end: number },
 	topRadius: number,
 	lace: boolean,
+	fixedRoundSpacing: boolean,
+	projectedRounds: Set<number>,
 ): number[] {
-	void topRadius;
+	const { aligned, minGaps, seamTarget } = placementConstraints(
+		graph,
+		round,
+		previous,
+		radius,
+		style,
+		contents,
+		reach,
+		topRadius,
+		lace,
+	);
+	// Preserve exact ancestry whenever the symbols fit at their configured size. If several
+	// rounds of differently placed shaping make two inherited targets nearly
+	// coincide, use the same order-and-gap projection as an automatically spaced
+	// chart instead of changing the symbols' size. This is a geometric rule,
+	// independent of round number, stitch count, or pattern wording.
+	if (
+		fixedRoundSpacing &&
+		previous !== undefined &&
+		readableScaleAt(round, aligned, radius, style) >= 1
+	) {
+		return aligned;
+	}
+	// A seam margin is a minimum, never an instruction to compact the round.
+	// When ancestry already satisfies every hard constraint, preserving it is
+	// the complete solution for every style, stitch count and round number.
+	if (fitsMinimumGaps(aligned, minGaps, seamTarget)) return aligned;
+
+	// Only malformed or geometrically contradictory ancestry reaches this
+	// fallback after the radius solver. Preserve order and collision clearance
+	// deterministically while keeping the first semantic target anchored.
+	if (fixedRoundSpacing && previous !== undefined) projectedRounds.add(round.roundIndex);
+	return anchorToStart(fitTurn(enforceOrderAndGap(aligned, minGaps), minGaps), aligned);
+}
+
+function readableScaleAt(
+	round: StitchRound,
+	angles: readonly number[],
+	radius: number,
+	style: 'japanese' | 'continuous',
+): number {
+	const symbols = round.stitches.flatMap((stitch, index) => {
+		const marked = round.groups[stitch.groupIndex]?.mark !== undefined;
+		if (stitch.drawn === false || (style === 'japanese' && marked)) return [];
+		const angle = angles[index] ?? -90;
+		const radians = (angle * Math.PI) / 180;
+		return [{
+			symbol: stitch.symbol,
+			x: radius * Math.cos(radians),
+			y: radius * Math.sin(radians),
+		}];
+	});
+	return tangentialSymbolScale(symbols);
+}
+
+function reconcileProjectedAncestry(
+	graph: StitchGraph,
+	projectedRounds: ReadonlySet<number>,
+	itemsById: ReadonlyMap<string, RenderItem>,
+	colorMarkersByStitchId: ReadonlyMap<string, ColorMarker>,
+): void {
+	const anchorRoundIndex = Math.max(-1, ...projectedRounds);
+	if (anchorRoundIndex < 1) return;
+
+	let round = graph.rounds.find((candidate) => candidate.roundIndex === anchorRoundIndex);
+	while (round !== undefined) {
+		const previous = previousStitchRound(graph.rounds, round);
+		if (previous === undefined) break;
+
+		const candidates = new Map<string, number[]>();
+		for (const group of round.groups) {
+			const sources = group.sourceIds
+				.map((id) => graph.byId.get(id))
+				.filter((stitch): stitch is GraphStitch => stitch?.roundIndex === previous.roundIndex && stitch.layout !== undefined);
+			const targets = group.targetIds
+				.map((id) => graph.byId.get(id))
+				.filter((stitch): stitch is GraphStitch => stitch?.layout !== undefined);
+			if (sources.length === 0 || targets.length === 0) continue;
+
+			const targetCenter = meanAngle(targets.map((stitch) => stitch.layout!.angle));
+			if (sources.length === 1) {
+				pushAngleCandidate(candidates, sources[0]!.id, targetCenter);
+				continue;
+			}
+
+			// A decrease has several sources but one displayed target. Keep the
+			// sources' existing opening and move their midpoint under that target.
+			const sourceCenter = meanAngle(sources.map((stitch) => stitch.layout!.angle));
+			const turn = shortestAngleDelta(sourceCenter, targetCenter);
+			for (const source of sources) {
+				pushAngleCandidate(candidates, source.id, source.layout!.angle + turn);
+			}
+		}
+
+		for (const stitch of previous.stitches) {
+			const proposed = candidates.get(stitch.id);
+			if (proposed === undefined || stitch.layout === undefined) continue;
+			const angle = nearestContinuousAngle(stitch.layout.angle, meanAngle(proposed));
+			updateStitchAngle(stitch, angle);
+
+			const item = itemsById.get(stitch.id);
+			if (item !== undefined) {
+				item.x = stitch.layout.x;
+				item.y = stitch.layout.y;
+				item.rotation = stitch.layout.rotation;
+			}
+			const colorMarker = colorMarkersByStitchId.get(stitch.id);
+			if (colorMarker !== undefined) {
+				colorMarker.x = stitch.layout.x;
+				colorMarker.y = stitch.layout.y;
+			}
+		}
+
+		round = previous;
+	}
+}
+
+function previousStitchRound(rounds: readonly StitchRound[], current: StitchRound): StitchRound | undefined {
+	for (let index = rounds.indexOf(current) - 1; index >= 0; index--) {
+		const candidate = rounds[index];
+		if (candidate !== undefined && candidate.stitches.length > 0) return candidate;
+	}
+	return undefined;
+}
+
+function pushAngleCandidate(candidates: Map<string, number[]>, id: string, angle: number): void {
+	candidates.set(id, [...(candidates.get(id) ?? []), angle]);
+}
+
+function nearestContinuousAngle(current: number, proposed: number): number {
+	return proposed + 360 * Math.round((current - proposed) / 360);
+}
+
+function updateStitchAngle(stitch: GraphStitch, angle: number): void {
+	if (stitch.layout === undefined) return;
+	const radians = (angle * Math.PI) / 180;
+	stitch.layout.angle = angle;
+	stitch.layout.x = stitch.layout.radius * Math.cos(radians);
+	stitch.layout.y = stitch.layout.radius * Math.sin(radians);
+	stitch.layout.rotation = symbolAngle(angle);
+}
+
+function placementConstraints(
+	graph: StitchGraph,
+	round: StitchRound,
+	previous: StitchRound | undefined,
+	radius: number,
+	style: 'japanese' | 'continuous',
+	contents: SeamContents,
+	reach: { start: number; end: number },
+	topRadius: number,
+	lace: boolean,
+): { aligned: number[]; minGaps: number[]; seamTarget: number } {
 	const count = round.stitches.length;
 	const step = 360 / count;
 	const minGaps = minStitchGaps(round, radius, style, lace).map((gap) => Math.min(step, gap));
@@ -770,80 +1092,35 @@ function placeDrawnOrder(
 	// angles rise, so a slot past the end of it unwraps the other way too.
 	const parentTurn = previous?.direction ?? 1;
 	const aligned =
-		parentAngles.length === 0 || !consumesPreviousRoundExactly(graph, round.roundIndex)
-			? evenTargets(round, parentAngles, step, count)
+		parentAngles.length === 0
+			? evenTargets(step, count)
 			: ancestryTargets(round, parentAngles, step, radius, parentTurn, topRadius, lace);
-	// Which stitches are free to move at all: not one an increase or decrease of
-	// this round produced, and not one the next round works its shaping into —
-	// the V or ∧ drawn there is aimed at where the stitch sits.
-	const pinned = pinnedByNextRound(graph, round.roundIndex);
-	const movable = round.stitches.map((stitch) => stitch.shaping === 'normal' && !pinned.has(stitch.id));
-
-	// A round that works one stitch into each stitch of the round below needs no
-	// general evening-out: its ancestry already gives it the fabric's order and
-	// spacing. The inherited seam is valid too: its requested width is a minimum,
-	// and any extra room lets those ancestry-aligned stitches remain readable.
-	const standsOnRoundBelow = sitsOverParents(round, aligned, parentAngles, parentTurn);
-
-	// Ten pixels around the round-change marker is a minimum. Keep a bounded
-	// share of any additional inherited room so the opening-side stitches can
-	// remain nearer their parents, then return only the surplus beyond that to
-	// the rest of the round.
-	const expandsNumberedOpening =
-		contents.label !== undefined &&
-		standsOnRoundBelow &&
-		canTaperSeamEdges(count);
-	const seamTarget =
-		(minGaps[count - 1] ?? 0) +
-		(expandsNumberedOpening ? arcToDegrees(NUMBERED_SEAM_EXTRA_ROOM, radius) : 0);
-	const targets = closeSeam(
-		aligned,
-		seamTarget,
-		round.stitches.map((stitch) => stitch.shaping !== 'normal'),
-		expandsNumberedOpening,
-	);
-	// Order and minimum spacing still apply: they are what stops two stitches
-	// being drawn over each other, and a round standing on the one below already
-	// satisfies them wherever the round below did.
-	const fitted = fitTurn(enforceOrderAndGap(targets, minGaps), minGaps);
-	// A plain one-to-one round is already on its ancestry. Anchoring the fitted
-	// result back to one edge would rotate the other columns needlessly; shaping
-	// rounds retain the established first-stitch anchor.
-	const placed = standsOnRoundBelow ? fitted : anchorToStart(fitted, aligned);
-	if (standsOnRoundBelow) return placed;
-
-	// An increase's two stitches sit closer together than the round's pitch —
-	// they are one symbol worked into one place — so the room they gave up shows
-	// up as a wider gap on either side of them, and a round that shapes again
-	// inherits that gap on top of its own. So a shaping round evens out what it
-	// was handed: its plain stitches drift toward the midpoint of their
-	// neighbours, by no more than MAX_DRIFT_SHARE of a stitch, which is little
-	// enough that the stitch stays over the one it is worked into. The plain
-	// rounds above have already returned above, keeping their columns exactly.
-	if (!movable.includes(true)) return placed;
-	return anchorToStart(relaxSpacing(placed, movable, step * MAX_DRIFT_SHARE, minGaps), aligned);
+	const seamTarget = minGaps[count - 1] ?? 0;
+	return { aligned, minGaps, seamTarget };
 }
 
-// Turn the round back onto the place its first stitch was aimed at before its
-// number is aligned (see alignRoundNumber).
-//
-// Every round starts where the round below it started: its first stitch is
-// worked into the first stitch of the round below, so ancestry aims it straight
-// out from there, and the rounds should read as one radial line of round
-// starts. Nothing above aims to move that line — but everything above moves it
-// anyway. Closing the seam spreads the round about the point opposite it, which
-// walks both its ends outward; fitting a round that asked for more than a turn
-// squeezes it; evening out nudges it. None of those knows where the round began,
-// so the start of each round crept round the chart, a few degrees a round, and
-// the run of round numbers curved away from the middle instead of standing on
-// one line.
-//
-// So this placement pass turns the round as a whole, by the one angle its first
-// stitch was moved. It is a rigid turn: no gap inside the round changes,
-// nothing is reordered, and whatever room the seam gained or lost is left where
-// it belongs — on the closing side, beside the stitch the round ended on. A
-// numbered ordinary round may receive one final rigid turn afterwards so the
-// red numbers themselves, rather than these adjacent stitches, share a ray.
+function fitsMinimumGaps(
+	angles: readonly number[],
+	minGaps: readonly number[],
+	seamTarget: number,
+): boolean {
+	const first = angles[0];
+	const last = angles[angles.length - 1];
+	if (first === undefined || last === undefined) return false;
+	for (let index = 0; index + 1 < angles.length; index++) {
+		const here = angles[index];
+		const next = angles[index + 1];
+		if (here === undefined || next === undefined || here - next + ON_ITS_PARENT_DEG < (minGaps[index] ?? 0)) {
+			return false;
+		}
+	}
+	const seam = 360 - (first - last);
+	return seam + ON_ITS_PARENT_DEG >= Math.max(seamTarget, minGaps[angles.length - 1] ?? 0);
+}
+
+// A malformed mapping may need constraint projection after the ancestry-radius
+// solver fails. Keep its first semantic target anchored so the fallback cannot
+// add a second, arbitrary whole-round rotation.
 function anchorToStart(placed: readonly number[], targets: readonly number[]): number[] {
 	const from = placed[0];
 	const to = targets[0];
@@ -852,54 +1129,9 @@ function anchorToStart(placed: readonly number[], targets: readonly number[]): n
 	return placed.map((angle) => angle - turn);
 }
 
-// Is every stitch of this round drawn on one stitch of the round below, and on
-// that one alone? Asked of the targets themselves rather than of the pattern:
-// a stitch worked into a single parent and sharing it with nobody is placed at
-// exactly that parent's angle (see ancestryTargets), so a round whose every
-// target already sits on its own parent is a round that can be left there.
-// Anything that spreads — an increase's pair, a decrease's merge, a motif's
-// fan, a round with more or fewer stitches than places below — fails the test
-// on the stitches it moved, and the round is spaced as before.
-function sitsOverParents(
-	round: StitchRound,
-	targets: readonly number[],
-	parentAngles: readonly number[],
-	parentTurn: 1 | -1,
-): boolean {
-	if (parentAngles.length === 0 || parentAngles.length !== round.stitches.length) return false;
-	return round.stitches.every((stitch, index) => {
-		const parents = parentAnglesOf(stitch, parentAngles, parentTurn);
-		const parent = parents[0];
-		const target = targets[index];
-		return (
-			parents.length === 1 &&
-			parent !== undefined &&
-			target !== undefined &&
-			Math.abs(target - parent) < ON_ITS_PARENT_DEG
-		);
-	});
-}
-
 // How close a target has to be to its parent's angle to count as standing on
 // it. Not zero only because the arithmetic that got there is floating point.
 const ON_ITS_PARENT_DEG = 1e-9;
-
-// The stitches of a round that the next round works something across: an
-// increase splitting one of them in two, or a decrease closing over two of them.
-// Whatever else the layout does, those keep the angle their ancestry gave them.
-function pinnedByNextRound(graph: StitchGraph, roundIndex: number): ReadonlySet<string> {
-	const pinned = new Set<string>();
-	for (let index = roundIndex + 1; index < graph.rounds.length; index++) {
-		const next = graph.rounds[index];
-		if (next === undefined || next.stitches.length === 0) continue;
-		for (const group of next.groups) {
-			if (group.sourceIds.length <= 1 && group.targetIds.length <= 1) continue;
-			for (const id of group.sourceIds) pinned.add(id);
-		}
-		break;
-	}
-	return pinned;
-}
 
 // How close each pair of neighbouring stitches may be drawn, one per gap
 // (the gap after stitch k), worked out from what is actually drawn at each
@@ -964,14 +1196,11 @@ function minStitchGaps(
 	});
 }
 
-// The first round is worked into the center ring, and a round that does not
-// work into the round below exactly once each (a pattern that skips or repeats
-// stitches — validateStitchGraph reports which) has no consistent alignment to
-// inherit. Both spread evenly, the second phased to sit as close to its sources
-// as an even round can.
-function evenTargets(round: StitchRound, parentAngles: readonly number[], step: number, count: number): number[] {
-	const phase = parentAngles.length === 0 ? -90 : alignedPhase(round, parentAngles, step);
-	return Array.from({ length: count }, (_, index) => phase - index * step);
+// The first round has no parent angles, so it is the only round spread evenly.
+// Every later round uses ancestryTargets, including free-form rounds that
+// deliberately skip places.
+function evenTargets(step: number, count: number): number[] {
+	return Array.from({ length: count }, (_, index) => -90 - index * step);
 }
 
 // Where each stitch would sit if only its ancestry mattered: over its parent,
@@ -1022,22 +1251,6 @@ function standingChildren(round: StitchRound, targetIds: readonly string[] | und
 	return targetIds.filter((id) => !makesSpace(round.stitches.find((stitch) => stitch.id === id)?.symbol ?? ''));
 }
 
-// Rotation for an evenly spread round that still wants to line up with its
-// parents: the average of the offsets each stitch would need to sit over the
-// previous-round stitch it is worked into.
-function alignedPhase(round: StitchRound, parentAngles: readonly number[], step: number): number {
-	let sum = 0;
-	let counted = 0;
-
-	round.stitches.forEach((stitch, index) => {
-		const parents = parentAnglesOf(stitch, parentAngles);
-		if (parents.length === 0) return;
-		sum += meanAngle(parents) + index * step;
-		counted++;
-	});
-	return counted > 0 ? sum / counted : -90;
-}
-
 // A stitch's parents as continuous angles. Slots past the end of the previous
 // round wrap around it but keep counting down a lap, so a decrease that merges
 // the round's last stitch with its first sees two neighbouring angles instead of
@@ -1072,23 +1285,4 @@ function seamOf(
 	// starts again — past the last stitch by whatever its shaping reaches, and
 	// short of the first by the same.
 	return placeSeam(contents, last - reach.end, first - 360 + reach.start, radius);
-}
-
-// Small and shaping rounds still turn rigidly with their numbered seam: they
-// do not have enough ordinary stitches to localize that correction safely. A
-// decrease is the exception because its point must remain between its parents.
-function alignRoundNumber(
-	graph: StitchGraph,
-	round: StitchRound,
-	previous: StitchRound | undefined,
-	contents: SeamContents,
-	placed: readonly number[],
-	radius: number,
-	target: number,
-): number[] {
-	const angles = [...placed];
-	if (round.stitches.some((stitch) => stitch.shaping === 'decrease')) return angles;
-	const label = seamOf(contents, angles, radius, seamReachOf(graph, round, previous, angles)).label;
-	const turn = shortestAngleDelta(label, target);
-	return angles.map((angle) => angle + turn);
 }

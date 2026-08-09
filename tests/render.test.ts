@@ -325,6 +325,35 @@ describe('SVG rendering', () => {
 		expect(container.querySelector('.crochet-weaver-round-number')).toBeNull();
 	});
 
+	it('replaces a labeled center anchor glyph with centered Japanese text', () => {
+		const container = document.createElement('div');
+		const layout: LayoutResult = {
+			width: 100,
+			height: 80,
+			items: [{ symbol: 'MR', x: 50, y: 40, rotation: 0, centerLabel: 'わ' }],
+		};
+
+		renderSVG(layout, container, OPTIONS);
+
+		const label = container.querySelector('text.crochet-weaver-center-label');
+		expect(label?.textContent).toBe('わ');
+		expect(label?.getAttribute('x')).toBe('0');
+		expect(label?.getAttribute('y')).toBe('0');
+		expect(label?.getAttribute('transform')).toBe('translate(50 40) rotate(0)');
+		expect(label?.getAttribute('text-anchor')).toBe('middle');
+		expect(label?.getAttribute('dominant-baseline')).toBe('central');
+		expect(container.querySelector('use[href$="-sym-MR"]')).toBeNull();
+	});
+
+	it('keeps an unlabeled magic-ring center as the generic glyph', () => {
+		const container = document.createElement('div');
+
+		renderSVG(makeLayout('MR'), container, OPTIONS);
+
+		expect(container.querySelector('use[href$="-sym-MR"]')).not.toBeNull();
+		expect(container.querySelector('.crochet-weaver-center-label')).toBeNull();
+	});
+
 	it('draws no color markers when the layout has none', () => {
 		const container = document.createElement('div');
 

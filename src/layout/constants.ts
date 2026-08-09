@@ -90,7 +90,7 @@ export const COLOR_MARKER_RADIUS = 8;
 // its width follows the number itself rather than being assumed: "1" needs a
 // fraction of the room "10" does, and a chart deep enough to reach three digits
 // needs more again.
-const LABEL_DIGIT_WIDTH = 5.5;
+const LABEL_DIGIT_WIDTH = 6.2;
 
 export function labelExtent(text: string): number {
 	return (text.length * LABEL_DIGIT_WIDTH) / 2;

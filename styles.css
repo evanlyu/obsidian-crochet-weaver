@@ -56,6 +56,12 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/* Traditional Japanese charts print わ at an adjustable yarn-ring start. */
+.crochet-weaver-center-label {
+	font-size: 11px;
+	font-weight: 500;
+}
+
 .crochet-weaver-chart-row {
 	display: flex;
 	flex-wrap: wrap;
